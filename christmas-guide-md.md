@@ -737,11 +737,15 @@ Seu sistema vai estar rodando em: `https://seu-projeto.vercel.app`
 
 ---
 
-## 🔥 PRÓXIMOS PASSOS (se quiser)
+## 🔥 PRÓXIMOS PASSOS 
 
 1. **Upload de fotos:** Adicionar `@vercel/blob`
-2. **Autenticação:** Adicionar login com Clerk ou Stack Auth
+
+natalino_READ_WRITE_TOKEN="vercel_blob_rw_AyyCSwbZQqDjNQqb_Sc2PeeUBEwTkRsP4wM7e6appcA8xIu"
+Token do blob
+
+2. **Autenticação:** Adicionar login Sem precisar de auth especial.
+
 3. **PWA:** Transformar em app instalável
-4. **WhatsApp:** Integrar notificações
 
 Mas tá PRONTO pra usar assim mesmo! 🎄✨
