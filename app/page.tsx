@@ -54,6 +54,12 @@ export default function ChristmasOrganizer() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
+  
+  // Snowflakes - só renderiza no cliente
+  const [snowflakes, setSnowflakes] = useState<Array<{left: string, duration: string, delay: string, size: string}>>([]);
+  
+  // Estrelas da timeline - só renderiza no cliente
+  const [stars, setStars] = useState<Array<{left: string, top: string, size: string}>>([]);
 
   const CONTRIBUTION = 50;
 
@@ -64,6 +70,23 @@ export default function ChristmasOrganizer() {
       setIsAdmin(true);
       setActiveTab('dashboard');
     }
+    
+    // Gerar flocos de neve sutis apenas no cliente
+    const flakes = Array.from({ length: 20 }, () => ({
+      left: `${Math.random() * 100}%`,
+      duration: `${10 + Math.random() * 20}s`,
+      delay: `${Math.random() * 10}s`,
+      size: `${0.8 + Math.random() * 1}em`
+    }));
+    setSnowflakes(flakes);
+    
+    // Gerar estrelas da timeline apenas no cliente
+    const starsList = Array.from({ length: 30 }, () => ({
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      size: `${Math.random() * 10 + 5}px`
+    }));
+    setStars(starsList);
   }, []);
 
   // Login do admin
@@ -202,6 +225,8 @@ export default function ChristmasOrganizer() {
     
     setUploadingImage(true);
     try {
+      console.log('📤 Enviando arquivo:', selectedImage.name, selectedImage.size, 'bytes');
+      
       const formData = new FormData();
       formData.append('file', selectedImage);
       
@@ -211,9 +236,18 @@ export default function ChristmasOrganizer() {
       });
       
       const data = await res.json();
+      
+      if (!res.ok) {
+        console.error('❌ Erro na resposta:', data);
+        alert(`Erro no upload: ${data.error}\n${data.details || ''}`);
+        return null;
+      }
+      
+      console.log('✅ Upload bem-sucedido! URL:', data.url);
       return data.url;
     } catch (error) {
-      console.error('Erro ao fazer upload:', error);
+      console.error('❌ Erro ao fazer upload:', error);
+      alert('Erro ao fazer upload da imagem. Verifique o console.');
       return null;
     } finally {
       setUploadingImage(false);
@@ -265,122 +299,201 @@ export default function ChristmasOrganizer() {
   const balance = totalReceived - totalSpent;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-100 via-white to-green-100">
-      {/* Header ÉPICO */}
-      <div className="gradient-animate text-white p-8 shadow-2xl relative overflow-hidden">
-        <div className="absolute inset-0 bg-black opacity-10"></div>
-        <div className="max-w-6xl mx-auto flex justify-between items-center relative z-10">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">🎄 Natal em Família 2025</h1>
-            <p className="text-lg text-white/90">{isAdmin ? 'Modo Administrador' : 'Timeline Pública'}</p>
-          </div>
-          <div>
-            {isAdmin ? (
-              <button
-                onClick={handleLogout}
-                className="bg-white text-red-700 px-6 py-2.5 rounded-lg font-bold hover:bg-red-50 transition-all shadow-lg"
-              >
-                Sair
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowLogin(true)}
-                className="bg-white text-red-700 px-6 py-2.5 rounded-lg font-bold hover:bg-red-50 transition-all shadow-lg"
-              >
-                Login Admin
-              </button>
-            )}
+    <div className="min-h-screen bg-gray-50 relative">
+      {/* Flocos de Neve - Renderizado apenas no cliente */}
+      {snowflakes.map((flake, i) => (
+        <div
+          key={i}
+          className="snowflake"
+          style={{
+            left: flake.left,
+            animationDuration: flake.duration,
+            animationDelay: flake.delay,
+            fontSize: flake.size
+          }}
+        >
+          ❄️
+        </div>
+      ))}
+      
+      {/* Header NATALINO ÉPICO */}
+      <header className="bg-gradient-to-r from-red-700 via-green-700 to-red-700 border-b-4 border-yellow-400 sticky top-0 z-50 backdrop-blur-lg relative shadow-2xl">
+        {/* Luzes de Natal Piscando */}
+        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 opacity-80" style={{animation: 'christmasLights 2s linear infinite'}}></div>
+        
+        {/* Neve no Header */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-0 left-0 text-white/20 text-6xl">❄️</div>
+          <div className="absolute top-0 right-0 text-white/20 text-6xl">❄️</div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-6 py-6 relative z-10">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl relative animate-pulse" style={{animationDuration: '2s'}}>
+                <span className="text-5xl">🎅</span>
+                <div className="absolute -top-2 -right-2 text-2xl animate-bounce">⭐</div>
+              </div>
+              <div>
+                <h1 className="text-3xl font-black text-white flex items-center gap-3 drop-shadow-lg">
+                  <span className="animate-bounce" style={{animationDelay: '0s'}}>🎄</span>
+                  Natal em Família 2025
+                  <span className="animate-bounce" style={{animationDelay: '0.2s'}}>🎁</span>
+                </h1>
+                <p className="text-lg text-yellow-200 font-bold mt-1">
+                  {isAdmin ? '👑 Painel do Papai Noel' : '✨ Timeline Mágica do Natal'}
+                </p>
+              </div>
+            </div>
+            <div>
+              {isAdmin ? (
+                <button
+                  onClick={handleLogout}
+                  className="px-6 py-3 text-base font-bold text-red-700 bg-white hover:bg-yellow-100 rounded-xl transition-all shadow-lg hover:shadow-2xl transform hover:scale-105 border-2 border-yellow-400"
+                >
+                  🚪 Sair
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowLogin(true)}
+                  className="px-6 py-3 text-base font-bold text-white bg-yellow-500 hover:bg-yellow-400 rounded-xl transition-all shadow-lg hover:shadow-2xl transform hover:scale-105 border-2 border-yellow-300 animate-pulse"
+                  style={{animationDuration: '2s'}}
+                >
+                  🎅 Login do Papai Noel
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Navigation - Só mostra tabs admin se estiver logado */}
+      {/* Navigation NATALINA */}
       {isAdmin && (
-        <div className="bg-white shadow-md sticky top-0 z-10">
-          <div className="max-w-6xl mx-auto flex gap-1 p-2">
-            {[
-              { id: 'dashboard', label: 'Painel', icon: DollarSign },
-              { id: 'participants', label: 'Participantes', icon: Users },
-              { id: 'purchases', label: 'Compras', icon: ShoppingCart },
-              { id: 'timeline', label: 'Timeline', icon: Clock }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg transform scale-105'
-                    : 'bg-gray-50 text-gray-700 hover:bg-red-50 hover:text-red-700'
-                }`}
-              >
-                <tab.icon size={18} />
-                <span className="font-medium">{tab.label}</span>
-              </button>
-            ))}
+        <nav className="bg-gradient-to-r from-green-50 via-red-50 to-green-50 border-b-2 border-red-300 shadow-md">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="flex gap-2">
+              {[
+                { id: 'dashboard', label: '🎁 Visão Geral', icon: DollarSign },
+                { id: 'participants', label: '👨‍👩‍👧‍👦 Família', icon: Users },
+                { id: 'purchases', label: '🛒 Compras', icon: ShoppingCart },
+                { id: 'timeline', label: '🎄 Timeline', icon: Clock }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-6 py-4 text-base font-bold transition-all relative rounded-t-xl ${
+                    activeTab === tab.id
+                      ? 'text-white bg-gradient-to-r from-red-600 to-green-600 shadow-lg transform scale-105'
+                      : 'text-gray-700 hover:bg-white/50'
+                  }`}
+                >
+                  {tab.label}
+                  {activeTab === tab.id && (
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-yellow-400"></div>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        </nav>
       )}
 
-      {/* Modal de Login */}
+      {/* Modal de Login Profissional */}
       {showLogin && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full mx-4">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">🔐 Login Administrador</h2>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-              placeholder="Digite a senha"
-              className="w-full px-4 py-3 text-lg font-semibold text-gray-900 border-2 border-gray-300 rounded-lg focus:border-red-500 focus:ring-2 focus:ring-red-200 outline-none transition-all placeholder:text-gray-600 placeholder:font-medium mb-4"
-            />
-            {loginError && (
-              <p className="text-red-600 font-semibold mb-4">{loginError}</p>
-            )}
-            <div className="flex gap-3">
-              <button
-                onClick={handleLogin}
-                className="flex-1 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-lg hover:from-red-700 hover:to-red-800 shadow-lg hover:shadow-xl font-semibold transition-all"
-              >
-                Entrar
-              </button>
-              <button
-                onClick={() => {
-                  setShowLogin(false);
-                  setPassword('');
-                  setLoginError('');
-                }}
-                className="bg-gradient-to-r from-gray-300 to-gray-400 text-gray-700 px-6 py-3 rounded-lg hover:from-gray-400 hover:to-gray-500 font-semibold transition-all"
-              >
-                Cancelar
-              </button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" style={{animation: 'scaleIn 0.3s ease-out'}}>
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6">
+              <h2 className="text-2xl font-bold text-white">Acesso Administrativo</h2>
+              <p className="text-blue-100 text-sm mt-1">Digite sua senha para continuar</p>
+            </div>
+            <div className="p-6">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                placeholder="Senha"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all mb-4"
+              />
+              {loginError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
+                  {loginError}
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleLogin}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all"
+                >
+                  Entrar
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLogin(false);
+                    setPassword('');
+                    setLoginError('');
+                  }}
+                  className="px-6 py-3 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-all"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto p-4">
+      <div className="max-w-7xl mx-auto px-6 py-8">
         {loading && <div className="text-center py-8">Carregando...</div>}
 
-        {/* DASHBOARD - Só admin */}
+        {/* DASHBOARD NATALINO */}
         {isAdmin && activeTab === 'dashboard' && !loading && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-600 hover:shadow-xl transition-shadow">
-                <div className="text-gray-500 text-sm font-semibold uppercase tracking-wide">Esperado</div>
-                <div className="text-3xl font-bold text-blue-600 mt-2">R$ {formatCurrency(totalExpected)}</div>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white rounded-xl border border-gray-200 p-6 card-hover relative overflow-hidden">
+                <div className="absolute top-2 right-2 text-2xl opacity-20">🎁</div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <DollarSign className="text-blue-600" size={24} />
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600 mb-1">Esperado</div>
+                <div className="text-3xl font-bold text-gray-900">R$ {formatCurrency(totalExpected)}</div>
               </div>
-              <div className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-green-600 hover:shadow-xl transition-shadow">
-                <div className="text-gray-500 text-sm font-semibold uppercase tracking-wide">Arrecadado</div>
-                <div className="text-3xl font-bold text-green-600 mt-2">R$ {formatCurrency(totalReceived)}</div>
+              
+              <div className="bg-white rounded-xl border border-gray-200 p-6 card-hover relative overflow-hidden">
+                <div className="absolute top-2 right-2 text-2xl opacity-20">🎄</div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                    <Check className="text-green-600" size={24} />
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600 mb-1">Arrecadado</div>
+                <div className="text-3xl font-bold text-green-600">R$ {formatCurrency(totalReceived)}</div>
               </div>
-              <div className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-orange-600 hover:shadow-xl transition-shadow">
-                <div className="text-gray-500 text-sm font-semibold uppercase tracking-wide">Gasto</div>
-                <div className="text-3xl font-bold text-orange-600 mt-2">R$ {formatCurrency(totalSpent)}</div>
+              
+              <div className="bg-white rounded-xl border border-gray-200 p-6 card-hover relative overflow-hidden">
+                <div className="absolute top-2 right-2 text-2xl opacity-20">🎅</div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <ShoppingCart className="text-orange-600" size={24} />
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600 mb-1">Gasto</div>
+                <div className="text-3xl font-bold text-orange-600">R$ {formatCurrency(totalSpent)}</div>
               </div>
-              <div className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-purple-600 hover:shadow-xl transition-shadow">
-                <div className="text-gray-500 text-sm font-semibold uppercase tracking-wide">Saldo</div>
-                <div className={`text-3xl font-bold mt-2 ${balance >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+              
+              <div className="bg-white rounded-xl border border-gray-200 p-6 card-hover relative overflow-hidden">
+                <div className="absolute top-2 right-2 text-2xl opacity-20">⭐</div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                    balance >= 0 ? 'bg-purple-100' : 'bg-red-100'
+                  }`}>
+                    <DollarSign className={balance >= 0 ? 'text-purple-600' : 'text-red-600'} size={24} />
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600 mb-1">Saldo</div>
+                <div className={`text-3xl font-bold ${balance >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
                   R$ {formatCurrency(balance)}
                 </div>
               </div>
@@ -610,112 +723,328 @@ export default function ChristmasOrganizer() {
           </div>
         )}
 
-        {/* TIMELINE 🔥 - SEMPRE VISÍVEL */}
+        {/* TIMELINE NATALINA ÉPICA */}
         {(activeTab === 'timeline' || !isAdmin) && !loading && (
-          <div className="space-y-8">
-            {/* Título */}
-            <div className="mb-8 animate-fadeInUp">
-              <h2 className="text-4xl font-black text-gray-900 mb-2">
-                Timeline de Eventos
-              </h2>
-              <p className="text-lg text-gray-600">Histórico completo de pagamentos e compras</p>
+          <div className="relative py-12 overflow-hidden">
+            {/* Fundo Roxo Natalino com Gradiente */}
+            <div className="absolute inset-0 bg-gradient-to-b from-purple-900 via-indigo-900 to-purple-900"></div>
+            
+            {/* Montanhas Nevadas no Fundo */}
+            <div className="absolute bottom-0 left-0 right-0 h-64 opacity-20">
+              <svg viewBox="0 0 1200 300" className="w-full h-full">
+                <path d="M0,300 L0,200 L200,100 L400,180 L600,80 L800,160 L1000,100 L1200,180 L1200,300 Z" fill="white" opacity="0.3"/>
+                <path d="M0,300 L0,240 L150,180 L350,220 L550,150 L750,200 L950,160 L1200,220 L1200,300 Z" fill="white" opacity="0.2"/>
+              </svg>
             </div>
             
-            <div className="relative">
-              {/* Linha vertical SUPER estilizada */}
-              <div className="absolute left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-green-500 via-red-500 to-blue-500 rounded-full shadow-lg"></div>
-              
-              {timeline.map((item, i) => (
-                <div key={i} className="relative pl-24 pb-12 animate-slideInLeft" style={{animationDelay: `${i * 0.1}s`}}>
-                  {/* Bolinha GIGANTE e animada */}
-                  <div className={`absolute left-4 w-10 h-10 rounded-full border-4 shadow-2xl animate-pulse-slow ${
-                    item.type === 'payment' 
-                      ? 'bg-gradient-to-br from-green-400 to-green-600 border-green-200' 
-                      : 'bg-gradient-to-br from-red-400 to-red-600 border-red-200'
-                  }`}>
-                    <div className="absolute inset-0 rounded-full bg-white/30 animate-ping"></div>
+            {/* Trenó do Papai Noel Voando */}
+            <div className="absolute top-20 left-0 w-full pointer-events-none z-0">
+              <div className="relative" style={{animation: 'sleighFly 30s linear infinite'}}>
+                <div className="text-8xl">🛷</div>
+                <div className="absolute -left-20 top-2 text-6xl">🦌</div>
+                <div className="absolute -left-32 top-4 text-5xl">🦌</div>
+              </div>
+            </div>
+            
+            {/* Estrelas de Fundo */}
+            <div className="absolute inset-0 opacity-30 z-0">
+              {stars.map((star, i) => (
+                <div
+                  key={i}
+                  className="absolute text-yellow-200"
+                  style={{
+                    left: star.left,
+                    top: star.top,
+                    fontSize: star.size,
+                    animation: `sparkle ${2 + Math.random() * 3}s ease-in-out infinite`,
+                    animationDelay: `${Math.random() * 2}s`
+                  }}
+                >
+                  ✨
+                </div>
+              ))}
+            </div>
+            
+            {/* Lua Cheia */}
+            <div className="absolute top-10 right-10 w-32 h-32 bg-yellow-100 rounded-full opacity-40 shadow-2xl z-0">
+              <div className="absolute inset-0 rounded-full bg-gradient-radial from-yellow-200 to-transparent"></div>
+            </div>
+            
+            {/* Casas com Neve no Fundo */}
+            <div className="absolute bottom-0 left-10 z-0 opacity-20">
+              <div className="text-6xl">🏠</div>
+              <div className="absolute -top-2 left-0 text-4xl">❄️</div>
+            </div>
+            <div className="absolute bottom-0 right-20 z-0 opacity-20">
+              <div className="text-7xl">🏘️</div>
+            </div>
+            
+            {/* Árvores de Natal Decoradas */}
+            <div className="absolute bottom-20 left-1/4 z-0 opacity-25 text-8xl animate-pulse" style={{animationDuration: '3s'}}>
+              🎄
+            </div>
+            <div className="absolute bottom-32 right-1/3 z-0 opacity-25 text-7xl animate-pulse" style={{animationDuration: '4s'}}>
+              🎄
+            </div>
+            
+            <div className="max-w-6xl mx-auto px-6 relative z-10">
+              {/* Header - Natal 2025 */}
+              <div className="text-center mb-12">
+                <div className="inline-block bg-white/10 backdrop-blur-lg rounded-3xl px-12 py-8 border-4 border-yellow-400 shadow-2xl">
+                  <h1 className="text-6xl font-black text-white mb-4 drop-shadow-lg">
+                    🎄 NATAL 2025 🎄
+                  </h1>
+                  <div className="text-3xl font-bold text-yellow-300 mb-2">
+                    25 de Dezembro de 2025
                   </div>
+                  <div className="text-xl text-white/90">
+                    {(() => {
+                      const natal = new Date('2025-12-25');
+                      const hoje = new Date();
+                      const diff = Math.ceil((natal.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+                      return diff > 0 ? `🎅 Faltam ${diff} dias para o Natal!` : '🎉 Feliz Natal!';
+                    })()}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Resumo Financeiro */}
+              <div className="mb-12">
+                <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl border-4 border-white/50">
+                  <h2 className="text-2xl font-black text-gray-900 mb-6 text-center flex items-center justify-center gap-3">
+                    <span className="text-3xl">💰</span>
+                    Resumo Financeiro
+                    <span className="text-3xl">💰</span>
+                  </h2>
                   
-                  {/* Card ULTRA moderno */}
-                  <div className="card-3d bg-gradient-to-br from-white via-gray-50 to-white p-8 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-500 border-2 border-gray-200 relative overflow-hidden group">
-                    {/* Efeito de brilho no hover */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                    {/* Foto GIGANTE do Produto */}
-                    {item.type === 'purchase' && item.image_url && (
-                      <div className="mb-6 relative group/img">
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-2xl z-10"></div>
-                        <img 
-                          src={item.image_url} 
-                          alt={item.description} 
-                          className="w-full h-80 object-cover rounded-2xl border-4 border-gradient-to-r from-blue-400 to-purple-400 shadow-2xl transform group-hover/img:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute bottom-4 left-4 z-20">
-                          <span className="bg-black/70 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm">Foto do Produto</span>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Em Caixa */}
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border-2 border-green-300 shadow-lg">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-2xl">
+                          💵
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-green-700 uppercase">Em Caixa</p>
+                          <p className="text-xs text-green-600">Arrecadado</p>
                         </div>
                       </div>
-                    )}
+                      <div className="text-4xl font-black text-green-700">
+                        R$ {formatCurrency(totalReceived)}
+                      </div>
+                    </div>
                     
-                    <div className="flex justify-between items-start relative z-10">
-                      <div className="flex-1">
-                        <div className="mb-2">
-                          <h3 className="text-2xl font-bold text-gray-900">{item.description}</h3>
+                    {/* Já Gasto */}
+                    <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 border-2 border-red-300 shadow-lg">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-2xl">
+                          🛒
                         </div>
-                        <div className="text-gray-600">
-                          <p className="text-sm font-medium">
-                            {new Date(item.date).toLocaleString('pt-BR', { 
-                              day: '2-digit', 
-                              month: 'long', 
-                              year: 'numeric', 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
+                        <div>
+                          <p className="text-sm font-bold text-red-700 uppercase">Já Gasto</p>
+                          <p className="text-xs text-red-600">Em compras</p>
+                        </div>
+                      </div>
+                      <div className="text-4xl font-black text-red-700">
+                        R$ {formatCurrency(totalSpent)}
+                      </div>
+                    </div>
+                    
+                    {/* Saldo Disponível */}
+                    <div className={`bg-gradient-to-br rounded-2xl p-6 border-2 shadow-lg ${
+                      balance >= 0 
+                        ? 'from-blue-50 to-blue-100 border-blue-300' 
+                        : 'from-orange-50 to-orange-100 border-orange-300'
+                    }`}>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${
+                          balance >= 0 ? 'bg-blue-500' : 'bg-orange-500'
+                        }`}>
+                          {balance >= 0 ? '✨' : '⚠️'}
+                        </div>
+                        <div>
+                          <p className={`text-sm font-bold uppercase ${
+                            balance >= 0 ? 'text-blue-700' : 'text-orange-700'
+                          }`}>
+                            {balance >= 0 ? 'Disponível' : 'Faltando'}
+                          </p>
+                          <p className={`text-xs ${
+                            balance >= 0 ? 'text-blue-600' : 'text-orange-600'
+                          }`}>
+                            {balance >= 0 ? 'Para gastar' : 'No orçamento'}
                           </p>
                         </div>
                       </div>
-                      <div className={`text-3xl font-bold px-5 py-3 rounded-xl shadow-lg ${
-                        item.type === 'payment' 
-                          ? 'text-green-700 bg-green-50 border-2 border-green-500' 
-                          : 'text-red-700 bg-red-50 border-2 border-red-500'
+                      <div className={`text-4xl font-black ${
+                        balance >= 0 ? 'text-blue-700' : 'text-orange-700'
                       }`}>
-                        {item.type === 'payment' ? '+' : '-'} R$ {formatCurrency(item.value)}
+                        R$ {formatCurrency(Math.abs(balance))}
                       </div>
                     </div>
-                    {item.type === 'purchase' && (
-                      <div className="mt-6 p-6 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-2xl border-2 border-blue-300 shadow-lg relative z-10">
-                        <h4 className="text-lg font-bold text-gray-900 mb-4 border-b-2 border-gray-200 pb-2">
-                          Detalhes da Compra
-                        </h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="bg-white px-4 py-3 rounded-lg shadow-sm border border-gray-300">
-                            <span className="font-bold text-blue-700 text-xs uppercase block mb-1">Categoria</span>
-                            <span className="text-gray-900 font-semibold">{item.category}</span>
-                          </div>
-                          {item.brand && <div className="bg-white px-4 py-3 rounded-lg shadow-sm border border-gray-300">
-                            <span className="font-bold text-purple-700 text-xs uppercase block mb-1">Marca</span>
-                            <span className="text-gray-900 font-semibold">{item.brand}</span>
-                          </div>}
-                          {item.color && <div className="bg-white px-4 py-3 rounded-lg shadow-sm border border-gray-300">
-                            <span className="font-bold text-pink-700 text-xs uppercase block mb-1">Cor</span>
-                            <span className="text-gray-900 font-semibold">{item.color}</span>
-                          </div>}
-                          {item.size && <div className="bg-white px-4 py-3 rounded-lg shadow-sm border border-gray-300">
-                            <span className="font-bold text-green-700 text-xs uppercase block mb-1">Tamanho</span>
-                            <span className="text-gray-900 font-semibold">{item.size}</span>
-                          </div>}
+                  </div>
+                  
+                  {/* Barra de Progresso */}
+                  <div className="mt-6">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-bold text-gray-700">Progresso do Orçamento</span>
+                      <span className="text-sm font-bold text-gray-900">
+                        {totalReceived > 0 ? Math.round((totalSpent / totalReceived) * 100) : 0}% utilizado
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          (totalSpent / totalReceived) * 100 > 90 
+                            ? 'bg-gradient-to-r from-red-500 to-red-600' 
+                            : (totalSpent / totalReceived) * 100 > 70
+                            ? 'bg-gradient-to-r from-orange-500 to-orange-600'
+                            : 'bg-gradient-to-r from-green-500 to-green-600'
+                        }`}
+                        style={{ width: `${Math.min((totalSpent / totalReceived) * 100, 100)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Timeline em Árvore */}
+              <div className="relative">
+                {/* Linha Central (Tronco da Árvore) */}
+                <div className="absolute left-1/2 top-0 bottom-0 w-3 bg-gradient-to-b from-green-600 via-green-700 to-amber-900 -translate-x-1/2 shadow-2xl rounded-full"></div>
+              
+                {timeline.map((item, i) => {
+                  const isLeft = i % 2 === 0;
+                  const natal = new Date('2025-12-25');
+                  const itemDate = new Date(item.date);
+                  const diasParaNatal = Math.ceil((natal.getTime() - itemDate.getTime()) / (1000 * 60 * 60 * 24));
+                  
+                  return (
+                <div 
+                  key={i} 
+                  className={`relative mb-16 ${isLeft ? 'pr-1/2' : 'pl-1/2'}`}
+                  style={{
+                    animation: 'fadeIn 0.6s ease-out forwards',
+                    animationDelay: `${i * 0.1}s`,
+                    opacity: 0
+                  }}
+                >
+                  {/* Bolinha na Árvore */}
+                  <div 
+                    className={`absolute top-8 w-8 h-8 rounded-full border-4 border-white z-20 shadow-2xl ${
+                      item.type === 'payment' 
+                        ? 'bg-gradient-to-br from-green-400 to-green-600' 
+                        : 'bg-gradient-to-br from-red-500 to-red-700'
+                    }`}
+                    style={{
+                      left: isLeft ? 'calc(50% - 16px)' : 'calc(50% - 16px)',
+                      animation: 'dotPulse 2s ease-in-out infinite',
+                      animationDelay: `${i * 0.2}s`
+                    }}
+                  >
+                    <div className="absolute inset-0 rounded-full bg-white/30 animate-ping"></div>
+                  </div>
+                  
+                  {/* Linha Conectando */}
+                  <div 
+                    className={`absolute top-10 h-0.5 bg-white/30 ${isLeft ? 'right-1/2 left-0' : 'left-1/2 right-0'}`}
+                    style={{
+                      width: isLeft ? 'calc(50% - 100px)' : 'calc(50% - 100px)',
+                      [isLeft ? 'right' : 'left']: '50%'
+                    }}
+                  ></div>
+                  
+                  {/* Card do Evento */}
+                  <div className={`${isLeft ? 'mr-auto pr-12' : 'ml-auto pl-12'} max-w-md`}>
+                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border-4 border-white/50 transform transition-all duration-300 hover:scale-105 hover:shadow-3xl">
+                      
+                      {/* Badge de Dias para o Natal */}
+                      <div className="bg-gradient-to-r from-red-600 to-green-600 px-6 py-3 text-white text-center">
+                        <div className="text-sm font-bold">
+                          {diasParaNatal > 0 ? `🎄 ${diasParaNatal} dias antes do Natal` : diasParaNatal === 0 ? '🎅 DIA DO NATAL!' : `${Math.abs(diasParaNatal)} dias depois do Natal`}
                         </div>
-                        {item.notes && (
-                          <div className="mt-4 bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500">
-                            <span className="font-bold text-yellow-800 text-xs uppercase block mb-2">
-                              Observações
-                            </span>
-                            <p className="text-gray-800 text-sm leading-relaxed">{item.notes}</p>
+                        <div className="text-xs opacity-90 mt-1">
+                          {new Date(item.date).toLocaleDateString('pt-BR', { 
+                            day: '2-digit', 
+                            month: 'long', 
+                            year: 'numeric'
+                          })}
+                        </div>
+                      </div>
+                      
+                      {/* Imagem do Produto */}
+                      {item.type === 'purchase' && item.image_url && (
+                        <div className="relative h-48 bg-gray-100 overflow-hidden">
+                          <img 
+                            src={item.image_url} 
+                            alt={item.description} 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Conteúdo */}
+                      <div className="p-6">
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className={`text-3xl ${item.type === 'payment' ? '💰' : '🎁'}`}>
+                            {item.type === 'payment' ? '💰' : '🎁'}
+                          </span>
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                            item.type === 'payment'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {item.type === 'payment' ? 'PAGAMENTO' : 'COMPRA'}
+                          </span>
+                        </div>
+                        
+                        <h3 className="text-xl font-black text-gray-900 mb-2">
+                          {item.description}
+                        </h3>
+                        
+                        <div className={`text-3xl font-black mb-4 ${
+                          item.type === 'payment' ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {item.type === 'payment' ? '+' : '-'} R$ {formatCurrency(item.value)}
+                        </div>
+                        
+                        {/* Detalhes */}
+                        {item.type === 'purchase' && (
+                          <div className="space-y-2 text-sm">
+                            {item.category && (
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-purple-600">📦</span>
+                                <span className="text-gray-700">{item.category}</span>
+                              </div>
+                            )}
+                            {item.brand && (
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-blue-600">🏷️</span>
+                                <span className="text-gray-700">{item.brand}</span>
+                              </div>
+                            )}
+                            {item.notes && (
+                              <div className="mt-3 p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+                                <p className="text-xs font-bold text-yellow-800 mb-1">📝 Observações:</p>
+                                <p className="text-sm text-gray-700">{item.notes}</p>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
-              ))}
+                  );
+                })}
+              </div>
+              
+              {/* Presentes no Final */}
+              <div className="text-center mt-16 mb-8">
+                <div className="text-8xl mb-4">🎁🎁🎁</div>
+                <h2 className="text-4xl font-black text-white drop-shadow-lg">
+                  Feliz Natal! 🎄
+                </h2>
+              </div>
             </div>
           </div>
         )}

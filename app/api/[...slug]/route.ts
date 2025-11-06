@@ -24,14 +24,14 @@ export async function GET(
     if (resource === 'timeline') {
       const { rows: payments } = await sql`
         SELECT 
-          id, 'payment' as type, name || ' pagou' as description,
+          id, 'payment' as type, 'Contribuição recebida' as description,
           ${CONTRIBUTION} as value, paid_date as date, name
         FROM participants WHERE paid = true
       `;
       const { rows: purchases } = await sql`
         SELECT 
           id, 'purchase' as type, description,
-          value, created_at as date, category, brand, color, size, quantity, notes
+          value, created_at as date, category, brand, color, size, quantity, notes, image_url
         FROM purchases
       `;
       const timeline = [...payments, ...purchases]
@@ -66,11 +66,11 @@ export async function POST(
     if (resource === 'purchases') {
       const { rows } = await sql`
         INSERT INTO purchases (
-          description, value, category, brand, color, size, quantity, notes
+          description, value, category, brand, color, size, quantity, notes, image_url
         ) VALUES (
           ${data.description}, ${parseFloat(data.value)}, ${data.category},
           ${data.brand || null}, ${data.color || null}, ${data.size || null},
-          ${data.quantity || 1}, ${data.notes || null}
+          ${data.quantity || 1}, ${data.notes || null}, ${data.image_url || null}
         ) RETURNING *
       `;
       return NextResponse.json(rows[0], { status: 201 });
