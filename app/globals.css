@@ -262,3 +262,8 @@ input:focus-visible {
   background-size: 1000px 100%;
   animation: shimmer 2s infinite;
 }
+
+/* Shimmer Animation for Cards */
+.animate-shimmer {
+  animation: shimmer 3s infinite;
+}

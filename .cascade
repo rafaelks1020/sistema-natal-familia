@@ -1,0 +1,162 @@
+# 🎄 Sistema Natal em Família 2025 - Guia Cascade
+
+## 📋 Visão Geral do Projeto
+
+Este é um sistema web completo para organizar o Natal da família, desenvolvido com **Next.js 16**, **React 19**, **TypeScript**, **TailwindCSS** e **PostgreSQL (Neon)**.
+
+### 🎯 Objetivo Principal
+Gerenciar contribuições financeiras dos participantes, controlar compras de presentes/decorações e exibir uma timeline pública dos eventos.
+
+---
+
+## 🏗️ Arquitetura do Sistema
+
+### Stack Tecnológica
+- **Framework**: Next.js 16.0.1 (App Router)
+- **Frontend**: React 19.2.0 + TypeScript
+- **Estilização**: TailwindCSS 4
+- **Banco de Dados**: PostgreSQL (Neon) via @vercel/postgres
+- **Upload de Imagens**: Vercel Blob Storage
+- **Deploy**: Vercel
+- **Ícones**: Lucide React
+
+### Estrutura de Diretórios
+```
+sistema-natal-familia/
+├── app/
+│   ├── api/
+│   │   ├── [...slug]/route.ts    # API principal (CRUD)
+│   │   ├── auth/route.ts         # Autenticação admin
+│   │   └── upload/route.ts       # Upload de imagens
+│   ├── page.tsx                  # Página principal (SPA)
+│   ├── layout.tsx                # Layout raiz
+│   └── globals.css               # Estilos globais
+├── public/                       # Arquivos estáticos
+├── cascade/                      # 📁 Documentação Cascade
+│   ├── 01-visao-geral.md
+│   ├── 02-estrutura-codigo.md
+│   ├── 03-funcionalidades.md
+│   └── 04-proximos-passos.md
+├── .env.local                    # Variáveis de ambiente (não commitado)
+├── .env.example                  # Template de variáveis
+└── package.json                  # Dependências
+```
+
+---
+
+## 🔑 Pontos de Entrada
+
+### Para Usuários Finais
+- **URL Pública**: Acesso à timeline de eventos
+- **Visualização**: Ver compras, fotos e progresso das contribuições
+
+### Para Administradores
+- **Login**: Senha configurada em `ADMIN_PASSWORD` (env)
+- **Dashboard**: Métricas, gerenciamento de participantes e compras
+- **Painel Admin**: Adicionar/remover participantes e compras
+
+---
+
+## 📚 Documentação Detalhada
+
+Toda a documentação técnica está organizada na pasta `cascade/`:
+
+1. **01-visao-geral.md** - Contexto, objetivos e stack
+2. **02-estrutura-codigo.md** - Arquitetura, componentes e APIs
+3. **03-funcionalidades.md** - Features implementadas e fluxos
+4. **04-proximos-passos.md** - Melhorias futuras e roadmap
+
+---
+
+## 🚀 Como Começar
+
+### Desenvolvimento Local
+```bash
+npm install
+npm run dev
+```
+Acesse: http://localhost:3000
+
+### Deploy na Vercel
+1. Conecte o repositório na Vercel
+2. Configure as variáveis de ambiente (veja `.env.example`)
+3. Deploy automático
+
+---
+
+## 🎨 Características Visuais
+
+### Tema Natalino 3D
+- ❄️ Flocos de neve animados (20 flocos sutis)
+- 🛷 Trenó do Papai Noel voando
+- 🏔️ Montanhas nevadas no fundo
+- ✨ Estrelas piscantes
+- 🎄 Árvores de Natal decoradas
+- 🌕 Lua cheia
+- 🏠 Casas com neve
+
+### Design Profissional
+- Minimalista e elegante
+- Responsivo (mobile-first)
+- Animações suaves (GPU aceleradas)
+- Cores natalinas (vermelho/verde)
+- Cards com backdrop-blur
+
+---
+
+## 📊 Banco de Dados
+
+### Tabelas
+1. **participants** - Participantes e status de pagamento
+2. **purchases** - Compras com fotos e detalhes
+
+### Schema SQL
+Veja `README.md` para o schema completo.
+
+---
+
+## 🔐 Segurança
+
+- Autenticação via senha (localStorage)
+- Variáveis de ambiente para credenciais
+- Token de acesso para Vercel Blob
+- Validação de admin em todas as rotas protegidas
+
+---
+
+## 📖 Leia Mais
+
+Para entender completamente o sistema, leia os arquivos na pasta `cascade/` na ordem numérica:
+
+### 📚 Documentação Completa
+
+```
+cascade/
+├── README.md                    # Índice e guia de navegação
+├── 01-visao-geral.md           # Contexto, stack, modelo de dados
+├── 02-estrutura-codigo.md      # Arquitetura, componentes, APIs
+├── 03-funcionalidades.md       # Features, fluxos de uso, UX/UI
+└── 04-proximos-passos.md       # Melhorias, roadmap, bugs
+```
+
+### 🎯 Guia Rápido de Uso
+
+**Para entender o projeto:**
+1. Leia este arquivo (`.cascade`)
+2. Leia `cascade/01-visao-geral.md`
+
+**Para modificar código:**
+1. Consulte `cascade/02-estrutura-codigo.md`
+2. Localize o arquivo/função relevante
+
+**Para adicionar features:**
+1. Veja padrões em `cascade/03-funcionalidades.md`
+2. Verifique se está planejado em `cascade/04-proximos-passos.md`
+
+**Para corrigir bugs:**
+1. Verifique bugs conhecidos em `cascade/04-proximos-passos.md`
+2. Use `cascade/02-estrutura-codigo.md` para investigar
+
+---
+
+**Última atualização**: 08/11/2025
