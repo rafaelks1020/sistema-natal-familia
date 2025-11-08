@@ -118,6 +118,25 @@ function ImageCarousel({ images, description }: { images: string[], description:
   );
 }
 
+// Componente de Toast/Notificação
+function Toast({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'info', onClose: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+  const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+
+  return (
+    <div className={`fixed top-4 right-4 ${bgColor} text-white px-6 py-4 rounded-xl shadow-2xl z-50 animate-slideIn flex items-center gap-3 max-w-md`}>
+      <span className="text-2xl">{icon}</span>
+      <p className="font-semibold">{message}</p>
+      <button onClick={onClose} className="ml-4 text-white/80 hover:text-white text-xl font-bold">×</button>
+    </div>
+  );
+}
+
 export default function ChristmasOrganizer() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -129,6 +148,10 @@ export default function ChristmasOrganizer() {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Estados para toasts
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [showAddParticipant, setShowAddParticipant] = useState(false);
   const [showAddPurchase, setShowAddPurchase] = useState(false);
@@ -272,27 +295,52 @@ export default function ChristmasOrganizer() {
 
   // Adicionar participante
   const addParticipant = async () => {
-    if (!newParticipant.trim()) return;
+    if (!newParticipant.trim()) {
+      setToast({ message: 'Por favor, digite um nome!', type: 'error' });
+      return;
+    }
     
-    await fetch('/api/participants', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newParticipant })
-    });
-    
-    setNewParticipant('');
-    setShowAddParticipant(false);
-    loadData();
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/participants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newParticipant })
+      });
+      
+      if (response.ok) {
+        setToast({ message: `🎅 ${newParticipant} adicionado com sucesso!`, type: 'success' });
+        setNewParticipant('');
+        setShowAddParticipant(false);
+        loadData();
+      } else {
+        throw new Error('Erro ao adicionar participante');
+      }
+    } catch (error) {
+      setToast({ message: 'Erro ao adicionar participante. Tente novamente.', type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Toggle pagamento
   const togglePayment = async (id: number, paid: boolean) => {
-    await fetch(`/api/participants/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paid: !paid })
-    });
-    loadData();
+    try {
+      const response = await fetch(`/api/participants/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paid: !paid })
+      });
+      
+      if (response.ok) {
+        setToast({ message: paid ? '💰 Pagamento removido!' : '✅ Pagamento confirmado!', type: 'success' });
+        loadData();
+      } else {
+        throw new Error('Erro ao atualizar pagamento');
+      }
+    } catch (error) {
+      setToast({ message: 'Erro ao atualizar pagamento. Tente novamente.', type: 'error' });
+    }
   };
 
   // Remover participante
@@ -364,42 +412,63 @@ export default function ChristmasOrganizer() {
   };
 
   const addPurchaseWithImage = async () => {
-    if (!newPurchase.description || !newPurchase.value) return;
-    
-    // Upload das imagens se houver
-    let imageUrls: string[] = [];
-    if (selectedImages.length > 0) {
-      imageUrls = await uploadImages();
+    if (!newPurchase.description || !newPurchase.value) {
+      setToast({ message: 'Preencha descrição e valor!', type: 'error' });
+      return;
     }
     
-    // Usar a primeira imagem como principal (compatibilidade) e salvar todas
-    const imageUrl = imageUrls.length > 0 ? imageUrls[0] : '';
-    
-    await fetch('/api/purchases', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        ...newPurchase, 
-        image_url: imageUrl,
-        image_urls: JSON.stringify(imageUrls) // Salvar array como JSON string
-      })
-    });
-    
-    setNewPurchase({
-      description: '',
-      value: '',
-      category: 'Decoração',
-      brand: '',
-      color: '',
-      size: '',
-      quantity: 1,
-      notes: '',
-      image_url: ''
-    });
-    setSelectedImages([]);
-    setImagePreviews([]);
-    setShowAddPurchase(false);
-    loadData();
+    setIsSubmitting(true);
+    try {
+      // Upload das imagens se houver
+      let imageUrls: string[] = [];
+      if (selectedImages.length > 0) {
+        setToast({ message: `📸 Enviando ${selectedImages.length} foto(s)...`, type: 'info' });
+        imageUrls = await uploadImages();
+        if (imageUrls.length === 0) {
+          throw new Error('Falha no upload das imagens');
+        }
+      }
+      
+      // Usar a primeira imagem como principal (compatibilidade) e salvar todas
+      const imageUrl = imageUrls.length > 0 ? imageUrls[0] : '';
+      
+      const response = await fetch('/api/purchases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          ...newPurchase, 
+          image_url: imageUrl,
+          image_urls: JSON.stringify(imageUrls) // Salvar array como JSON string
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erro ao salvar compra');
+      }
+      
+      setToast({ message: `🎁 ${newPurchase.description} adicionado com sucesso!`, type: 'success' });
+      
+      setNewPurchase({
+        description: '',
+        value: '',
+        category: 'Decoração',
+        brand: '',
+        color: '',
+        size: '',
+        quantity: 1,
+        notes: '',
+        image_url: ''
+      });
+      setSelectedImages([]);
+      setImagePreviews([]);
+      setShowAddPurchase(false);
+      loadData();
+    } catch (error) {
+      setToast({ message: 'Erro ao adicionar compra. Tente novamente.', type: 'error' });
+      console.error('Erro:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Remover compra
@@ -416,6 +485,15 @@ export default function ChristmasOrganizer() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-900 via-indigo-900 to-purple-900 relative">
+      {/* Toast de Notificação */}
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
+      
       {/* Flocos de Neve - Renderizado apenas no cliente */}
       {snowflakes.map((flake, i) => (
         <div
@@ -655,8 +733,19 @@ export default function ChristmasOrganizer() {
                     placeholder="Nome do participante"
                     className="flex-1 px-4 py-3 text-lg font-semibold text-gray-900 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all placeholder:text-gray-600 placeholder:font-medium"
                   />
-                  <button onClick={addParticipant} className="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-lg hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl font-semibold transition-all transform hover:scale-105">
-                    Salvar
+                  <button 
+                    onClick={addParticipant} 
+                    disabled={isSubmitting}
+                    className="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-lg hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl font-semibold transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Salvando...
+                      </>
+                    ) : (
+                      'Salvar'
+                    )}
                   </button>
                   <button onClick={() => setShowAddParticipant(false)} className="bg-gradient-to-r from-gray-300 to-gray-400 text-gray-700 px-6 py-3 rounded-lg hover:from-gray-400 hover:to-gray-500 font-semibold transition-all">
                     Cancelar
@@ -804,9 +893,17 @@ export default function ChristmasOrganizer() {
                 <div className="flex gap-3 mt-6">
                   <button 
                     onClick={addPurchaseWithImage} 
-                    disabled={uploadingImage}
-                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl font-semibold transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Salvar Compra
+                    disabled={uploadingImage || isSubmitting}
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl font-semibold transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {isSubmitting || uploadingImage ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        {uploadingImage ? 'Enviando fotos...' : 'Salvando...'}
+                      </>
+                    ) : (
+                      'Salvar Compra'
+                    )}
                   </button>
                   <button onClick={() => setShowAddPurchase(false)} className="bg-gradient-to-r from-gray-300 to-gray-400 text-gray-700 px-6 py-3 rounded-lg hover:from-gray-400 hover:to-gray-500 font-semibold transition-all">
                     Cancelar
