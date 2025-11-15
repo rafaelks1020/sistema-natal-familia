@@ -318,7 +318,7 @@ export default function ChristmasOrganizer() {
     {
       id: 3,
       title: 'Escrever recados e fotos',
-      body: 'Depois de logado no mural, você pode escrever mensagens para a família e, se quiser, anexar uma foto. Essas fotos vão para o Álbum da Família.'
+      body: 'Depois de logado no mural, você pode escrever mensagens para a família e, se quiser, anexar uma foto. Ex: "Feliz Natal, família!" Essas fotos vão para o Álbum da Família.'
     },
     {
       id: 4,
@@ -331,6 +331,9 @@ export default function ChristmasOrganizer() {
       body: 'Nas Enquetes da Família você ajuda a decidir coisas rápidas do Natal (horário, comida, brincadeiras) só clicando nas opções.'
     },
   ];
+
+  const [pinnedPostId, setPinnedPostId] = useState<number | null>(null);
+  const [likedComments, setLikedComments] = useState<Record<number, boolean>>({});
 
   // Verificar se está logado ao carregar
   useEffect(() => {
@@ -351,6 +354,27 @@ export default function ChristmasOrganizer() {
       } catch {
         localStorage.removeItem('familyUser');
       }
+    }
+
+    // Carregar post fixado e curtidas de comentários do localStorage
+    try {
+      const storedPinned = localStorage.getItem('pinnedPostId');
+      if (storedPinned) {
+        const id = Number(storedPinned);
+        if (!isNaN(id)) {
+          setPinnedPostId(id);
+        }
+      }
+
+      const storedLiked = localStorage.getItem('likedComments');
+      if (storedLiked) {
+        const parsedLikes = JSON.parse(storedLiked);
+        if (parsedLikes && typeof parsedLikes === 'object') {
+          setLikedComments(parsedLikes);
+        }
+      }
+    } catch {
+      // Se der erro ao ler, simplesmente ignora e segue
     }
     
     // Gerar flocos de neve sutis apenas no cliente
@@ -616,6 +640,39 @@ export default function ChristmasOrganizer() {
     }
   };
 
+  const handleTogglePinPost = (postId: number) => {
+    if (!isAdmin) return;
+    setPinnedPostId(prev => {
+      const next = prev === postId ? null : postId;
+      try {
+        if (typeof window !== 'undefined') {
+          if (next) {
+            localStorage.setItem('pinnedPostId', String(next));
+          } else {
+            localStorage.removeItem('pinnedPostId');
+          }
+        }
+      } catch {
+        // se não conseguir salvar, segue só em memória
+      }
+      return next;
+    });
+  };
+
+  const handleToggleCommentLike = (commentId: number) => {
+    setLikedComments(prev => {
+      const next = { ...prev, [commentId]: !prev[commentId] };
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('likedComments', JSON.stringify(next));
+        }
+      } catch {
+        // se falhar o localStorage, tudo bem, mantém só na sessão
+      }
+      return next;
+    });
+  };
+
   const handleCreatePoll = async () => {
     if (!familyUser) {
       setToast({ message: 'Faça login para criar enquetes', type: 'error' });
@@ -808,14 +865,16 @@ export default function ChristmasOrganizer() {
           setPurchases([]);
         }
       }
-      if (activeTab === 'timeline') {
-        const res = await fetch('/api/timeline');
-        if (res.ok) {
-          const data = await res.json();
-          setTimeline(Array.isArray(data) ? data : []);
-        } else {
-          console.error('Erro ao carregar timeline:', res.status);
-          setTimeline([]);
+      if (activeTab === 'timeline' || activeTab === 'dashboard') {
+        if (activeTab === 'timeline') {
+          const res = await fetch('/api/timeline');
+          if (res.ok) {
+            const data = await res.json();
+            setTimeline(Array.isArray(data) ? data : []);
+          } else {
+            console.error('Erro ao carregar timeline:', res.status);
+            setTimeline([]);
+          }
         }
 
         await loadFamilyPosts();
@@ -1686,7 +1745,45 @@ export default function ChristmasOrganizer() {
                 </div>
               </div>
 
-              {/* 📸 Álbum da Família */}
+              {(() => {
+                const unpaidCount = participants.filter(p => !p.paid).length;
+                const withoutAttendanceCount = participants.filter(p => !familyAttendance.some(a => a.name === p.name)).length;
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white/95 backdrop-blur-lg rounded-xl border border-red-100 p-4 shadow-md flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-xl">
+                        <span>⚠️</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-red-700 uppercase mb-1">Pagamentos pendentes</p>
+                        <p className="text-sm text-gray-800">
+                          {unpaidCount === 0
+                            ? 'Todos os participantes marcados como pagos.'
+                            : `${unpaidCount} participante${unpaidCount === 1 ? '' : 's'} ainda não marcado${unpaidCount === 1 ? '' : 's'} como pago.`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/95 backdrop-blur-lg rounded-xl border border-emerald-100 p-4 shadow-md flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-xl">
+                        <span>📋</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-emerald-700 uppercase mb-1">Presenças não respondidas</p>
+                        <p className="text-sm text-gray-800">
+                          {withoutAttendanceCount === 0
+                            ? 'Todos os participantes já têm presença marcada.'
+                            : `${withoutAttendanceCount} participante${withoutAttendanceCount === 1 ? '' : 's'} ainda não marcou presença (vou/talvez/não vou).`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Álbum da Família */}
             <div className="mb-12 -mx-4 md:-mx-8">
                 <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-emerald-100">
                   <div className="flex items-start justify-between gap-3 mb-4">
@@ -3275,114 +3372,151 @@ export default function ChristmasOrganizer() {
                         Ainda não há mensagens no mural. Seja o primeiro a escrever! 🎅
                       </p>
                     ) : (
-                      familyPosts.map((post) => (
-                        <div
-                          key={post.id}
-                          className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 flex gap-3"
-                        >
-                          <div className="mt-1">
+                      (() => {
+                        const orderedPosts = pinnedPostId
+                          ? [...familyPosts].sort((a, b) => {
+                              if (a.id === pinnedPostId) return -1;
+                              if (b.id === pinnedPostId) return 1;
+                              return 0;
+                            })
+                          : familyPosts;
+
+                        return orderedPosts.map((post) => (
+                          <div
+                            key={post.id}
+                            className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 flex gap-3"
+                          >
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
                               {post.user_name?.charAt(0)?.toUpperCase() || 'F'}
                             </div>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <div>
-                                <p className="text-sm font-bold text-gray-900">
-                                  {post.user_name}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {new Date(post.created_at).toLocaleString('pt-BR', {
-                                    day: '2-digit',
-                                    month: '2-digit',
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })}
-                                </p>
-                              </div>
-                              <span className="text-xs text-green-600 font-semibold bg-green-50 px-2 py-1 rounded-full">
-                                Mural de Natal
-                              </span>
-                            </div>
-                            <p className="mt-2 text-sm text-gray-800 whitespace-pre-line">
-                              {post.content}
-                            </p>
-
-                            {/* Reações */}
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                              {reactionOptions.map((emoji) => {
-                                const count = post.reactions?.[emoji] || 0;
-                                return (
-                                  <button
-                                    key={emoji}
-                                    onClick={() => handleToggleReaction(post.id, emoji)}
-                                    className={`flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-semibold transition-all hover:bg-green-50 hover:border-green-300 ${
-                                      count > 0 ? 'border-green-400 text-green-700' : 'border-gray-200 text-gray-500'
-                                    }`}
-                                  >
-                                    <span>{emoji}</span>
-                                    <span>{count}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            {/* Comentários */}
-                            <div className="mt-3 space-y-2 border-t border-gray-100 pt-2">
-                              {post.comments && post.comments.length > 0 && (
-                                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                                  {post.comments.map((comment) => (
-                                    <div key={comment.id} className="flex items-start gap-2 text-xs">
-                                      <div className="mt-0.5">
-                                        <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-700">
-                                          {comment.user_name?.charAt(0)?.toUpperCase() || 'F'}
-                                        </div>
-                                      </div>
-                                      <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                          <span className="font-semibold text-gray-800">{comment.user_name}</span>
-                                          <span className="text-[10px] text-gray-400">
-                                            {new Date(comment.created_at).toLocaleString('pt-BR', {
-                                              day: '2-digit',
-                                              month: '2-digit',
-                                              hour: '2-digit',
-                                              minute: '2-digit',
-                                            })}
-                                          </span>
-                                        </div>
-                                        <p className="text-[11px] text-gray-700 whitespace-pre-line">{comment.content}</p>
-                                      </div>
-                                    </div>
-                                  ))}
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <div>
+                                  <p className="text-sm font-bold text-gray-900">
+                                    {post.user_name}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {new Date(post.created_at).toLocaleString('pt-BR', {
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </p>
                                 </div>
-                              )}
+                                <div className="flex items-center gap-2">
+                                  {pinnedPostId === post.id && (
+                                    <span className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
+                                      Post fixado
+                                    </span>
+                                  )}
+                                  <span className="text-xs text-green-600 font-semibold bg-green-50 px-2 py-1 rounded-full">
+                                    Mural de Natal
+                                  </span>
+                                  {isAdmin && (
+                                    <button
+                                      onClick={() => handleTogglePinPost(post.id)}
+                                      className="ml-1 text-[11px] text-gray-500 hover:text-amber-700 border border-gray-200 hover:border-amber-300 rounded-full px-2 py-0.5 flex items-center gap-1"
+                                    >
+                                      <span>📌</span>
+                                      <span>{pinnedPostId === post.id ? 'Desafixar' : 'Fixar'}</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
 
-                              <div className="flex items-center gap-2 mt-1">
-                                <input
-                                  type="text"
-                                  value={familyCommentDrafts[post.id] || ''}
-                                  onChange={(e) =>
-                                    setFamilyCommentDrafts(prev => ({
-                                      ...prev,
-                                      [post.id]: e.target.value,
-                                    }))
-                                  }
-                                  placeholder="Escrever comentário..."
-                                  className="flex-1 px-3 py-1.5 rounded-full border border-gray-200 text-xs text-gray-800 focus:outline-none focus:ring-1 focus:ring-green-300 focus:border-green-400 bg-gray-50"
-                                />
-                                <button
-                                  onClick={() => handleCreateComment(post.id)}
-                                  className="px-3 py-1.5 rounded-full bg-green-600 text-white text-xs font-semibold hover:bg-green-700 transition-all"
-                                  disabled={!familyUser}
-                                >
-                                  Enviar
-                                </button>
+                              <p className="mt-2 text-sm text-gray-800 whitespace-pre-line">
+                                {post.content}
+                              </p>
+
+                              {/* Reações */}
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                {reactionOptions.map((emoji) => {
+                                  const count = post.reactions?.[emoji] || 0;
+                                  return (
+                                    <button
+                                      key={emoji}
+                                      onClick={() => handleToggleReaction(post.id, emoji)}
+                                      className={`flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-semibold transition-all hover:bg-green-50 hover:border-green-300 ${
+                                        count > 0 ? 'border-green-400 text-green-700' : 'border-gray-200 text-gray-500'
+                                      }`}
+                                    >
+                                      <span>{emoji}</span>
+                                      <span>{count}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Comentários */}
+                              <div className="mt-3 space-y-2 border-t border-gray-100 pt-2">
+                                {post.comments && post.comments.length > 0 && (
+                                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                                    {post.comments.map((comment) => (
+                                      <div key={comment.id} className="flex items-start gap-2 text-xs">
+                                        <div className="mt-0.5">
+                                          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-700">
+                                            {comment.user_name?.charAt(0)?.toUpperCase() || 'F'}
+                                          </div>
+                                        </div>
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-gray-800">{comment.user_name}</span>
+                                            <span className="text-[10px] text-gray-400">
+                                              {new Date(comment.created_at).toLocaleString('pt-BR', {
+                                                day: '2-digit',
+                                                month: '2-digit',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                              })}
+                                            </span>
+                                          </div>
+                                          <p className="text-[11px] text-gray-700 whitespace-pre-line mb-1">{comment.content}</p>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleToggleCommentLike(comment.id)}
+                                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold transition-all ${
+                                              likedComments[comment.id]
+                                                ? 'border-pink-400 text-pink-600 bg-pink-50'
+                                                : 'border-gray-200 text-gray-500 hover:border-pink-300 hover:text-pink-600 hover:bg-pink-50'
+                                            }`}
+                                          >
+                                            <span>{likedComments[comment.id] ? '❤️' : '🤍'}</span>
+                                            <span>Curtir</span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                <div className="flex items-center gap-2 mt-1">
+                                  <input
+                                    type="text"
+                                    value={familyCommentDrafts[post.id] || ''}
+                                    onChange={(e) =>
+                                      setFamilyCommentDrafts(prev => ({
+                                        ...prev,
+                                        [post.id]: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Escrever comentário..."
+                                    className="flex-1 px-3 py-1.5 rounded-full border border-gray-200 text-xs text-gray-800 focus:outline-none focus:ring-1 focus:ring-green-300 focus:border-green-400 bg-gray-50"
+                                  />
+                                  <button
+                                    onClick={() => handleCreateComment(post.id)}
+                                    className="px-3 py-1.5 rounded-full bg-green-600 text-white text-xs font-semibold hover:bg-green-700 transition-all"
+                                    disabled={!familyUser}
+                                  >
+                                    Enviar
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))
+                        ));
+                      })()
                     )}
                   </div>
                 </div>
