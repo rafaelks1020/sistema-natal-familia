@@ -307,38 +307,28 @@ export default function ChristmasOrganizer() {
   const tourSteps = [
     {
       id: 1,
-      title: 'Visão geral da Timeline',
-      body: 'Esta é a tela principal do Natal em Família. Pense nela como o painel geral do nosso Natal: aqui você vê dinheiro, recados, fotos, presença e enquetes.'
+      title: 'Onde você está',
+      body: 'Esta é a Timeline, a tela principal do Natal em Família. É aqui que todo mundo entra para ver o que está acontecendo.'
     },
     {
       id: 2,
-      title: 'Resumo financeiro',
-      body: 'Logo abaixo você vê quanto já foi arrecadado, quanto já foi gasto e qual é o saldo. É só para todo mundo ter noção do dinheiro do Natal.'
+      title: 'Entrar no mural',
+      body: 'Mais embaixo tem o Mural da Família. Lá você cria um usuário simples (nome, usuário e senha) e faz login para poder participar.'
     },
     {
       id: 3,
-      title: 'Mural da Família',
-      body: 'No mural você cria um usuário simples (nome, usuário e senha) e pode escrever recados, combinar horários, responder outras pessoas e, se quiser, colocar foto no post.'
+      title: 'Escrever recados e fotos',
+      body: 'Depois de logado no mural, você pode escrever mensagens para a família e, se quiser, anexar uma foto. Essas fotos vão para o Álbum da Família.'
     },
     {
       id: 4,
-      title: 'Álbum de fotos',
-      body: 'Sempre que alguém faz um post no mural com foto, essa foto aparece no Álbum da Família, em forma de grade. É o lugar para ver todas as fotos do Natal.'
+      title: 'Confirmar presença',
+      body: 'No card de Presença no Natal você marca se vai, talvez vá ou não vai. Isso é o que usamos para contar quantas pessoas vão à ceia.'
     },
     {
       id: 5,
-      title: 'Presença no Natal',
-      body: 'No card de presença você marca se vai, talvez vá ou não vai à ceia. Isso ajuda quem está organizando a calcular comida, bebida e presentes.'
-    },
-    {
-      id: 6,
-      title: 'Enquetes da Família',
-      body: 'As enquetes são votações rápidas: horário da ceia, sobremesa, churrasco ou salgado, brincadeiras etc. Alguém cria a pergunta e todo mundo vota clicando nos botões.'
-    },
-    {
-      id: 7,
-      title: 'Amigo Oculto e tokens',
-      body: 'Quem receber um token do Amigo Oculto usa outra parte do site para ver quem tirou e quais presentes a pessoa gostaria de ganhar. Tudo fica ligado a este mesmo sistema.'
+      title: 'Votar nas enquetes',
+      body: 'Nas Enquetes da Família você ajuda a decidir coisas rápidas do Natal (horário, comida, brincadeiras) só clicando nas opções.'
     },
   ];
 
@@ -2616,6 +2606,53 @@ export default function ChristmasOrganizer() {
             </div>
             
             <div className="max-w-6xl mx-auto px-6 relative z-10">
+
+              {showTour && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+                  <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 md:p-6 border border-yellow-200">
+                    {(() => {
+                      const step = tourSteps.find(s => s.id === tourStep) || tourSteps[0];
+                      const isFirst = tourStep === 1;
+                      const isLast = tourStep === tourSteps.length;
+                      return (
+                        <>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl">👀</span>
+                              <h2 className="text-sm md:text-base font-black text-gray-900">
+                                Passo {tourStep} de {tourSteps.length}: {step.title}
+                              </h2>
+                            </div>
+                            <button
+                              onClick={() => setShowTour(false)}
+                              className="text-gray-400 hover:text-gray-700 text-lg font-bold"
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <p className="text-xs md:text-sm text-gray-700 mb-4">
+                            {step.body}
+                          </p>
+                          <div className="flex items-center justify-between gap-3">
+                            <button
+                              onClick={() => (isFirst ? setShowTour(false) : setTourStep(tourStep - 1))}
+                              className="px-3 py-1.5 rounded-full border text-[11px] md:text-xs font-semibold text-gray-700 border-gray-300 hover:bg-gray-100"
+                            >
+                              {isFirst ? 'Fechar' : 'Voltar'}
+                            </button>
+                            <button
+                              onClick={() => (isLast ? setShowTour(false) : setTourStep(tourStep + 1))}
+                              className="px-4 py-1.5 rounded-full bg-yellow-400 text-yellow-900 text-[11px] md:text-xs font-bold shadow-md hover:bg-yellow-300 border border-yellow-500"
+                            >
+                              {isLast ? 'Entendi tudo' : 'Próximo'}
+                            </button>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
               {/* Header - Natal 2025 */}
               <div className="text-center mb-10 md:mb-12">
                 <div className="inline-block bg-black/40 backdrop-blur-xl rounded-3xl px-6 md:px-10 py-5 md:py-7 border border-yellow-300/70 shadow-xl">
@@ -2647,59 +2684,6 @@ export default function ChristmasOrganizer() {
                   <span>👀</span>
                   <span>Me explicar a página</span>
                 </button>
-              </div>
-
-              {/* Guia rápido para a família */}
-              <div className="mb-10">
-                <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-6 shadow-xl border-2 border-yellow-200">
-                  <h2 className="text-lg md:text-xl font-black text-gray-900 mb-3 flex items-center gap-2">
-                    <span>🧭</span>
-                    <span>Guia rápido: como usar este site</span>
-                  </h2>
-                  <p className="text-sm md:text-base text-gray-700 mb-3">
-                    Pense neste site como a organização do nosso Natal toda em um lugar só. Se você ler estas linhas com calma,
-                    vai entender tudo sem precisar ser "bom de computador".
-                  </p>
-                  <div className="space-y-2 text-sm md:text-base text-gray-800">
-                    <p>
-                      <span className="font-bold">1) Menu lá em cima:</span> tem as abas <span className="font-semibold">Dashboard</span>,
-                      <span className="font-semibold"> Timeline</span>, <span className="font-semibold">Participantes</span>,
-                      <span className="font-semibold"> Compras</span> e <span className="font-semibold">Amigo Oculto</span>.
-                      Quem não é administrador usa principalmente a aba <span className="font-semibold">Timeline</span>,
-                      que é essa tela aqui.
-                    </p>
-                    <p>
-                      <span className="font-bold">2) Resumo financeiro:</span> logo abaixo você vê quanto já foi arrecadado,
-                      quanto já foi gasto e qual é o saldo. É só para todo mundo ter noção do dinheiro do Natal.
-                    </p>
-                    <p>
-                      <span className="font-bold">3) Mural da Família 👨‍👩‍👧‍👦:</span> é um grupo de mensagens só da família.
-                      Primeiro você faz um <span className="font-semibold">cadastro</span> simples (nome, usuário e senha).
-                      Depois pode escrever recados, combinações e responder os outros.
-                    </p>
-                    <p>
-                      <span className="font-bold">4) Álbum da Família 📸:</span> quando você faz um post no mural com
-                      <span className="font-semibold"> foto</span>, essa foto aparece também no álbum. É o lugar para ver
-                      todas as fotos do nosso Natal num grid bonitinho.
-                    </p>
-                    <p>
-                      <span className="font-bold">5) Presença no Natal ✅:</span> ali você marca se
-                      <span className="font-semibold"> vai</span>, <span className="font-semibold">talvez vá</span> ou
-                      <span className="font-semibold"> não vai</span>. Isso ajuda a saber quanta comida, bebida e presentes
-                      precisamos.
-                    </p>
-                    <p>
-                      <span className="font-bold">6) Enquetes da Família 📊:</span> são votações rápidas. Por exemplo:
-                      horário da ceia, qual sobremesa levar, se vai ter amigo secreto extra etc. Alguém cria a pergunta e
-                      todo mundo vota apertando nos botões.
-                    </p>
-                    <p>
-                      <span className="font-bold">7) Amigo Oculto 🎅 (para quem receber o token):</span> quem ganhar um
-                      <span className="font-semibold"> token</span> pode entrar na parte de revelação (em outro lugar do site)
-                      para ver quem tirou no amigo oculto e ver as sugestões de presente daquela pessoa.
-                    </p>
-                  </div>
-                </div>
               </div>
 
               {/* Resumo Financeiro */}
