@@ -301,6 +301,47 @@ export default function ChristmasOrganizer() {
 
   const CONTRIBUTION = 50;
 
+  const [showTour, setShowTour] = useState(false);
+  const [tourStep, setTourStep] = useState(1);
+
+  const tourSteps = [
+    {
+      id: 1,
+      title: 'Visão geral da Timeline',
+      body: 'Esta é a tela principal do Natal em Família. Pense nela como o painel geral do nosso Natal: aqui você vê dinheiro, recados, fotos, presença e enquetes.'
+    },
+    {
+      id: 2,
+      title: 'Resumo financeiro',
+      body: 'Logo abaixo você vê quanto já foi arrecadado, quanto já foi gasto e qual é o saldo. É só para todo mundo ter noção do dinheiro do Natal.'
+    },
+    {
+      id: 3,
+      title: 'Mural da Família',
+      body: 'No mural você cria um usuário simples (nome, usuário e senha) e pode escrever recados, combinar horários, responder outras pessoas e, se quiser, colocar foto no post.'
+    },
+    {
+      id: 4,
+      title: 'Álbum de fotos',
+      body: 'Sempre que alguém faz um post no mural com foto, essa foto aparece no Álbum da Família, em forma de grade. É o lugar para ver todas as fotos do Natal.'
+    },
+    {
+      id: 5,
+      title: 'Presença no Natal',
+      body: 'No card de presença você marca se vai, talvez vá ou não vai à ceia. Isso ajuda quem está organizando a calcular comida, bebida e presentes.'
+    },
+    {
+      id: 6,
+      title: 'Enquetes da Família',
+      body: 'As enquetes são votações rápidas: horário da ceia, sobremesa, churrasco ou salgado, brincadeiras etc. Alguém cria a pergunta e todo mundo vota clicando nos botões.'
+    },
+    {
+      id: 7,
+      title: 'Amigo Oculto e tokens',
+      body: 'Quem receber um token do Amigo Oculto usa outra parte do site para ver quem tirou e quais presentes a pessoa gostaria de ganhar. Tudo fica ligado a este mesmo sistema.'
+    },
+  ];
+
   // Verificar se está logado ao carregar
   useEffect(() => {
     const adminToken = localStorage.getItem('adminToken');
@@ -2594,7 +2635,73 @@ export default function ChristmasOrganizer() {
                   </div>
                 </div>
               </div>
-              
+
+              <div className="flex justify-center mb-6">
+                <button
+                  onClick={() => {
+                    setShowTour(true);
+                    setTourStep(1);
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-400 text-yellow-900 text-xs md:text-sm font-bold shadow-md hover:bg-yellow-300 transition-all border border-yellow-500"
+                >
+                  <span>👀</span>
+                  <span>Me explicar a página</span>
+                </button>
+              </div>
+
+              {/* Guia rápido para a família */}
+              <div className="mb-10">
+                <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-6 shadow-xl border-2 border-yellow-200">
+                  <h2 className="text-lg md:text-xl font-black text-gray-900 mb-3 flex items-center gap-2">
+                    <span>🧭</span>
+                    <span>Guia rápido: como usar este site</span>
+                  </h2>
+                  <p className="text-sm md:text-base text-gray-700 mb-3">
+                    Pense neste site como a organização do nosso Natal toda em um lugar só. Se você ler estas linhas com calma,
+                    vai entender tudo sem precisar ser "bom de computador".
+                  </p>
+                  <div className="space-y-2 text-sm md:text-base text-gray-800">
+                    <p>
+                      <span className="font-bold">1) Menu lá em cima:</span> tem as abas <span className="font-semibold">Dashboard</span>,
+                      <span className="font-semibold"> Timeline</span>, <span className="font-semibold">Participantes</span>,
+                      <span className="font-semibold"> Compras</span> e <span className="font-semibold">Amigo Oculto</span>.
+                      Quem não é administrador usa principalmente a aba <span className="font-semibold">Timeline</span>,
+                      que é essa tela aqui.
+                    </p>
+                    <p>
+                      <span className="font-bold">2) Resumo financeiro:</span> logo abaixo você vê quanto já foi arrecadado,
+                      quanto já foi gasto e qual é o saldo. É só para todo mundo ter noção do dinheiro do Natal.
+                    </p>
+                    <p>
+                      <span className="font-bold">3) Mural da Família 👨‍👩‍👧‍👦:</span> é um grupo de mensagens só da família.
+                      Primeiro você faz um <span className="font-semibold">cadastro</span> simples (nome, usuário e senha).
+                      Depois pode escrever recados, combinações e responder os outros.
+                    </p>
+                    <p>
+                      <span className="font-bold">4) Álbum da Família 📸:</span> quando você faz um post no mural com
+                      <span className="font-semibold"> foto</span>, essa foto aparece também no álbum. É o lugar para ver
+                      todas as fotos do nosso Natal num grid bonitinho.
+                    </p>
+                    <p>
+                      <span className="font-bold">5) Presença no Natal ✅:</span> ali você marca se
+                      <span className="font-semibold"> vai</span>, <span className="font-semibold">talvez vá</span> ou
+                      <span className="font-semibold"> não vai</span>. Isso ajuda a saber quanta comida, bebida e presentes
+                      precisamos.
+                    </p>
+                    <p>
+                      <span className="font-bold">6) Enquetes da Família 📊:</span> são votações rápidas. Por exemplo:
+                      horário da ceia, qual sobremesa levar, se vai ter amigo secreto extra etc. Alguém cria a pergunta e
+                      todo mundo vota apertando nos botões.
+                    </p>
+                    <p>
+                      <span className="font-bold">7) Amigo Oculto 🎅 (para quem receber o token):</span> quem ganhar um
+                      <span className="font-semibold"> token</span> pode entrar na parte de revelação (em outro lugar do site)
+                      para ver quem tirou no amigo oculto e ver as sugestões de presente daquela pessoa.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Resumo Financeiro */}
               <div className="mb-12">
                 <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl border-4 border-white/50">
@@ -2693,7 +2800,321 @@ export default function ChristmasOrganizer() {
                   </div>
                 </div>
               </div>
-              
+
+              {/* 📸 Álbum da Família (Timeline) */}
+              <div className="mb-12 -mx-4 md:-mx-8">
+                <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-emerald-100">
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div>
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 mb-2">
+                        <span className="text-sm">📸</span>
+                        <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Álbum da família</span>
+                      </div>
+                      <h2 className="text-lg md:text-xl font-bold text-gray-900">
+                        Fotos do Natal em Família
+                      </h2>
+                      <p className="text-xs md:text-sm text-gray-600 mt-1">
+                        Todas as fotos postadas no mural aparecem aqui, em uma grade especial do Natal.
+                      </p>
+                    </div>
+                  </div>
+
+                  {familyPosts.some(p => p.image_url) ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {familyPosts
+                        .filter(p => p.image_url)
+                        .map((post) => (
+                          <div
+                            key={post.id}
+                            className="relative group rounded-xl overflow-hidden border border-white shadow-sm bg-gray-900/5"
+                          >
+                            <img
+                              src={post.image_url as string}
+                              alt={post.content || `Foto de ${post.user_name}`}
+                              className="w-full h-28 md:h-32 object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="absolute bottom-1 left-1 right-1 px-2 py-1 flex justify-between items-end text-[10px] text-white">
+                              <span className="font-semibold truncate max-w-[70%]">
+                                {post.user_name}
+                              </span>
+                              <span className="opacity-80">
+                                {new Date(post.created_at).toLocaleDateString('pt-BR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      Ainda não há fotos no álbum. Poste uma mensagem com foto no mural para começar! 🎄
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* ✅ Presença no Natal (Timeline) */}
+              <div className="mb-12 -mx-4 md:-mx-8">
+                <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-emerald-100/70">
+                  {(() => {
+                    const yesCount = familyAttendance.filter(a => a.status === 'yes').length;
+                    const maybeCount = familyAttendance.filter(a => a.status === 'maybe').length;
+                    const noCount = familyAttendance.filter(a => a.status === 'no').length;
+                    const totalResponded = yesCount + maybeCount + noCount;
+                    const myStatus = familyUser
+                      ? familyAttendance.find(a => a.name === familyUser.name)?.status || null
+                      : null;
+
+                    return (
+                      <>
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div>
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 mb-2">
+                              <span className="text-sm">✅</span>
+                              <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Presença no Natal</span>
+                            </div>
+                            <h2 className="text-lg md:text-xl font-bold text-gray-900">
+                              Quem vai estar na ceia?
+                            </h2>
+                            <p className="text-xs md:text-sm text-gray-600 mt-1">
+                              Marque se você vai, talvez vá ou não vai. Isso ajuda a organizar comida, bebida e presentes.
+                            </p>
+                          </div>
+                          {totalResponded > 0 && (
+                            <div className="hidden md:flex flex-col items-end text-xs text-gray-600">
+                              <span className="font-semibold text-emerald-700">{yesCount} confirmad{yesCount === 1 ? 'o' : 'os'}</span>
+                              {maybeCount > 0 && (
+                                <span className="text-amber-600">{maybeCount} talvez</span>
+                              )}
+                              {noCount > 0 && (
+                                <span className="text-gray-500">{noCount} não vão</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Botões do meu RSVP */}
+                        <div className="mb-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => handleSetAttendance('yes')}
+                              className={`px-3 py-2 rounded-full text-xs md:text-sm font-semibold flex items-center gap-2 border transition-all ${
+                                myStatus === 'yes'
+                                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
+                                  : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
+                              }`}
+                            >
+                              <span>✅</span>
+                              <span>Vou</span>
+                            </button>
+                            <button
+                              onClick={() => handleSetAttendance('maybe')}
+                              className={`px-3 py-2 rounded-full text-xs md:text-sm font-semibold flex items-center gap-2 border transition-all ${
+                                myStatus === 'maybe'
+                                  ? 'bg-amber-500 text-white border-amber-500 shadow-md'
+                                  : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
+                              }`}
+                            >
+                              <span>🤔</span>
+                              <span>Talvez</span>
+                            </button>
+                            <button
+                              onClick={() => handleSetAttendance('no')}
+                              className={`px-3 py-2 rounded-full text-xs md:text-sm font-semibold flex items-center gap-2 border transition-all ${
+                                myStatus === 'no'
+                                  ? 'bg-gray-600 text-white border-gray-600 shadow-md'
+                                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              <span>❌</span>
+                              <span>Não vou</span>
+                            </button>
+                          </div>
+                          {!familyUser && (
+                            <p className="text-[11px] md:text-xs text-gray-500">
+                              Faça login no mural para marcar sua presença.
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Resumo de presença */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs md:text-sm">
+                          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 flex flex-col">
+                            <span className="text-[11px] font-semibold text-emerald-700 uppercase mb-1">Confirmados ✅</span>
+                            {yesCount === 0 ? (
+                              <span className="text-gray-500">Ninguém confirmou ainda.</span>
+                            ) : (
+                              <span className="text-gray-800">
+                                {familyAttendance
+                                  .filter(a => a.status === 'yes')
+                                  .map(a => a.name)
+                                  .join(', ')}
+                              </span>
+                            )}
+                          </div>
+                          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3 flex flex-col">
+                            <span className="text-[11px] font-semibold text-amber-700 uppercase mb-1">Talvez 🤔</span>
+                            {maybeCount === 0 ? (
+                              <span className="text-gray-500">Ninguém marcou talvez.</span>
+                            ) : (
+                              <span className="text-gray-800">
+                                {familyAttendance
+                                  .filter(a => a.status === 'maybe')
+                                  .map(a => a.name)
+                                  .join(', ')}
+                              </span>
+                            )}
+                          </div>
+                          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-3 flex flex-col">
+                            <span className="text-[11px] font-semibold text-gray-700 uppercase mb-1">Não vão ❌</span>
+                            {noCount === 0 ? (
+                              <span className="text-gray-500">Ninguém marcou que não vai.</span>
+                            ) : (
+                              <span className="text-gray-800">
+                                {familyAttendance
+                                  .filter(a => a.status === 'no')
+                                  .map(a => a.name)
+                                  .join(', ')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* 📊 Enquetes da Família (Timeline) */}
+              <div className="mb-12 -mx-4 md:-mx-8">
+                <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-blue-100">
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div>
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 mb-2">
+                        <span className="text-sm">📊</span>
+                        <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Enquetes da família</span>
+                      </div>
+                      <h2 className="text-lg md:text-xl font-bold text-gray-900">
+                        Combinações rápidas pro Natal
+                      </h2>
+                      <p className="text-xs md:text-sm text-gray-600 mt-1">
+                        Decidam juntos horário da ceia, sobremesas, brincadeiras e outros detalhes.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Criar enquete - apenas usuário logado no mural */}
+                  {familyUser ? (
+                    <div className="mb-5 space-y-3">
+                      <div className="flex flex-col md:flex-row gap-3 md:gap-4 items-start">
+                        <div className="flex-1 min-w-0">
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Pergunta da enquete
+                          </label>
+                          <input
+                            type="text"
+                            value={newPollQuestion}
+                            onChange={(e) => setNewPollQuestion(e.target.value)}
+                            placeholder="Ex: Que horas começamos a ceia?"
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-gray-50"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Opções (uma por linha)
+                          </label>
+                          <textarea
+                            value={newPollOptionsText}
+                            onChange={(e) => setNewPollOptionsText(e.target.value)}
+                            rows={3}
+                            placeholder={"Ex:\n20h\n20h30\n21h"}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-none bg-gray-50"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          onClick={handleCreatePoll}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 text-white text-xs md:text-sm font-semibold shadow-md hover:bg-blue-700 hover:shadow-lg transition-all"
+                        >
+                          <span>✨</span>
+                          <span>Criar enquete</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mb-4 text-xs md:text-sm text-gray-500">
+                      Faça login no mural para criar enquetes.
+                    </p>
+                  )}
+
+                  {/* Lista de enquetes */}
+                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                    {familyPolls.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-4">
+                        Ainda não há enquetes. Crie a primeira para combinar os detalhes do Natal! ✨
+                      </p>
+                    ) : (
+                      familyPolls.map((poll) => {
+                        const totalVotes = Object.values(poll.votes || {}).reduce((sum, v) => sum + Number(v || 0), 0);
+                        return (
+                          <div key={poll.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div>
+                                <p className="text-sm font-bold text-gray-900 mb-0.5">{poll.question}</p>
+                                <p className="text-[11px] text-gray-500">
+                                  Criada por {poll.created_by_name} em{' '}
+                                  {new Date(poll.created_at).toLocaleDateString('pt-BR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                  })}
+                                </p>
+                              </div>
+                              {totalVotes > 0 && (
+                                <span className="text-[11px] text-blue-700 bg-blue-50 px-2 py-1 rounded-full font-semibold">
+                                  {totalVotes} voto{totalVotes === 1 ? '' : 's'}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {poll.options.map((opt, idx) => {
+                                const count = poll.votes?.[String(idx)] || 0;
+                                const percent = totalVotes > 0 ? Math.round((Number(count) / totalVotes) * 100) : 0;
+                                return (
+                                  <button
+                                    key={idx}
+                                    onClick={() => handleVotePoll(poll.id, idx)}
+                                    className="flex flex-col items-start text-left px-3 py-2 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-xs"
+                                  >
+                                    <div className="flex justify-between w-full items-center mb-1">
+                                      <span className="font-semibold text-gray-800">{opt}</span>
+                                      <span className="text-[11px] text-gray-500">
+                                        {count} voto{Number(count) === 1 ? '' : 's'}{totalVotes > 0 ? ` • ${percent}%` : ''}
+                                      </span>
+                                    </div>
+                                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full bg-gradient-to-r from-blue-500 to-indigo-500"
+                                        style={{ width: `${percent}%` }}
+                                      ></div>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* 👨‍👩‍👧‍👦 Mural da Família */}
               <div className="mb-12">
                 <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-green-200">
