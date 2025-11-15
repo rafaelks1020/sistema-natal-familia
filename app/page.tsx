@@ -25,6 +25,83 @@ interface Purchase {
   created_at: string;
 }
 
+// 🎁 Interfaces do Amigo Oculto
+interface DrawRule {
+  type: 'cannot_draw';
+  participant1_id: number;
+  participant2_id: number;
+}
+
+interface SecretSantaConfig {
+  id: number;
+  year: number;
+  is_active: boolean;
+  draw_date: string;
+  reveal_date?: string;
+  min_gift_value?: number;
+  max_gift_value?: number;
+  rules?: DrawRule[];
+}
+
+interface SecretSantaDraw {
+  id: number;
+  receiver_id: number;
+  receiver_name: string;
+  revealed: boolean;
+  revealed_at?: string;
+}
+
+interface WishListItem {
+  id: number;
+  participant_id: number;
+  participant_name?: string;
+  item_name: string;
+  item_description?: string;
+  item_url?: string;
+  priority: number;
+  purchased: boolean;
+}
+
+interface FamilyUser {
+  id: number;
+  name: string;
+  username: string;
+}
+
+interface FamilyPost {
+  id: number;
+  user_id: number;
+  user_name: string;
+  content: string;
+  image_url?: string;
+  created_at: string;
+  reactions?: Record<string, number>;
+  comments?: FamilyComment[];
+}
+
+interface FamilyComment {
+  id: number;
+  user_id: number;
+  user_name: string;
+  content: string;
+  created_at: string;
+}
+
+interface FamilyPoll {
+  id: number;
+  question: string;
+  options: string[];
+  created_at: string;
+  created_by_name: string;
+  votes?: Record<string, number>;
+}
+
+interface FamilyAttendance {
+  participant_id: number;
+  name: string;
+  status: 'yes' | 'maybe' | 'no' | null;
+}
+
 // Componente Carousel de Imagens
 function ImageCarousel({ images, description }: { images: string[], description: string }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -178,6 +255,50 @@ export default function ChristmasOrganizer() {
   // Estrelas da timeline - só renderiza no cliente
   const [stars, setStars] = useState<Array<{left: string, top: string, size: string}>>([]);
 
+  // 🎁 Estados do Amigo Oculto
+  const [secretSantaConfig, setSecretSantaConfig] = useState<SecretSantaConfig | null>(null);
+  const [allDraws, setAllDraws] = useState<any[]>([]);
+  const [drawRules, setDrawRules] = useState<DrawRule[]>([]);
+  const [minGiftValue, setMinGiftValue] = useState<number>(50);
+  const [maxGiftValue, setMaxGiftValue] = useState<number>(150);
+  const [selectedP1, setSelectedP1] = useState<number>(0);
+  const [selectedP2, setSelectedP2] = useState<number>(0);
+  const [revealToken, setRevealToken] = useState<string>('');
+  const [revealedDraw, setRevealedDraw] = useState<any>(null);
+  const [showRevealSection, setShowRevealSection] = useState(false);
+  const [receiverWishList, setReceiverWishList] = useState<WishListItem[]>([]);
+  const [myWishList, setMyWishList] = useState<WishListItem[]>([]);
+  const [showMyWishList, setShowMyWishList] = useState(false);
+  const [newWishItem, setNewWishItem] = useState({
+    item_name: '',
+    item_description: '',
+    item_url: '',
+    priority: 2
+  });
+  const [selectedParticipantForWishList, setSelectedParticipantForWishList] = useState<number>(0);
+  const [adminWishList, setAdminWishList] = useState<WishListItem[]>([]);
+
+  // 👨‍👩‍👧‍👦 Rede social de Natal (mural da família)
+  const [familyUser, setFamilyUser] = useState<FamilyUser | null>(null);
+  const [familyPosts, setFamilyPosts] = useState<FamilyPost[]>([]);
+  const [familyPolls, setFamilyPolls] = useState<FamilyPoll[]>([]);
+  const [familyAttendance, setFamilyAttendance] = useState<FamilyAttendance[]>([]);
+  const [familyAuthMode, setFamilyAuthMode] = useState<'login' | 'register'>('login');
+  const [familyUsername, setFamilyUsername] = useState('');
+  const [familyName, setFamilyName] = useState('');
+  const [familyPassword, setFamilyPassword] = useState('');
+  const [familyPostContent, setFamilyPostContent] = useState('');
+  const [familyLoading, setFamilyLoading] = useState(false);
+  const [familyPosting, setFamilyPosting] = useState(false);
+  const [familyAuthError, setFamilyAuthError] = useState('');
+  const [familyCommentDrafts, setFamilyCommentDrafts] = useState<Record<number, string>>({});
+  const [newPollQuestion, setNewPollQuestion] = useState('');
+  const [newPollOptionsText, setNewPollOptionsText] = useState('');
+  const [familyImageFile, setFamilyImageFile] = useState<File | null>(null);
+  const [familyImagePreview, setFamilyImagePreview] = useState<string | null>(null);
+  const [familyUploadingImage, setFamilyUploadingImage] = useState(false);
+  const reactionOptions = ['🎄', '🎅', '🎁', '❤️', '😂'];
+
   const CONTRIBUTION = 50;
 
   // Verificar se está logado ao carregar
@@ -186,6 +307,19 @@ export default function ChristmasOrganizer() {
     if (adminToken === 'admin-authenticated') {
       setIsAdmin(true);
       setActiveTab('dashboard');
+    }
+
+    // Carregar usuário da família salvo (mural)
+    const storedFamilyUser = localStorage.getItem('familyUser');
+    if (storedFamilyUser) {
+      try {
+        const parsed = JSON.parse(storedFamilyUser);
+        if (parsed && parsed.id && parsed.username) {
+          setFamilyUser(parsed);
+        }
+      } catch {
+        localStorage.removeItem('familyUser');
+      }
     }
     
     // Gerar flocos de neve sutis apenas no cliente
@@ -239,10 +373,380 @@ export default function ChristmasOrganizer() {
     setActiveTab('timeline');
   };
 
+  // Autenticação da família (mural)
+  const handleFamilyAuth = async () => {
+    if (!familyUsername.trim() || !familyPassword.trim() || (familyAuthMode === 'register' && !familyName.trim())) {
+      setToast({ message: 'Preencha todos os campos', type: 'error' });
+      return;
+    }
+
+    setFamilyLoading(true);
+    setFamilyAuthError('');
+    try {
+      const res = await fetch('/api/family-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: familyAuthMode,
+          username: familyUsername,
+          name: familyName,
+          password: familyPassword,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setFamilyAuthError(data.message || 'Erro ao autenticar');
+        return;
+      }
+
+      const user: FamilyUser = data.user;
+      setFamilyUser(user);
+      localStorage.setItem('familyUser', JSON.stringify(user));
+      setFamilyUsername('');
+      setFamilyName('');
+      setFamilyPassword('');
+      setFamilyAuthError('');
+      setToast({
+        message: familyAuthMode === 'register' ? 'Cadastro realizado com sucesso!' : 'Login realizado com sucesso!',
+        type: 'success',
+      });
+    } catch (error) {
+      setFamilyAuthError('Erro ao autenticar. Tente novamente.');
+    } finally {
+      setFamilyLoading(false);
+    }
+  };
+
+  const handleFamilyLogout = () => {
+    setFamilyUser(null);
+    localStorage.removeItem('familyUser');
+  };
+
+  const handleFamilyImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setFamilyImageFile(file || null);
+    setFamilyImagePreview(null);
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFamilyImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadFamilyImage = async (): Promise<string | null> => {
+    if (!familyImageFile) return null;
+
+    setFamilyUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', familyImageFile);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        console.error('Erro no upload da imagem do mural:', data);
+        setToast({ message: data.error || 'Erro ao enviar imagem', type: 'error' });
+        return null;
+      }
+
+      return data.url as string;
+    } catch (error) {
+      console.error('Erro ao enviar imagem do mural:', error);
+      setToast({ message: 'Erro ao enviar imagem', type: 'error' });
+      return null;
+    } finally {
+      setFamilyUploadingImage(false);
+    }
+  };
+
+  const handleCreateFamilyPost = async () => {
+    if (!familyUser) {
+      setToast({ message: 'Faça login para postar no mural', type: 'error' });
+      return;
+    }
+    if (!familyPostContent.trim() && !familyImageFile) {
+      setToast({ message: 'Escreva uma mensagem ou adicione uma foto para postar', type: 'error' });
+      return;
+    }
+
+    setFamilyPosting(true);
+    try {
+      let imageUrl: string | null = null;
+      if (familyImageFile) {
+        setToast({ message: 'Enviando foto...', type: 'info' });
+        imageUrl = await uploadFamilyImage();
+        if (familyImageFile && !imageUrl) {
+          // Falha no upload; não prossegue com o post
+          return;
+        }
+      }
+
+      const res = await fetch('/api/family-posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: familyUser.id,
+          content: familyPostContent,
+          image_url: imageUrl,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setToast({ message: data.message || 'Erro ao criar post', type: 'error' });
+        return;
+      }
+
+      setFamilyPosts(prev => [data as FamilyPost, ...prev]);
+      setFamilyPostContent('');
+      setFamilyImageFile(null);
+      setFamilyImagePreview(null);
+      setToast({ message: 'Mensagem enviada para o mural! 🎄', type: 'success' });
+    } catch (error) {
+      setToast({ message: 'Erro ao criar post', type: 'error' });
+    } finally {
+      setFamilyPosting(false);
+    }
+  };
+
+  const handleCreateComment = async (postId: number) => {
+    if (!familyUser) {
+      setToast({ message: 'Faça login para comentar no mural', type: 'error' });
+      return;
+    }
+
+    const content = (familyCommentDrafts[postId] || '').trim();
+    if (!content) {
+      setToast({ message: 'Digite um comentário antes de enviar', type: 'error' });
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/family-comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: postId,
+          user_id: familyUser.id,
+          content,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setToast({ message: data.message || 'Erro ao comentar', type: 'error' });
+        return;
+      }
+
+      setFamilyCommentDrafts(prev => ({ ...prev, [postId]: '' }));
+      await loadFamilyPosts();
+    } catch (error) {
+      setToast({ message: 'Erro ao comentar', type: 'error' });
+    }
+  };
+
+  const handleToggleReaction = async (postId: number, reaction: string) => {
+    if (!familyUser) {
+      setToast({ message: 'Faça login para reagir aos posts', type: 'error' });
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/family-reactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: postId,
+          user_id: familyUser.id,
+          reaction_type: reaction,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setToast({ message: data.message || 'Erro ao reagir', type: 'error' });
+        return;
+      }
+
+      // Recarrega o mural para atualizar contadores
+      await loadFamilyPosts();
+    } catch (error) {
+      setToast({ message: 'Erro ao reagir', type: 'error' });
+    }
+  };
+
+  const handleCreatePoll = async () => {
+    if (!familyUser) {
+      setToast({ message: 'Faça login para criar enquetes', type: 'error' });
+      return;
+    }
+
+    const question = newPollQuestion.trim();
+    const options = newPollOptionsText
+      .split('\n')
+      .map(o => o.trim())
+      .filter(o => o.length > 0);
+
+    if (!question || options.length < 2) {
+      setToast({ message: 'Digite a pergunta e pelo menos 2 opções (uma por linha)', type: 'error' });
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/family-polls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          question,
+          options,
+          user_id: familyUser.id,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setToast({ message: data.message || 'Erro ao criar enquete', type: 'error' });
+        return;
+      }
+
+      setNewPollQuestion('');
+      setNewPollOptionsText('');
+      await loadFamilyPolls();
+      setToast({ message: 'Enquete criada com sucesso!', type: 'success' });
+    } catch (error) {
+      setToast({ message: 'Erro ao criar enquete', type: 'error' });
+    }
+  };
+
+  const handleVotePoll = async (pollId: number, optionIndex: number) => {
+    if (!familyUser) {
+      setToast({ message: 'Faça login para votar na enquete', type: 'error' });
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/family-polls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'vote',
+          poll_id: pollId,
+          option_index: optionIndex,
+          user_id: familyUser.id,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setToast({ message: data.message || 'Erro ao votar', type: 'error' });
+        return;
+      }
+
+      await loadFamilyPolls();
+    } catch (error) {
+      setToast({ message: 'Erro ao votar', type: 'error' });
+    }
+  };
+
+  const handleSetAttendance = async (status: 'yes' | 'maybe' | 'no') => {
+    if (!familyUser) {
+      setToast({ message: 'Faça login no mural para marcar presença', type: 'error' });
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/family-attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: familyUser.id,
+          status,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setToast({ message: data.message || 'Erro ao atualizar presença', type: 'error' });
+        return;
+      }
+
+      await loadFamilyAttendance();
+      setToast({ message: 'Presença atualizada com sucesso!', type: 'success' });
+    } catch (error) {
+      setToast({ message: 'Erro ao atualizar presença', type: 'error' });
+    }
+  };
+
   // Função helper para formatar valores de forma segura - ATUALIZADO
   const formatCurrency = (value: any): string => {
     const num = Number(value);
     return isNaN(num) ? '0.00' : num.toFixed(2);
+  };
+
+  const loadFamilyPosts = async () => {
+    try {
+      const res = await fetch('/api/family-posts');
+      if (res.ok) {
+        const data = await res.json();
+        setFamilyPosts(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Erro ao carregar mural:', res.status);
+        setFamilyPosts([]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar mural:', error);
+      setFamilyPosts([]);
+    }
+  };
+
+  const loadFamilyPolls = async () => {
+    try {
+      const res = await fetch('/api/family-polls');
+      if (res.ok) {
+        const data = await res.json();
+        setFamilyPolls(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Erro ao carregar enquetes:', res.status);
+        setFamilyPolls([]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar enquetes:', error);
+      setFamilyPolls([]);
+    }
+  };
+
+  const loadFamilyAttendance = async () => {
+    try {
+      const res = await fetch('/api/family-attendance');
+      if (res.ok) {
+        const data = await res.json();
+        const normalized: FamilyAttendance[] = Array.isArray(data)
+          ? data.map((row: any) => ({
+              participant_id: Number(row.participant_id),
+              name: String(row.name),
+              status: row.status === 'yes' || row.status === 'maybe' || row.status === 'no' ? row.status : null,
+            }))
+          : [];
+        setFamilyAttendance(normalized);
+      } else {
+        console.error('Erro ao carregar presença:', res.status);
+        setFamilyAttendance([]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar presença:', error);
+      setFamilyAttendance([]);
+    }
   };
 
   // Carregar dados
@@ -282,6 +786,10 @@ export default function ChristmasOrganizer() {
           console.error('Erro ao carregar timeline:', res.status);
           setTimeline([]);
         }
+
+        await loadFamilyPosts();
+        await loadFamilyPolls();
+        await loadFamilyAttendance();
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -477,6 +985,309 @@ export default function ChristmasOrganizer() {
     loadData();
   };
 
+  // 🎁 Funções do Amigo Oculto
+  const fetchSecretSantaConfig = async () => {
+    try {
+      const res = await fetch('/api/secret-santa?action=config');
+      const data = await res.json();
+      setSecretSantaConfig(data);
+    } catch (error) {
+      console.error('Erro ao buscar config:', error);
+    }
+  };
+
+  const fetchAllDraws = async () => {
+    try {
+      const res = await fetch('/api/secret-santa?action=all-draws');
+      const data = await res.json();
+      setAllDraws(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Erro ao buscar sorteios:', error);
+      setAllDraws([]);
+    }
+  };
+
+  const performDraw = async () => {
+    if (!confirm('Tem certeza que deseja fazer o sorteio? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/secret-santa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'draw',
+          rules: drawRules,
+          min_gift_value: minGiftValue,
+          max_gift_value: maxGiftValue
+        })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        setToast({ message: `🎁 Sorteio realizado! ${data.total_participants} participantes`, type: 'success' });
+        await fetchSecretSantaConfig();
+        await fetchAllDraws();
+      } else {
+        setToast({ message: `Erro: ${data.error}`, type: 'error' });
+      }
+    } catch (error) {
+      setToast({ message: 'Erro ao fazer sorteio', type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const addDrawRule = () => {
+    if (selectedP1 && selectedP2 && selectedP1 !== selectedP2) {
+      setDrawRules([...drawRules, {
+        type: 'cannot_draw',
+        participant1_id: selectedP1,
+        participant2_id: selectedP2
+      }]);
+      setSelectedP1(0);
+      setSelectedP2(0);
+    }
+  };
+
+  const removeDrawRule = (index: number) => {
+    setDrawRules(drawRules.filter((_, i) => i !== index));
+  };
+
+  const cancelDraw = async () => {
+    if (!confirm('Cancelar sorteio atual?')) return;
+    
+    try {
+      await fetch('/api/secret-santa', { method: 'DELETE' });
+      setSecretSantaConfig(null);
+      setAllDraws([]);
+      setToast({ message: 'Sorteio cancelado', type: 'info' });
+    } catch (error) {
+      setToast({ message: 'Erro ao cancelar sorteio', type: 'error' });
+    }
+  };
+
+  // Revelar amigo oculto por token (público)
+  const revealByToken = async () => {
+    if (!revealToken.trim()) {
+      setToast({ message: 'Digite um token válido', type: 'error' });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/secret-santa?action=reveal-by-token&token=${revealToken.trim()}`);
+      const data = await res.json();
+      
+      if (res.ok) {
+        setRevealedDraw(data);
+        
+        // Marcar como revelado
+        await fetch('/api/secret-santa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'reveal',
+            token: revealToken.trim()
+          })
+        });
+        
+        // Buscar lista de desejos da pessoa que você tirou
+        await fetchReceiverWishList(data.receiver_id);
+        
+        setToast({ message: '🎁 Amigo oculto revelado!', type: 'success' });
+      } else {
+        setToast({ message: data.error || 'Token inválido', type: 'error' });
+        setRevealedDraw(null);
+      }
+    } catch (error) {
+      setToast({ message: 'Erro ao revelar', type: 'error' });
+      setRevealedDraw(null);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Buscar lista de desejos da pessoa que você tirou
+  const fetchReceiverWishList = async (participantId: number) => {
+    try {
+      const res = await fetch(`/api/wishlist?participant_id=${participantId}`);
+      const data = await res.json();
+      setReceiverWishList(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Erro ao buscar wishlist:', error);
+      setReceiverWishList([]);
+    }
+  };
+
+  // Buscar minha lista de desejos
+  const fetchMyWishList = async (participantId: number) => {
+    try {
+      const res = await fetch(`/api/wishlist?participant_id=${participantId}`);
+      const data = await res.json();
+      setMyWishList(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Erro ao buscar minha wishlist:', error);
+      setMyWishList([]);
+    }
+  };
+
+  // Adicionar item à minha lista de desejos
+  const addWishItem = async (giverName: string) => {
+    if (!newWishItem.item_name.trim()) {
+      setToast({ message: 'Digite o nome do item', type: 'error' });
+      return;
+    }
+
+    // Encontrar meu ID pelo nome
+    const me = participants.find(p => p.name === giverName);
+    if (!me) {
+      setToast({ message: 'Erro ao identificar participante', type: 'error' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/wishlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          participant_id: me.id,
+          ...newWishItem
+        })
+      });
+
+      if (res.ok) {
+        setToast({ message: '✅ Item adicionado à sua lista!', type: 'success' });
+        setNewWishItem({
+          item_name: '',
+          item_description: '',
+          item_url: '',
+          priority: 2
+        });
+        await fetchMyWishList(me.id);
+      } else {
+        throw new Error('Erro ao adicionar item');
+      }
+    } catch (error) {
+      setToast({ message: 'Erro ao adicionar item', type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Deletar item da minha lista
+  const deleteWishItem = async (itemId: number, participantId: number) => {
+    try {
+      await fetch(`/api/wishlist/${itemId}`, { method: 'DELETE' });
+      setToast({ message: 'Item removido', type: 'info' });
+      await fetchMyWishList(participantId);
+    } catch (error) {
+      setToast({ message: 'Erro ao remover item', type: 'error' });
+    }
+  };
+
+  // Marcar item como comprado
+  const togglePurchased = async (itemId: number, purchased: boolean, participantId: number) => {
+    try {
+      await fetch(`/api/wishlist/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ purchased: !purchased })
+      });
+      await fetchReceiverWishList(participantId);
+    } catch (error) {
+      setToast({ message: 'Erro ao atualizar item', type: 'error' });
+    }
+  };
+
+  // Admin: Buscar lista de desejos de um participante
+  const fetchAdminWishList = async (participantId: number) => {
+    try {
+      const res = await fetch(`/api/wishlist?participant_id=${participantId}`);
+      const data = await res.json();
+      setAdminWishList(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Erro ao buscar wishlist:', error);
+      setAdminWishList([]);
+    }
+  };
+
+  // Admin: Adicionar item à lista de um participante
+  const addAdminWishItem = async () => {
+    if (!selectedParticipantForWishList) {
+      setToast({ message: 'Selecione um participante', type: 'error' });
+      return;
+    }
+    if (!newWishItem.item_name.trim()) {
+      setToast({ message: 'Digite o nome do item', type: 'error' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/wishlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          participant_id: selectedParticipantForWishList,
+          ...newWishItem
+        })
+      });
+
+      if (res.ok) {
+        setToast({ message: '✅ Item adicionado!', type: 'success' });
+        setNewWishItem({
+          item_name: '',
+          item_description: '',
+          item_url: '',
+          priority: 2
+        });
+        await fetchAdminWishList(selectedParticipantForWishList);
+      } else {
+        throw new Error('Erro ao adicionar item');
+      }
+    } catch (error) {
+      setToast({ message: 'Erro ao adicionar item', type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Admin: Deletar item da lista
+  const deleteAdminWishItem = async (itemId: number) => {
+    try {
+      await fetch(`/api/wishlist/${itemId}`, { method: 'DELETE' });
+      setToast({ message: 'Item removido', type: 'info' });
+      if (selectedParticipantForWishList) {
+        await fetchAdminWishList(selectedParticipantForWishList);
+      }
+    } catch (error) {
+      setToast({ message: 'Erro ao remover item', type: 'error' });
+    }
+  };
+
+  // Carregar dados do amigo oculto quando admin
+  useEffect(() => {
+    if (isAdmin && activeTab === 'secret-santa') {
+      fetchSecretSantaConfig();
+      fetchAllDraws();
+    }
+  }, [isAdmin, activeTab]);
+
+  // Carregar participantes e config quando abrir seção de revelação
+  useEffect(() => {
+    if (showRevealSection && participants.length === 0) {
+      loadData();
+    }
+    if (showRevealSection) {
+      fetchSecretSantaConfig();
+    }
+  }, [showRevealSection]);
+
   // Cálculos
   const totalExpected = participants.length * CONTRIBUTION;
   const totalReceived = participants.filter(p => p.paid).length * CONTRIBUTION;
@@ -484,7 +1295,7 @@ export default function ChristmasOrganizer() {
   const balance = totalReceived - totalSpent;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-900 via-indigo-900 to-purple-900 relative">
+    <div className="min-h-screen bg-gradient-to-b from-slate-950/90 via-slate-900/90 to-slate-950/95 relative">
       {/* Toast de Notificação */}
       {toast && (
         <Toast 
@@ -510,37 +1321,48 @@ export default function ChristmasOrganizer() {
         </div>
       ))}
       
-      {/* Header NATALINO ÉPICO */}
-      <header className="bg-gradient-to-r from-red-700 via-green-700 to-red-700 border-b-4 border-yellow-400 sticky top-0 z-50 backdrop-blur-lg relative shadow-2xl">
-        {/* Luzes de Natal Piscando */}
-        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 opacity-80" style={{animation: 'christmasLights 2s linear infinite'}}></div>
-        
-        {/* Neve no Header */}
+      {/* Header NATALINO (refinado) */}
+      <header className="bg-black/40 border-b border-white/10 sticky top-0 z-50 backdrop-blur-xl relative shadow-lg">
+        {/* Luzes de Natal mais sutis */}
+        <div
+          className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 opacity-70"
+          style={{ animation: 'christmasLights 3s linear infinite' }}
+        />
+
+        {/* Neve suave no Header */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-0 left-0 text-white/20 text-6xl">❄️</div>
-          <div className="absolute top-0 right-0 text-white/20 text-6xl">❄️</div>
+          <div className="absolute top-1 left-2 text-white/15 text-4xl">❄️</div>
+          <div className="absolute top-1 right-3 text-white/15 text-4xl">❄️</div>
         </div>
-        
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6 relative z-10">
+
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-5 relative z-10">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-3 md:gap-4">
-              <div className="w-12 h-12 md:w-16 md:h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl relative animate-pulse" style={{animationDuration: '2s'}}>
+              <div className="w-11 h-11 md:w-14 md:h-14 bg-white/95 rounded-2xl flex items-center justify-center shadow-xl relative animate-pulse" style={{ animationDuration: '2.2s' }}>
                 <span className="text-3xl md:text-5xl">🎅</span>
-                <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 text-xl md:text-2xl animate-bounce">⭐</div>
+                <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 text-lg md:text-xl animate-bounce">⭐</div>
               </div>
               <div>
-                <h1 className="text-xl md:text-3xl font-black text-white flex items-center gap-2 md:gap-3 drop-shadow-lg">
+                <h1 className="text-lg md:text-2xl font-black text-white flex items-center gap-2 md:gap-3 drop-shadow">
                   <span className="animate-bounce" style={{animationDelay: '0s'}}>🎄</span>
                   <span className="hidden sm:inline">Natal em Família 2025</span>
                   <span className="sm:hidden">Natal 2025</span>
                   <span className="animate-bounce" style={{animationDelay: '0.2s'}}>🎁</span>
                 </h1>
-                <p className="text-sm md:text-lg text-yellow-200 font-bold mt-1">
+                <p className="text-xs md:text-sm text-yellow-200 font-semibold mt-1">
                   {isAdmin ? '👑 Painel do Papai Noel' : '✨ Timeline Mágica do Natal'}
                 </p>
               </div>
             </div>
-            <div>
+            <div className="flex gap-2">
+              {!isAdmin && (
+                <button
+                  onClick={() => setShowRevealSection(!showRevealSection)}
+                  className="px-4 md:px-6 py-2 md:py-3 text-sm md:text-base font-bold text-white bg-purple-600 hover:bg-purple-500 rounded-xl transition-all shadow-lg hover:shadow-2xl transform hover:scale-105 border-2 border-purple-400"
+                >
+                  🎁 <span className="hidden sm:inline">Meu Amigo Oculto</span><span className="sm:hidden">Amigo</span>
+                </button>
+              )}
               {isAdmin ? (
                 <button
                   onClick={handleLogout}
@@ -564,22 +1386,23 @@ export default function ChristmasOrganizer() {
 
       {/* Navigation NATALINA */}
       {isAdmin && (
-        <nav className="bg-gradient-to-r from-green-50 via-red-50 to-green-50 border-b-2 border-red-300 shadow-md overflow-x-auto">
+        <nav className="bg-black/30 border-b border-white/10 shadow-sm overflow-x-auto">
           <div className="max-w-7xl mx-auto px-4 md:px-6">
-            <div className="flex gap-1 md:gap-2 min-w-max md:min-w-0">
+            <div className="flex gap-1.5 md:gap-2 min-w-max md:min-w-0">
               {[
                 { id: 'dashboard', label: '🎁 Visão Geral', shortLabel: '🎁 Visão', icon: DollarSign },
                 { id: 'participants', label: '👨‍👩‍👧‍👦 Família', shortLabel: '👨‍👩‍👧‍👦', icon: Users },
                 { id: 'purchases', label: '🛒 Compras', shortLabel: '🛒', icon: ShoppingCart },
+                { id: 'secret-santa', label: '🎅 Amigo Oculto', shortLabel: '🎅', icon: Users },
                 { id: 'timeline', label: '🎄 Timeline', shortLabel: '🎄', icon: Clock }
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1 md:gap-2 px-3 md:px-6 py-3 md:py-4 text-sm md:text-base font-bold transition-all relative rounded-t-xl whitespace-nowrap ${
+                  className={`flex items-center gap-1 md:gap-2 px-3 md:px-5 py-2.5 md:py-3.5 text-xs md:text-sm font-semibold transition-all relative rounded-t-xl whitespace-nowrap ${
                     activeTab === tab.id
-                      ? 'text-white bg-gradient-to-r from-red-600 to-green-600 shadow-lg transform scale-105'
-                      : 'text-gray-700 hover:bg-white/50'
+                      ? 'text-white bg-gradient-to-r from-red-600 to-green-600 shadow-md transform scale-[1.02]'
+                      : 'text-gray-200 hover:bg-white/5'
                   }`}
                 >
                   <span className="hidden md:inline">{tab.label}</span>
@@ -642,6 +1465,144 @@ export default function ChristmasOrganizer() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {loading && <div className="text-center py-8">Carregando...</div>}
 
+        {/* 🎁 SEÇÃO DE REVELAÇÃO POR TOKEN (Público) */}
+        {!isAdmin && showRevealSection && (
+          <div className="mb-8">
+            <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl p-6 md:p-8 border-4 border-purple-300">
+              <h2 className="text-3xl font-bold text-purple-600 mb-4 text-center">🎁 Revelar Meu Amigo Oculto</h2>
+              
+              {!revealedDraw ? (
+                <div className="space-y-4">
+                  <p className="text-gray-700 text-center">
+                    Digite o token que você recebeu para descobrir quem é seu amigo oculto!
+                  </p>
+                  <div className="flex flex-col md:flex-row gap-3">
+                    <input
+                      type="text"
+                      value={revealToken}
+                      onChange={(e) => setRevealToken(e.target.value.toUpperCase())}
+                      onKeyPress={(e) => e.key === 'Enter' && revealByToken()}
+                      placeholder="Digite seu token (ex: ABC12345)"
+                      className="flex-1 px-4 py-3 text-center text-2xl font-mono font-bold border-2 border-purple-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none uppercase tracking-wider"
+                      maxLength={8}
+                    />
+                    <button
+                      onClick={revealByToken}
+                      disabled={isSubmitting}
+                      className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 font-bold text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Revelando...
+                        </>
+                      ) : (
+                        <>🎁 Revelar</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <p className="text-lg text-gray-700 mb-2">Olá, <span className="font-bold text-purple-600">{revealedDraw.giver_name}</span>!</p>
+                    <p className="text-2xl font-bold text-gray-800 mb-4">Você tirou:</p>
+                    <div className="bg-gradient-to-r from-purple-100 to-pink-100 p-8 rounded-2xl border-4 border-purple-400 shadow-xl">
+                      <p className="text-5xl font-black text-purple-600 mb-2">{revealedDraw.receiver_name}</p>
+                      <p className="text-xl text-gray-700">🎁 Seu amigo oculto!</p>
+                    </div>
+                  </div>
+                  
+                  {secretSantaConfig && secretSantaConfig.min_gift_value && (
+                    <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
+                      <p className="text-sm text-blue-800">
+                        <span className="font-bold">💰 Valor sugerido do presente:</span> R$ {secretSantaConfig.min_gift_value} - R$ {secretSantaConfig.max_gift_value}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Lista de Desejos da Pessoa que Você Tirou */}
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border-2 border-green-300">
+                    <h3 className="text-xl font-bold text-green-700 mb-3 flex items-center gap-2">
+                      🎁 Sugestões de Presente de {revealedDraw.receiver_name}
+                    </h3>
+                    {receiverWishList.length > 0 ? (
+                      <div className="space-y-3">
+                        {receiverWishList.map((item) => (
+                          <div key={item.id} className="bg-white p-4 rounded-lg border border-green-200 shadow-sm">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-bold text-gray-800">{item.item_name}</h4>
+                                  <span className={`text-xs px-2 py-1 rounded-full font-bold ${
+                                    item.priority === 3 ? 'bg-red-100 text-red-700' :
+                                    item.priority === 2 ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {item.priority === 3 ? '⭐⭐⭐ Alta' : item.priority === 2 ? '⭐⭐ Média' : '⭐ Baixa'}
+                                  </span>
+                                </div>
+                                {item.item_description && (
+                                  <p className="text-sm text-gray-600 mb-2">{item.item_description}</p>
+                                )}
+                                {item.item_url && (
+                                  <a 
+                                    href={item.item_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                                  >
+                                    🔗 Ver produto
+                                  </a>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => togglePurchased(item.id, item.purchased, revealedDraw.receiver_id)}
+                                className={`ml-3 px-3 py-1 rounded-lg font-bold text-sm transition-all ${
+                                  item.purchased 
+                                    ? 'bg-green-500 text-white hover:bg-green-600' 
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                              >
+                                {item.purchased ? '✓ Comprado' : 'Marcar'}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-600 text-center py-4">
+                        {revealedDraw.receiver_name} ainda não adicionou sugestões de presente.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setRevealedDraw(null);
+                        setRevealToken('');
+                        setReceiverWishList([]);
+                        setMyWishList([]);
+                        setShowMyWishList(false);
+                      }}
+                      className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-bold transition-all"
+                    >
+                      Revelar Outro Token
+                    </button>
+                    <button
+                      onClick={() => setShowRevealSection(false)}
+                      className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-bold transition-all"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* DASHBOARD NATALINO */}
         {isAdmin && activeTab === 'dashboard' && !loading && (
           <div className="space-y-6">
@@ -691,6 +1652,320 @@ export default function ChristmasOrganizer() {
                 <div className="text-sm text-gray-600 mb-1">Saldo</div>
                 <div className={`text-3xl font-bold ${balance >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
                   R$ {formatCurrency(balance)}
+                </div>
+              </div>
+
+              {/* 📸 Álbum da Família */}
+            <div className="mb-12 -mx-4 md:-mx-8">
+                <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-emerald-100">
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div>
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 mb-2">
+                        <span className="text-sm">📸</span>
+                        <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Álbum da família</span>
+                      </div>
+                      <h2 className="text-lg md:text-xl font-bold text-gray-900">
+                        Fotos do Natal em Família
+                      </h2>
+                      <p className="text-xs md:text-sm text-gray-600 mt-1">
+                        Todas as fotos postadas no mural aparecem aqui, em uma grade especial do Natal.
+                      </p>
+                    </div>
+                  </div>
+
+                  {familyPosts.some(p => p.image_url) ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {familyPosts
+                        .filter(p => p.image_url)
+                        .map((post) => (
+                          <div
+                            key={post.id}
+                            className="relative group rounded-xl overflow-hidden border border-white shadow-sm bg-gray-900/5"
+                          >
+                            <img
+                              src={post.image_url as string}
+                              alt={post.content || `Foto de ${post.user_name}`}
+                              className="w-full h-28 md:h-32 object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="absolute bottom-1 left-1 right-1 px-2 py-1 flex justify-between items-end text-[10px] text-white">
+                              <span className="font-semibold truncate max-w-[70%]">
+                                {post.user_name}
+                              </span>
+                              <span className="opacity-80">
+                                {new Date(post.created_at).toLocaleDateString('pt-BR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      Ainda não há fotos no álbum. Poste uma mensagem com foto no mural para começar! 🎄
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* ✅ Presença no Natal (RSVP) */}
+            <div className="mb-12 -mx-6 md:-mx-12">
+                <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-emerald-100/70">
+                  {(() => {
+                    const yesCount = familyAttendance.filter(a => a.status === 'yes').length;
+                    const maybeCount = familyAttendance.filter(a => a.status === 'maybe').length;
+                    const noCount = familyAttendance.filter(a => a.status === 'no').length;
+                    const totalResponded = yesCount + maybeCount + noCount;
+                    const myStatus = familyUser
+                      ? familyAttendance.find(a => a.name === familyUser.name)?.status || null
+                      : null;
+
+                    return (
+                      <>
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div>
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 mb-2">
+                              <span className="text-sm">✅</span>
+                              <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Presença no Natal</span>
+                            </div>
+                            <h2 className="text-lg md:text-xl font-bold text-gray-900">
+                              Quem vai estar na ceia?
+                            </h2>
+                            <p className="text-xs md:text-sm text-gray-600 mt-1">
+                              Marque se você vai, talvez vá ou não vai. Isso ajuda a organizar comida, bebida e presentes.
+                            </p>
+                          </div>
+                          {totalResponded > 0 && (
+                            <div className="hidden md:flex flex-col items-end text-xs text-gray-600">
+                              <span className="font-semibold text-emerald-700">{yesCount} confirmad{yesCount === 1 ? 'o' : 'os'}</span>
+                              {maybeCount > 0 && (
+                                <span className="text-amber-600">{maybeCount} talvez</span>
+                              )}
+                              {noCount > 0 && (
+                                <span className="text-gray-500">{noCount} não vão</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Botões do meu RSVP */}
+                        <div className="mb-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => handleSetAttendance('yes')}
+                              className={`px-3 py-2 rounded-full text-xs md:text-sm font-semibold flex items-center gap-2 border transition-all ${
+                                myStatus === 'yes'
+                                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
+                                  : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
+                              }`}
+                            >
+                              <span>✅</span>
+                              <span>Vou</span>
+                            </button>
+                            <button
+                              onClick={() => handleSetAttendance('maybe')}
+                              className={`px-3 py-2 rounded-full text-xs md:text-sm font-semibold flex items-center gap-2 border transition-all ${
+                                myStatus === 'maybe'
+                                  ? 'bg-amber-500 text-white border-amber-500 shadow-md'
+                                  : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
+                              }`}
+                            >
+                              <span>🤔</span>
+                              <span>Talvez</span>
+                            </button>
+                            <button
+                              onClick={() => handleSetAttendance('no')}
+                              className={`px-3 py-2 rounded-full text-xs md:text-sm font-semibold flex items-center gap-2 border transition-all ${
+                                myStatus === 'no'
+                                  ? 'bg-gray-600 text-white border-gray-600 shadow-md'
+                                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              <span>❌</span>
+                              <span>Não vou</span>
+                            </button>
+                          </div>
+                          {!familyUser && (
+                            <p className="text-[11px] md:text-xs text-gray-500">
+                              Faça login no mural para marcar sua presença.
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Resumo de presença */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs md:text-sm">
+                          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 flex flex-col">
+                            <span className="text-[11px] font-semibold text-emerald-700 uppercase mb-1">Confirmados ✅</span>
+                            {yesCount === 0 ? (
+                              <span className="text-gray-500">Ninguém confirmou ainda.</span>
+                            ) : (
+                              <span className="text-gray-800">
+                                {familyAttendance
+                                  .filter(a => a.status === 'yes')
+                                  .map(a => a.name)
+                                  .join(', ')}
+                              </span>
+                            )}
+                          </div>
+                          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3 flex flex-col">
+                            <span className="text-[11px] font-semibold text-amber-700 uppercase mb-1">Talvez 🤔</span>
+                            {maybeCount === 0 ? (
+                              <span className="text-gray-500">Ninguém marcou talvez.</span>
+                            ) : (
+                              <span className="text-gray-800">
+                                {familyAttendance
+                                  .filter(a => a.status === 'maybe')
+                                  .map(a => a.name)
+                                  .join(', ')}
+                              </span>
+                            )}
+                          </div>
+                          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-3 flex flex-col">
+                            <span className="text-[11px] font-semibold text-gray-700 uppercase mb-1">Não vão ❌</span>
+                            {noCount === 0 ? (
+                              <span className="text-gray-500">Ninguém marcou que não vai.</span>
+                            ) : (
+                              <span className="text-gray-800">
+                                {familyAttendance
+                                  .filter(a => a.status === 'no')
+                                  .map(a => a.name)
+                                  .join(', ')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* 📊 Enquetes da Família */}
+              <div className="mb-12 -mx-4 md:-mx-8">
+                <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-blue-100">
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div>
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 mb-2">
+                        <span className="text-sm">📊</span>
+                        <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Enquetes da família</span>
+                      </div>
+                      <h2 className="text-lg md:text-xl font-bold text-gray-900">
+                        Combinações rápidas pro Natal
+                      </h2>
+                      <p className="text-xs md:text-sm text-gray-600 mt-1">
+                        Decidam juntos horário da ceia, sobremesas, brincadeiras e outros detalhes.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Criar enquete - apenas usuário logado no mural */}
+                  {familyUser ? (
+                    <div className="mb-5 space-y-3">
+                      <div className="flex flex-col md:flex-row gap-3 md:gap-4 items-start">
+                        <div className="flex-1 min-w-0">
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Pergunta da enquete
+                          </label>
+                          <input
+                            type="text"
+                            value={newPollQuestion}
+                            onChange={(e) => setNewPollQuestion(e.target.value)}
+                            placeholder="Ex: Que horas começamos a ceia?"
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-gray-50"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Opções (uma por linha)
+                          </label>
+                          <textarea
+                            value={newPollOptionsText}
+                            onChange={(e) => setNewPollOptionsText(e.target.value)}
+                            rows={3}
+                            placeholder={"Ex:\n20h\n20h30\n21h"}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-none bg-gray-50"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          onClick={handleCreatePoll}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 text-white text-xs md:text-sm font-semibold shadow-md hover:bg-blue-700 hover:shadow-lg transition-all"
+                        >
+                          <span>✨</span>
+                          <span>Criar enquete</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mb-4 text-xs md:text-sm text-gray-500">
+                      Faça login no mural para criar enquetes.
+                    </p>
+                  )}
+
+                  {/* Lista de enquetes */}
+                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                    {familyPolls.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-4">
+                        Ainda não há enquetes. Crie a primeira para combinar os detalhes do Natal! ✨
+                      </p>
+                    ) : (
+                      familyPolls.map((poll) => {
+                        const totalVotes = Object.values(poll.votes || {}).reduce((sum, v) => sum + Number(v || 0), 0);
+                        return (
+                          <div key={poll.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div>
+                                <p className="text-sm font-bold text-gray-900 mb-0.5">{poll.question}</p>
+                                <p className="text-[11px] text-gray-500">
+                                  Criada por {poll.created_by_name} em{' '}
+                                  {new Date(poll.created_at).toLocaleDateString('pt-BR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                  })}
+                                </p>
+                              </div>
+                              {totalVotes > 0 && (
+                                <span className="text-[11px] text-blue-700 bg-blue-50 px-2 py-1 rounded-full font-semibold">
+                                  {totalVotes} voto{totalVotes === 1 ? '' : 's'}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {poll.options.map((opt, idx) => {
+                                const count = poll.votes?.[String(idx)] || 0;
+                                const percent = totalVotes > 0 ? Math.round((Number(count) / totalVotes) * 100) : 0;
+                                return (
+                                  <button
+                                    key={idx}
+                                    onClick={() => handleVotePoll(poll.id, idx)}
+                                    className="flex flex-col items-start text-left px-3 py-2 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-xs"
+                                  >
+                                    <div className="flex justify-between w-full items-center mb-1">
+                                      <span className="font-semibold text-gray-800">{opt}</span>
+                                      <span className="text-[11px] text-gray-500">
+                                        {count} voto{Number(count) === 1 ? '' : 's'}{totalVotes > 0 ? ` • ${percent}%` : ''}
+                                      </span>
+                                    </div>
+                                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full bg-gradient-to-r from-blue-500 to-indigo-500"
+                                        style={{ width: `${percent}%` }}
+                                      ></div>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -953,6 +2228,290 @@ export default function ChristmasOrganizer() {
           </div>
         )}
 
+        {/* 🎅 AMIGO OCULTO - Só admin */}
+        {isAdmin && activeTab === 'secret-santa' && !loading && (
+          <div className="space-y-6">
+            <h2 className="text-3xl font-bold text-white drop-shadow-lg">🎅 Amigo Oculto</h2>
+            
+            {/* Status do Sorteio */}
+            {secretSantaConfig ? (
+              <div className="bg-white/90 backdrop-blur-lg p-6 rounded-xl shadow-lg border-2 border-green-300">
+                <h3 className="text-2xl font-bold text-green-600 mb-4 flex items-center gap-2">
+                  ✅ Sorteio Ativo
+                </h3>
+                <div className="space-y-2 text-gray-700">
+                  <p><span className="font-bold">Data do sorteio:</span> {new Date(secretSantaConfig.draw_date).toLocaleDateString('pt-BR')}</p>
+                  {secretSantaConfig.min_gift_value && (
+                    <p><span className="font-bold">Valor do presente:</span> R$ {secretSantaConfig.min_gift_value} - R$ {secretSantaConfig.max_gift_value}</p>
+                  )}
+                </div>
+                <button
+                  onClick={cancelDraw}
+                  className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all"
+                >
+                  Cancelar Sorteio
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white/90 backdrop-blur-lg p-6 rounded-xl shadow-lg border-2 border-blue-200">
+                <h3 className="text-2xl font-bold mb-4 text-gray-800">Configurar Sorteio</h3>
+                
+                {/* Valor do Presente */}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-bold mb-2 text-gray-700">Valor Mínimo (R$)</label>
+                    <input
+                      type="number"
+                      value={minGiftValue}
+                      onChange={(e) => setMinGiftValue(Number(e.target.value))}
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2 text-gray-700">Valor Máximo (R$)</label>
+                    <input
+                      type="number"
+                      value={maxGiftValue}
+                      onChange={(e) => setMaxGiftValue(Number(e.target.value))}
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                    />
+                  </div>
+                </div>
+                
+                {/* Regras */}
+                <div className="mb-4">
+                  <h4 className="font-bold mb-2 text-gray-800">Regras (quem NÃO pode tirar quem)</h4>
+                  <p className="text-sm text-gray-600 mb-3">Ex: casais, irmãos, pessoas que moram juntas</p>
+                  
+                  {drawRules.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      {drawRules.map((rule, idx) => {
+                        const p1 = participants.find(p => p.id === rule.participant1_id);
+                        const p2 = participants.find(p => p.id === rule.participant2_id);
+                        return (
+                          <div key={idx} className="flex items-center justify-between bg-gray-100 p-3 rounded-lg">
+                            <span className="font-medium text-gray-800">{p1?.name} ↔ {p2?.name}</span>
+                            <button
+                              onClick={() => removeDrawRule(idx)}
+                              className="text-red-500 hover:text-red-700 font-bold"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  
+                  {/* Adicionar Regra */}
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedP1}
+                      onChange={(e) => setSelectedP1(Number(e.target.value))}
+                      className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                    >
+                      <option value={0}>Pessoa 1</option>
+                      {participants.filter(p => p.paid).map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={selectedP2}
+                      onChange={(e) => setSelectedP2(Number(e.target.value))}
+                      className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                    >
+                      <option value={0}>Pessoa 2</option>
+                      {participants.filter(p => p.paid).map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={addDrawRule}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all font-bold"
+                    >
+                      + Regra
+                    </button>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={performDraw}
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-bold text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Sorteando...
+                    </>
+                  ) : (
+                    <>🎲 Fazer Sorteio</>
+                  )}
+                </button>
+                
+                <p className="text-sm text-gray-600 mt-3 text-center">
+                  Apenas participantes que pagaram entrarão no sorteio ({participants.filter(p => p.paid).length} pessoas)
+                </p>
+              </div>
+            )}
+            
+            {/* Tokens para Distribuir */}
+            {allDraws.length > 0 && (
+              <div className="bg-white/90 backdrop-blur-lg p-6 rounded-xl shadow-lg border-2 border-purple-200">
+                <h3 className="text-2xl font-bold mb-4 text-gray-800">🎫 Tokens para Distribuir</h3>
+                <p className="text-sm text-blue-700 bg-blue-50 p-3 rounded-lg mb-4 border-l-4 border-blue-400">
+                  💡 <span className="font-bold">Como funciona:</span> Entregue cada token para a pessoa correspondente. Elas usarão o token para revelar seu amigo oculto na aba pública.
+                </p>
+                <div className="space-y-3">
+                  {allDraws.map((draw, idx) => (
+                    <div key={idx} className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-gray-800 text-lg">{draw.giver_name}</span>
+                        {draw.revealed && <span className="text-green-500 text-sm font-bold bg-green-100 px-2 py-1 rounded">✓ Revelado</span>}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 bg-white p-3 rounded-lg border-2 border-purple-300 font-mono text-2xl font-bold text-purple-600 text-center tracking-wider">
+                          {draw.token}
+                        </div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(draw.token);
+                            setToast({ message: `Token ${draw.token} copiado!`, type: 'success' });
+                          }}
+                          className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-all font-bold"
+                        >
+                          📋 Copiar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Gerenciar Listas de Desejos */}
+            <div className="bg-white/90 backdrop-blur-lg p-6 rounded-xl shadow-lg border-2 border-pink-200">
+              <h3 className="text-2xl font-bold mb-4 text-gray-800">📝 Gerenciar Listas de Desejos</h3>
+              <p className="text-sm text-pink-700 bg-pink-50 p-3 rounded-lg mb-4 border-l-4 border-pink-400">
+                💡 <span className="font-bold">Cadastre as sugestões de presente</span> para cada participante. Quando alguém revelar o token, verá automaticamente a lista da pessoa que tirou!
+              </p>
+
+              {/* Selecionar Participante */}
+              <div className="mb-4">
+                <label className="block text-sm font-bold mb-2 text-gray-700">Selecione o Participante:</label>
+                <select
+                  value={selectedParticipantForWishList}
+                  onChange={(e) => {
+                    const id = Number(e.target.value);
+                    setSelectedParticipantForWishList(id);
+                    if (id > 0) fetchAdminWishList(id);
+                  }}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:ring-2 focus:ring-pink-200 outline-none text-lg font-semibold"
+                >
+                  <option value={0}>-- Escolha um participante --</option>
+                  {participants.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Formulário de Adicionar Item */}
+              {selectedParticipantForWishList > 0 && (
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 rounded-lg border-2 border-pink-300">
+                    <h4 className="font-bold text-gray-800 mb-3">Adicionar Sugestão de Presente</h4>
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        value={newWishItem.item_name}
+                        onChange={(e) => setNewWishItem({...newWishItem, item_name: e.target.value})}
+                        placeholder="Nome do item *"
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:ring-2 focus:ring-pink-200 outline-none text-lg font-semibold"
+                      />
+                      <textarea
+                        value={newWishItem.item_description}
+                        onChange={(e) => setNewWishItem({...newWishItem, item_description: e.target.value})}
+                        placeholder="Descrição (opcional)"
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:ring-2 focus:ring-pink-200 outline-none resize-none"
+                        rows={2}
+                      />
+                      <input
+                        type="url"
+                        value={newWishItem.item_url}
+                        onChange={(e) => setNewWishItem({...newWishItem, item_url: e.target.value})}
+                        placeholder="Link do produto (opcional)"
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:ring-2 focus:ring-pink-200 outline-none"
+                      />
+                      <select
+                        value={newWishItem.priority}
+                        onChange={(e) => setNewWishItem({...newWishItem, priority: Number(e.target.value)})}
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:ring-2 focus:ring-pink-200 outline-none text-lg font-semibold"
+                      >
+                        <option value={1}>⭐ Prioridade Baixa</option>
+                        <option value={2}>⭐⭐ Prioridade Média</option>
+                        <option value={3}>⭐⭐⭐ Prioridade Alta</option>
+                      </select>
+                      <button
+                        onClick={addAdminWishItem}
+                        disabled={isSubmitting}
+                        className="w-full px-6 py-3 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-lg hover:from-pink-700 hover:to-purple-700 font-bold text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isSubmitting ? 'Adicionando...' : '+ Adicionar Item'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Lista de Itens do Participante */}
+                  {adminWishList.length > 0 && (
+                    <div className="bg-white p-4 rounded-lg border-2 border-pink-200">
+                      <h4 className="font-bold text-gray-800 mb-3">
+                        Lista de {participants.find(p => p.id === selectedParticipantForWishList)?.name}:
+                      </h4>
+                      <div className="space-y-2">
+                        {adminWishList.map((item) => (
+                          <div key={item.id} className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 rounded-lg border border-pink-200 flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h5 className="font-bold text-gray-800">{item.item_name}</h5>
+                                <span className={`text-xs px-2 py-1 rounded-full font-bold ${
+                                  item.priority === 3 ? 'bg-red-100 text-red-700' :
+                                  item.priority === 2 ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {item.priority === 3 ? '⭐⭐⭐' : item.priority === 2 ? '⭐⭐' : '⭐'}
+                                </span>
+                              </div>
+                              {item.item_description && (
+                                <p className="text-sm text-gray-600 mb-1">{item.item_description}</p>
+                              )}
+                              {item.item_url && (
+                                <a 
+                                  href={item.item_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                                >
+                                  🔗 Ver produto
+                                </a>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => deleteAdminWishItem(item.id)}
+                              className="ml-3 text-red-500 hover:text-red-700 font-bold text-xl"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* TIMELINE NATALINA ÉPICA */}
         {(activeTab === 'timeline' || !isAdmin) && !loading && (
           <div className="relative py-12 overflow-hidden">
@@ -1017,15 +2576,15 @@ export default function ChristmasOrganizer() {
             
             <div className="max-w-6xl mx-auto px-6 relative z-10">
               {/* Header - Natal 2025 */}
-              <div className="text-center mb-12">
-                <div className="inline-block bg-white/10 backdrop-blur-lg rounded-3xl px-12 py-8 border-4 border-yellow-400 shadow-2xl">
-                  <h1 className="text-6xl font-black text-white mb-4 drop-shadow-lg">
-                    🎄 NATAL 2025 🎄
+              <div className="text-center mb-10 md:mb-12">
+                <div className="inline-block bg-black/40 backdrop-blur-xl rounded-3xl px-6 md:px-10 py-5 md:py-7 border border-yellow-300/70 shadow-xl">
+                  <h1 className="text-3xl md:text-4xl font-black text-white mb-2 md:mb-3 drop-shadow">
+                    🎄 Natal em Família 2025
                   </h1>
-                  <div className="text-3xl font-bold text-yellow-300 mb-2">
-                    25 de Dezembro de 2025
+                  <div className="text-base md:text-lg font-semibold text-yellow-200 mb-1">
+                    25 de dezembro de 2025
                   </div>
-                  <div className="text-xl text-white/90">
+                  <div className="text-sm md:text-base text-white/85">
                     {(() => {
                       const natal = new Date('2025-12-25');
                       const hoje = new Date();
@@ -1135,15 +2694,310 @@ export default function ChristmasOrganizer() {
                 </div>
               </div>
               
+              {/* 👨‍👩‍👧‍👦 Mural da Família */}
+              <div className="mb-12">
+                <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-green-200">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                    <div>
+                      <h2 className="text-2xl md:text-3xl font-black text-green-800 flex items-center gap-2">
+                        <span>👨‍👩‍👧‍👦</span>
+                        <span>Mural da Família</span>
+                      </h2>
+                      <p className="text-sm md:text-base text-gray-600 mt-1">
+                        Um espaço só de vocês para trocar mensagens e recados do Natal.
+                      </p>
+                    </div>
+                    {familyUser && (
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm text-gray-700">
+                          <span className="font-semibold">Conectado como</span>{' '}
+                          <span className="font-bold text-green-700">{familyUser.name}</span>
+                        </div>
+                        <button
+                          onClick={handleFamilyLogout}
+                          className="px-3 py-2 text-xs md:text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 font-semibold transition-all"
+                        >
+                          Sair
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Autenticação / Cadastro */}
+                  {!familyUser && (
+                    <div className="mb-6">
+                      <div className="flex gap-2 mb-4">
+                        <button
+                          onClick={() => {
+                            setFamilyAuthMode('login');
+                            setFamilyAuthError('');
+                          }}
+                          className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
+                            familyAuthMode === 'login'
+                              ? 'bg-green-600 text-white border-green-600'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                          }`}
+                        >
+                          Já tenho conta
+                        </button>
+                        <button
+                          onClick={() => {
+                            setFamilyAuthMode('register');
+                            setFamilyAuthError('');
+                          }}
+                          className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
+                            familyAuthMode === 'register'
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                          }`}
+                        >
+                          Criar conta
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-end">
+                        {familyAuthMode === 'register' && (
+                          <input
+                            type="text"
+                            value={familyName}
+                            onChange={(e) => setFamilyName(e.target.value)}
+                            placeholder="Seu nome completo"
+                            className="px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-300 focus:border-green-500 outline-none text-sm md:text-base"
+                          />
+                        )}
+                        <input
+                          type="text"
+                          value={familyUsername}
+                          onChange={(e) => setFamilyUsername(e.target.value)}
+                          placeholder="Usuário (login)"
+                          className="px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-300 focus:border-green-500 outline-none text-sm md:text-base"
+                        />
+                        <input
+                          type="password"
+                          value={familyPassword}
+                          onChange={(e) => setFamilyPassword(e.target.value)}
+                          placeholder="Senha"
+                          className="px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-300 focus:border-green-500 outline-none text-sm md:text-base"
+                        />
+                        <button
+                          onClick={handleFamilyAuth}
+                          disabled={familyLoading}
+                          className="px-4 py-3 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold text-sm md:text-base shadow-md hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {familyLoading ? 'Entrando...' : familyAuthMode === 'login' ? 'Entrar' : 'Cadastrar'}
+                        </button>
+                      </div>
+
+                      {familyAuthError && (
+                        <div className="mt-3 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
+                          {familyAuthError}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Área de postagens */}
+                  {familyUser && (
+                    <div className="mb-6">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Escreva uma mensagem para a família 🎄
+                      </label>
+                      <textarea
+                        value={familyPostContent}
+                        onChange={(e) => setFamilyPostContent(e.target.value)}
+                        rows={3}
+                        placeholder="Ex: Feliz Natal, pessoal! Obrigado por mais um ano juntos..."
+                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-300 focus:border-green-500 outline-none text-sm md:text-base resize-none"
+                      />
+
+                      {/* Upload opcional de foto */}
+                      <div className="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-gray-300 bg-gray-50 text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100">
+                            <span>📸</span>
+                            <span>Adicionar foto (opcional)</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleFamilyImageSelect}
+                            />
+                          </label>
+                          {familyImageFile && (
+                            <span className="text-[11px] text-gray-500 max-w-[180px] truncate">
+                              {familyImageFile.name}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex justify-end">
+                          <button
+                            onClick={handleCreateFamilyPost}
+                            disabled={familyPosting || familyUploadingImage}
+                            className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-green-600 to-green-700 text-white font-bold text-sm md:text-base shadow-md hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                          >
+                            {familyPosting || familyUploadingImage ? (
+                              <>
+                                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                {familyUploadingImage ? 'Enviando foto...' : 'Enviando...'}
+                              </>
+                            ) : (
+                              <>
+                                <span>✨</span>
+                                <span>Postar no mural</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      {familyImagePreview && (
+                        <div className="mt-3">
+                          <p className="text-[11px] text-gray-500 mb-1">Pré-visualização da foto:</p>
+                          <img
+                            src={familyImagePreview}
+                            alt="Pré-visualização"
+                            className="w-full max-w-xs h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Lista de posts */}
+                  <div className="mt-4 space-y-3 max-h-96 overflow-y-auto pr-1">
+                    {familyPosts.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-4">
+                        Ainda não há mensagens no mural. Seja o primeiro a escrever! 🎅
+                      </p>
+                    ) : (
+                      familyPosts.map((post) => (
+                        <div
+                          key={post.id}
+                          className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 flex gap-3"
+                        >
+                          <div className="mt-1">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
+                              {post.user_name?.charAt(0)?.toUpperCase() || 'F'}
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-bold text-gray-900">
+                                  {post.user_name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(post.created_at).toLocaleString('pt-BR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </p>
+                              </div>
+                              <span className="text-xs text-green-600 font-semibold bg-green-50 px-2 py-1 rounded-full">
+                                Mural de Natal
+                              </span>
+                            </div>
+                            <p className="mt-2 text-sm text-gray-800 whitespace-pre-line">
+                              {post.content}
+                            </p>
+
+                            {/* Reações */}
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              {reactionOptions.map((emoji) => {
+                                const count = post.reactions?.[emoji] || 0;
+                                return (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => handleToggleReaction(post.id, emoji)}
+                                    className={`flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-semibold transition-all hover:bg-green-50 hover:border-green-300 ${
+                                      count > 0 ? 'border-green-400 text-green-700' : 'border-gray-200 text-gray-500'
+                                    }`}
+                                  >
+                                    <span>{emoji}</span>
+                                    <span>{count}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Comentários */}
+                            <div className="mt-3 space-y-2 border-t border-gray-100 pt-2">
+                              {post.comments && post.comments.length > 0 && (
+                                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                                  {post.comments.map((comment) => (
+                                    <div key={comment.id} className="flex items-start gap-2 text-xs">
+                                      <div className="mt-0.5">
+                                        <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-700">
+                                          {comment.user_name?.charAt(0)?.toUpperCase() || 'F'}
+                                        </div>
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-semibold text-gray-800">{comment.user_name}</span>
+                                          <span className="text-[10px] text-gray-400">
+                                            {new Date(comment.created_at).toLocaleString('pt-BR', {
+                                              day: '2-digit',
+                                              month: '2-digit',
+                                              hour: '2-digit',
+                                              minute: '2-digit',
+                                            })}
+                                          </span>
+                                        </div>
+                                        <p className="text-[11px] text-gray-700 whitespace-pre-line">{comment.content}</p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-2 mt-1">
+                                <input
+                                  type="text"
+                                  value={familyCommentDrafts[post.id] || ''}
+                                  onChange={(e) =>
+                                    setFamilyCommentDrafts(prev => ({
+                                      ...prev,
+                                      [post.id]: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="Escrever comentário..."
+                                  className="flex-1 px-3 py-1.5 rounded-full border border-gray-200 text-xs text-gray-800 focus:outline-none focus:ring-1 focus:ring-green-300 focus:border-green-400 bg-gray-50"
+                                />
+                                <button
+                                  onClick={() => handleCreateComment(post.id)}
+                                  className="px-3 py-1.5 rounded-full bg-green-600 text-white text-xs font-semibold hover:bg-green-700 transition-all"
+                                  disabled={!familyUser}
+                                >
+                                  Enviar
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Timeline em Árvore de Natal */}
               <div className="relative">
-                {/* ⭐ ESTRELA NO TOPO DA ÁRVORE */}
-                <div className="flex justify-center mb-8 md:mb-12">
+                {/* ⭐ Estrela no topo da árvore (refinada) */}
+                <div className="flex justify-center mb-6 md:mb-10">
                   <div className="relative">
-                    <div className="text-6xl md:text-9xl animate-pulse" style={{animationDuration: '2s', filter: 'drop-shadow(0 0 20px gold)'}}>
+                    <div
+                      className="text-4xl md:text-6xl animate-pulse"
+                      style={{ animationDuration: '2.5s', filter: 'drop-shadow(0 0 14px gold)' }}
+                    >
                       ⭐
                     </div>
-                    <div className="absolute inset-0 text-6xl md:text-9xl animate-ping opacity-50" style={{animationDuration: '3s'}}>
+                    <div
+                      className="absolute inset-0 text-4xl md:text-6xl animate-ping opacity-40"
+                      style={{ animationDuration: '3.5s' }}
+                    >
                       ⭐
                     </div>
                   </div>

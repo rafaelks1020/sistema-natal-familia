@@ -7,12 +7,12 @@ COPIE E COLE NO VERCEL (Settings → Environment Variables):
 ───────────────────────────────────────────────────────────────
 
 DATABASE_URL
-postgresql://neondb_owner:npg_19yXGeVvioYs@ep-royal-glitter-a4p2od6s-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require
+postgresql://natal2025_app:passwordnatal2025@135.148.12.209:5432/natal2025_db
 
 ───────────────────────────────────────────────────────────────
 
 POSTGRES_URL
-postgresql://neondb_owner:npg_19yXGeVvioYs@ep-royal-glitter-a4p2od6s-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require
+postgresql://natal2025_app:passwordnatal2025@135.148.12.209:5432/natal2025_db
 
 ───────────────────────────────────────────────────────────────
 

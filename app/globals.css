@@ -15,9 +15,9 @@
 }
 
 body {
-  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 25%, #dc2626 50%, #16a34a 75%, #1e3a8a 100%);
-  background-size: 400% 400%;
-  animation: christmasGradient 15s ease infinite;
+  background: radial-gradient(circle at top, #1e3a8a 0%, #1e40af 25%, #0f172a 60%) fixed;
+  background-size: 300% 300%;
+  animation: christmasGradient 30s ease-in-out infinite;
   color: var(--foreground);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -82,16 +82,16 @@ body::before {
   position: fixed;
   top: -10vh;
   color: #ffffff;
-  font-size: 2em;
+  font-size: 1.5em;
   pointer-events: none;
   z-index: 1;
   animation: snowfall linear infinite;
   text-shadow: 
-    0 0 10px rgba(255, 255, 255, 1),
-    0 0 20px rgba(255, 255, 255, 0.8),
-    0 0 30px rgba(135, 206, 250, 0.6);
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 1));
-  opacity: 0.6;
+    0 0 6px rgba(255, 255, 255, 0.9),
+    0 0 14px rgba(255, 255, 255, 0.7),
+    0 0 20px rgba(135, 206, 250, 0.5);
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.9));
+  opacity: 0.45;
 }
 
 /* Efeito de Brilho Natalino */
@@ -197,8 +197,8 @@ body::before {
 }
 
 .card-hover:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 20px -8px rgba(15, 23, 42, 0.25);
 }
 
 /* Timeline Line Animation */
