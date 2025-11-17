@@ -37,6 +37,18 @@ interface FamilyPost {
   comments?: FamilyComment[];
 }
 
+interface FamilyNotification {
+  id: number;
+  type: string;
+  post_id?: number | null;
+  comment_id?: number | null;
+  reaction_type?: string | null;
+  created_at: string;
+  read_at?: string | null;
+  actor_name: string;
+  post_content?: string | null;
+}
+
 interface FamilyPoll {
   id: number;
   question: string;
@@ -235,6 +247,58 @@ export function TimelineSection(props: TimelineSectionProps) {
 
   const natalDate = new Date('2025-12-25');
   const [selectedAlbumPost, setSelectedAlbumPost] = useState<FamilyPost | null>(null);
+  const [wallSortMode, setWallSortMode] = useState<'recent' | 'top'>('recent');
+  const [notifications, setNotifications] = useState<FamilyNotification[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+
+  const unreadNotifications = notifications.filter((n) => !n.read_at).length;
+
+  const loadNotifications = async () => {
+    if (!familyUser) {
+      setNotifications([]);
+      return;
+    }
+    setNotificationsLoading(true);
+    try {
+      const res = await fetch(`/api/family-notifications?user_id=${familyUser.id}`);
+      if (!res.ok) return;
+      const data = (await res.json()) as FamilyNotification[];
+      setNotifications(Array.isArray(data) ? data : []);
+    } catch {
+      // Se der erro, apenas não mostra notificações
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (familyUser) {
+      loadNotifications();
+    } else {
+      setNotifications([]);
+    }
+  }, [familyUser]);
+
+  const handleOpenNotifications = async () => {
+    if (!familyUser) return;
+    const willOpen = !notificationsOpen;
+    setNotificationsOpen(willOpen);
+    if (willOpen && unreadNotifications > 0) {
+      try {
+        await fetch('/api/family-notifications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'mark_all_read', user_id: familyUser.id }),
+        });
+        setNotifications((prev) =>
+          prev.map((n) => (n.read_at ? n : { ...n, read_at: new Date().toISOString() })),
+        );
+      } catch {
+        // Se falhar, não quebra a UI
+      }
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -246,7 +310,6 @@ export function TimelineSection(props: TimelineSectionProps) {
     if (selectedAlbumPost) {
       window.addEventListener('keydown', handleKeyDown);
     }
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
@@ -655,7 +718,7 @@ export function TimelineSection(props: TimelineSectionProps) {
                       </button>
                     </div>
                     {!familyUser && (
-                      <p className="text-[11px] md:text-xs text-gray-500">
+                      <p className="text-[11px] text-gray-500">
                         Faça login no mural para marcar sua presença.
                       </p>
                     )}
@@ -846,9 +909,54 @@ export function TimelineSection(props: TimelineSectionProps) {
                 <p className="text-sm md:text-base text-gray-600 mt-1">
                   Um espaço só de vocês para trocar mensagens e recados do Natal.
                 </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] md:text-xs text-gray-500">
+                  <span className="hidden sm:inline">
+                    {familyPosts.length} mensagem{familyPosts.length === 1 ? '' : 's'} no mural
+                  </span>
+                  {familyPosts.length > 0 && (
+                    <div className="inline-flex rounded-full bg-gray-100 p-0.5 border border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => setWallSortMode('recent')}
+                        className={`px-2.5 py-1 rounded-full font-semibold transition-all ${
+                          wallSortMode === 'recent'
+                            ? 'bg-white text-green-700 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-800'
+                        }`}
+                      >
+                        Mais recentes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWallSortMode('top')}
+                        className={`px-2.5 py-1 rounded-full font-semibold transition-all ${
+                          wallSortMode === 'top'
+                            ? 'bg-white text-green-700 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-800'
+                        }`}
+                      >
+                        Mais curtidos
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
               {familyUser && (
                 <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={handleOpenNotifications}
+                      className="relative flex items-center justify-center w-9 h-9 rounded-full border border-green-200 bg-white text-lg hover:bg-green-50"
+                    >
+                      <span>🔔</span>
+                    </button>
+                    {unreadNotifications > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center font-bold">
+                        {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-sm text-gray-700">
                     <span className="font-semibold">Conectado como</span>{' '}
                     <span className="font-bold text-green-700">{familyUser.name}</span>
@@ -862,6 +970,65 @@ export function TimelineSection(props: TimelineSectionProps) {
                 </div>
               )}
             </div>
+
+            {familyUser && notificationsOpen && (
+              <div className="mb-4 mt-1 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3 text-xs md:text-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-emerald-900">Notificações do mural</span>
+                  {notificationsLoading && (
+                    <span className="text-[11px] text-emerald-700">Atualizando...</span>
+                  )}
+                </div>
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                  {notifications.length === 0 ? (
+                    <p className="text-[11px] text-emerald-900/80">
+                      Nenhuma notificação por enquanto. Quando alguém comentar ou reagir aos seus posts (ou curtir seu
+                      comentário), aparece aqui. ✨
+                    </p>
+                  ) : (
+                    notifications.map((n) => {
+                      const isUnread = !n.read_at;
+                      const dateStr = new Date(n.created_at).toLocaleString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      });
+
+                      let message = `${n.actor_name} fez algo no mural`;
+                      if (n.type === 'post_comment') {
+                        message = `${n.actor_name} comentou no seu post`;
+                      } else if (n.type === 'post_reaction') {
+                        message = `${n.actor_name} reagiu ao seu post ${n.reaction_type || ''}`.trim();
+                      } else if (n.type === 'comment_reaction') {
+                        message = `${n.actor_name} curtiu seu comentário`;
+                      }
+
+                      return (
+                        <div
+                          key={n.id}
+                          className={`rounded-2xl border px-3 py-2 ${
+                            isUnread
+                              ? 'bg-white border-emerald-300 shadow-sm'
+                              : 'bg-emerald-50 border-emerald-100'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-emerald-900 text-[11px] md:text-xs">{message}</span>
+                            <span className="text-[10px] text-emerald-800/80">{dateStr}</span>
+                          </div>
+                          {n.post_content && (
+                            <p className="mt-1 text-[11px] text-emerald-900/80 truncate">
+                              “{n.post_content}”
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
 
             {!familyUser && (
               <div className="mb-6">
@@ -1007,13 +1174,40 @@ export function TimelineSection(props: TimelineSectionProps) {
                 </p>
               ) : (
                 (() => {
-                  const orderedPosts = pinnedPostId
-                    ? [...familyPosts].sort((a, b) => {
-                        if (a.id === pinnedPostId) return -1;
-                        if (b.id === pinnedPostId) return 1;
-                        return 0;
-                      })
-                    : familyPosts;
+                  const postsWithScore = [...familyPosts].map((post) => {
+                    const totalReactions = reactionOptions.reduce(
+                      (sum, emoji) => sum + Number(post.reactions?.[emoji] || 0),
+                      0,
+                    );
+                    const totalComments = post.comments?.length || 0;
+                    const score = totalReactions * 2 + totalComments;
+                    return { post, score };
+                  });
+
+                  const sortedByMode = postsWithScore.sort((a, b) => {
+                    const dateA = new Date(a.post.created_at).getTime();
+                    const dateB = new Date(b.post.created_at).getTime();
+
+                    if (wallSortMode === 'recent') {
+                      return dateB - dateA;
+                    }
+
+                    if (a.score === b.score) {
+                      return dateB - dateA;
+                    }
+
+                    return b.score - a.score;
+                  });
+
+                  let orderedPosts = sortedByMode.map((item) => item.post);
+
+                  if (pinnedPostId) {
+                    orderedPosts = orderedPosts.sort((a, b) => {
+                      if (a.id === pinnedPostId) return -1;
+                      if (b.id === pinnedPostId) return 1;
+                      return 0;
+                    });
+                  }
 
                   return orderedPosts.map((post) => (
                     <div

@@ -100,6 +100,17 @@ CREATE TABLE IF NOT EXISTS family_post_comments (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Curtidas em comentários do mural
+CREATE TABLE IF NOT EXISTS family_comment_likes (
+  id SERIAL PRIMARY KEY,
+  comment_id INTEGER NOT NULL REFERENCES family_post_comments(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES family_users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  CONSTRAINT unique_comment_like_per_user UNIQUE (comment_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_family_comment_likes_comment ON family_comment_likes(comment_id);
+
 -- Enquetes rápidas do mural
 CREATE TABLE IF NOT EXISTS family_polls (
   id SERIAL PRIMARY KEY,
@@ -128,6 +139,19 @@ CREATE TABLE IF NOT EXISTS family_attendance (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Notificações do mural da família
+CREATE TABLE IF NOT EXISTS family_notifications (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES family_users(id) ON DELETE CASCADE,
+  actor_id INTEGER NOT NULL REFERENCES family_users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL, -- 'post_comment', 'post_reaction', 'comment_reaction'
+  post_id INTEGER REFERENCES family_posts(id) ON DELETE CASCADE,
+  comment_id INTEGER REFERENCES family_post_comments(id) ON DELETE CASCADE,
+  reaction_type TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  read_at TIMESTAMP
+);
+
 -- Índices auxiliares (opcional, mas ajuda)
 CREATE INDEX IF NOT EXISTS idx_participants_paid ON participants(paid);
 CREATE INDEX IF NOT EXISTS idx_purchases_created_at ON purchases(created_at DESC);
@@ -139,3 +163,4 @@ CREATE INDEX IF NOT EXISTS idx_family_post_reactions_post ON family_post_reactio
 CREATE INDEX IF NOT EXISTS idx_family_post_comments_post ON family_post_comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_family_poll_votes_poll ON family_poll_votes(poll_id);
 CREATE INDEX IF NOT EXISTS idx_family_attendance_participant ON family_attendance(participant_id);
+CREATE INDEX IF NOT EXISTS idx_family_notifications_user ON family_notifications(user_id, read_at, created_at DESC);

@@ -438,6 +438,12 @@ export default function ChristmasOrganizer() {
   };
 
   const handleToggleCommentLike = (commentId: number) => {
+    if (!familyUser) {
+      setToast({ message: 'Faça login para curtir comentários', type: 'error' });
+      return;
+    }
+
+    // Toggle otimista + persistência em localStorage
     setLikedComments(prev => {
       const next = { ...prev, [commentId]: !prev[commentId] };
       try {
@@ -449,6 +455,23 @@ export default function ChristmasOrganizer() {
       }
       return next;
     });
+
+    // Chama API para registrar like e notificação para o dono do comentário
+    (async () => {
+      try {
+        await fetch('/api/family-comment-likes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            comment_id: commentId,
+            user_id: familyUser.id,
+          }),
+        });
+      } catch (error) {
+        // Em caso de erro, mantemos o estado visual; notificação é best effort
+        console.error('Erro ao registrar like de comentário:', error);
+      }
+    })();
   };
 
   const handleCreatePoll = async () => {
