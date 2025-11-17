@@ -70,6 +70,8 @@ interface TourStep {
   body: string;
 }
 
+type TimelineTab = 'home' | 'wall' | 'album' | 'polls' | 'attendance';
+
 interface TimelineSectionProps {
   stars: Array<{ left: string; top: string; size: string }>;
   showTour: boolean;
@@ -251,6 +253,7 @@ export function TimelineSection(props: TimelineSectionProps) {
   const [notifications, setNotifications] = useState<FamilyNotification[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [timelineTab, setTimelineTab] = useState<TimelineTab>('home');
 
   const unreadNotifications = notifications.filter((n) => !n.read_at).length;
 
@@ -493,9 +496,38 @@ export function TimelineSection(props: TimelineSectionProps) {
           </button>
         </div>
 
+        {/* Abas da timeline (desktop) */}
+        <div className="hidden md:flex justify-center mb-8">
+          <div className="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/10 px-1 py-1 text-xs text-white">
+            {([
+              { id: 'home' as TimelineTab, label: 'Início', icon: '🏠' },
+              { id: 'wall' as TimelineTab, label: 'Mural', icon: '💬' },
+              { id: 'album' as TimelineTab, label: 'Álbum', icon: '📸' },
+              { id: 'polls' as TimelineTab, label: 'Enquetes', icon: '📊' },
+              { id: 'attendance' as TimelineTab, label: 'Presença', icon: '✅' },
+            ] as const).map((tab) => {
+              const isActive = timelineTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setTimelineTab(tab.id)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full font-semibold transition-colors ${
+                    isActive ? 'bg-white text-green-700' : 'text-gray-200 hover:bg-white/10'
+                  }`}
+                >
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Resumo Financeiro */}
-        <div className="mb-12">
-          <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl border-4 border-white/50">
+        {timelineTab === 'home' && (
+          <div className="mb-12">
+            <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl border-4 border-white/50">
             <h2 className="text-2xl font-black text-gray-900 mb-6 text-center flex items-center justify-center gap-3">
               <span className="text-3xl">💰</span>
               Resumo Financeiro
@@ -578,11 +610,13 @@ export function TimelineSection(props: TimelineSectionProps) {
               </div>
             </div>
           </div>
-        </div>
+          </div>
+        )}
 
         {/* Álbum da família */}
-        <div className="mb-12 -mx-4 md:-mx-8">
-          <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-emerald-100">
+        {(timelineTab === 'home' || timelineTab === 'album') && (
+          <div className="mb-12 -mx-4 md:-mx-8">
+            <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-emerald-100">
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 mb-2">
@@ -640,12 +674,14 @@ export function TimelineSection(props: TimelineSectionProps) {
                 Ainda não há fotos no álbum. Poste uma mensagem com foto no mural para começar! 🎄
               </p>
             )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Presença */}
-        <div className="mb-12 -mx-4 md:-mx-8">
-          <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-emerald-100/70">
+        {(timelineTab === 'home' || timelineTab === 'attendance') && (
+          <div className="mb-12 -mx-4 md:-mx-8">
+            <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-emerald-100/70">
             {(() => {
               const yesCount = familyAttendance.filter((a) => a.status === 'yes').length;
               const maybeCount = familyAttendance.filter((a) => a.status === 'maybe').length;
@@ -770,136 +806,145 @@ export function TimelineSection(props: TimelineSectionProps) {
                 </>
               );
             })()}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Enquetes */}
-        <div className="mb-12 -mx-4 md:-mx-8">
-          <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-blue-100">
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 mb-2">
-                  <span className="text-sm">📊</span>
-                  <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
-                    Enquetes da família
-                  </span>
-                </div>
-                <h2 className="text-lg md:text-xl font-bold text-gray-900">Combinações rápidas pro Natal</h2>
-                <p className="text-xs md:text-sm text-gray-600 mt-1">
-                  Decidam juntos horário da ceia, sobremesas, brincadeiras e outros detalhes.
-                </p>
-              </div>
-            </div>
-
-            {familyUser ? (
-              <div className="mb-5 space-y-3">
-                <div className="flex flex-col md:flex-row gap-3 md:gap-4 items-start">
-                  <div className="flex-1 min-w-0">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Pergunta da enquete</label>
-                    <input
-                      type="text"
-                      value={newPollQuestion}
-                      onChange={(e) => setNewPollQuestion(e.target.value)}
-                      placeholder="Ex: Que horas começamos a ceia?"
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-gray-50"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Opções (uma por linha)</label>
-                    <textarea
-                      value={newPollOptionsText}
-                      onChange={(e) => setNewPollOptionsText(e.target.value)}
-                      rows={3}
-                      placeholder={"Ex:\n20h\n20h30\n21h"}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-none bg-gray-50"
-                    />
+        {(() => {
+          if (!(timelineTab === 'home' || timelineTab === 'polls')) return null;
+          return (
+            <div className="mb-12 -mx-4 md:-mx-8">
+              <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-blue-100">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 mb-2">
+                      <span className="text-sm">📊</span>
+                      <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
+                        Enquetes da família
+                      </span>
+                    </div>
+                    <h2 className="text-lg md:text-xl font-bold text-gray-900">Combinações rápidas pro Natal</h2>
+                    <p className="text-xs md:text-sm text-gray-600 mt-1">
+                      Decidam juntos horário da ceia, sobremesas, brincadeiras e outros detalhes.
+                    </p>
                   </div>
                 </div>
-                <div className="flex justify-end">
-                  <button
-                    onClick={handleCreatePoll}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 text-white text-xs md:text-sm font-semibold shadow-md hover:bg-blue-700 hover:shadow-lg transition-all"
-                  >
-                    <span>✨</span>
-                    <span>Criar enquete</span>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <p className="mb-4 text-xs md:text-sm text-gray-500">
-                Faça login no mural para criar enquetes.
-              </p>
-            )}
 
-            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-              {familyPolls.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">
-                  Ainda não há enquetes. Crie a primeira para combinar os detalhes do Natal! ✨
-                </p>
-              ) : (
-                familyPolls.map((poll) => {
-                  const totalVotes = Object.values(poll.votes || {}).reduce(
-                    (sum, v) => sum + Number(v || 0),
-                    0,
-                  );
-                  return (
-                    <div key={poll.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div>
-                          <p className="text-sm font-bold text-gray-900 mb-0.5">{poll.question}</p>
-                          <p className="text-[11px] text-gray-500">
-                            Criada por {poll.created_by_name} em{' '}
-                            {new Date(poll.created_at).toLocaleDateString('pt-BR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                            })}
-                          </p>
-                        </div>
-                        {totalVotes > 0 && (
-                          <span className="text-[11px] text-blue-700 bg-blue-50 px-2 py-1 rounded-full font-semibold">
-                            {totalVotes} voto{totalVotes === 1 ? '' : 's'}
-                          </span>
-                        )}
+                {familyUser ? (
+                  <div className="mb-5 space-y-3">
+                    <div className="flex flex-col md:flex-row gap-3 md:gap-4 items-start">
+                      <div className="flex-1 min-w-0">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Pergunta da enquete</label>
+                        <input
+                          type="text"
+                          value={newPollQuestion}
+                          onChange={(e) => setNewPollQuestion(e.target.value)}
+                          placeholder="Ex: Que horas começamos a ceia?"
+                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-gray-50"
+                        />
                       </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {poll.options.map((opt, idx) => {
-                          const count = poll.votes?.[String(idx)] || 0;
-                          const percent = totalVotes > 0 ? Math.round((Number(count) / totalVotes) * 100) : 0;
-                          return (
-                            <button
-                              key={idx}
-                              onClick={() => handleVotePoll(poll.id, idx)}
-                              className="flex flex-col items-start text-left px-3 py-2 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-xs"
-                            >
-                              <div className="flex justify-between w-full items-center mb-1">
-                                <span className="font-semibold text-gray-800">{opt}</span>
-                                <span className="text-[11px] text-gray-500">
-                                  {count} voto{Number(count) === 1 ? '' : 's'}
-                                  {totalVotes > 0 ? ` • ${percent}%` : ''}
-                                </span>
-                              </div>
-                              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-500"
-                                  style={{ width: `${percent}%` }}
-                                />
-                              </div>
-                            </button>
-                          );
-                        })}
+                      <div className="flex-1 min-w-0">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Opções (uma por linha)</label>
+                        <textarea
+                          value={newPollOptionsText}
+                          onChange={(e) => setNewPollOptionsText(e.target.value)}
+                          rows={3}
+                          placeholder={"Ex:\n20h\n20h30\n21h"}
+                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-none bg-gray-50"
+                        />
                       </div>
                     </div>
-                  );
-                })
-              )}
+                    <div className="flex justify-end">
+                      <button
+                        onClick={handleCreatePoll}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 text-white text-xs md:text-sm font-semibold shadow-md hover:bg-blue-700 hover:shadow-lg transition-all"
+                      >
+                        <span>✨</span>
+                        <span>Criar enquete</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mb-4 text-xs md:text-sm text-gray-500">
+                    Faça login no mural para criar enquetes.
+                  </p>
+                )}
+
+                <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                  {familyPolls.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      Ainda não há enquetes. Crie a primeira para combinar os detalhes do Natal! ✨
+                    </p>
+                  ) : (
+                    familyPolls.map((poll) => {
+                      const totalVotes = Object.values(poll.votes || {}).reduce(
+                        (sum, v) => sum + Number(v || 0),
+                        0,
+                      );
+                      return (
+                        <div key={poll.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                          <div className="flex items-start justify-between gap-3 mb-3">
+                            <div>
+                              <p className="text-sm font-bold text-gray-900 mb-0.5">{poll.question}</p>
+                              <p className="text-[11px] text-gray-500">
+                                Criada por {poll.created_by_name} em{' '}
+                                {new Date(poll.created_at).toLocaleDateString('pt-BR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                })}
+                              </p>
+                            </div>
+                            {totalVotes > 0 && (
+                              <span className="text-[11px] text-blue-700 bg-blue-50 px-2 py-1 rounded-full font-semibold">
+                                {totalVotes} voto{totalVotes === 1 ? '' : 's'}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {poll.options.map((opt, idx) => {
+                              const count = poll.votes?.[String(idx)] || 0;
+                              const percent = totalVotes > 0 ? Math.round((Number(count) / totalVotes) * 100) : 0;
+                              return (
+                                <button
+                                  key={idx}
+                                  onClick={() => handleVotePoll(poll.id, idx)}
+                                  className="flex flex-col items-start text-left px-3 py-2 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-xs"
+                                >
+                                  <div className="flex justify-between w-full items-center mb-1">
+                                    <span className="font-semibold text-gray-800">{opt}</span>
+                                    <span className="text-[11px] text-gray-500">
+                                      {count} voto{Number(count) === 1 ? '' : 's'}
+                                      {totalVotes > 0 ? ` • ${percent}%` : ''}
+                                    </span>
+                                  </div>
+                                  <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-gradient-to-r from-blue-500 to-indigo-500"
+                                      style={{ width: `${percent}%` }}
+                                    />
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          );
+        })()}
 
         {/* Mural da família */}
-        <div className="mb-12">
-          <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-green-200">
+        {(() => {
+          if (!(timelineTab === 'home' || timelineTab === 'wall')) return null;
+          return (
+            <div className="mb-12">
+              <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-green-200">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
               <div>
                 <h2 className="text-2xl md:text-3xl font-black text-green-800 flex items-center gap-2">
@@ -1254,6 +1299,21 @@ export function TimelineSection(props: TimelineSectionProps) {
 
                         <p className="mt-2 text-sm text-gray-800 whitespace-pre-line">{post.content}</p>
 
+                        {post.image_url && (
+                          <div className="mt-3">
+                            <div
+                              className="relative rounded-xl overflow-hidden border border-gray-100 shadow-sm bg-gray-900/5 cursor-pointer"
+                              onClick={() => setSelectedAlbumPost(post)}
+                            >
+                              <img
+                                src={post.image_url}
+                                alt={post.content || `Foto de ${post.user_name}`}
+                                className="w-full max-h-64 object-cover transition-transform duration-300 hover:scale-[1.02]"
+                              />
+                            </div>
+                          </div>
+                        )}
+
                         <div className="mt-2 flex flex-wrap items-center gap-2">
                           {reactionOptions.map((emoji) => {
                             const count = post.reactions?.[emoji] || 0;
@@ -1346,7 +1406,9 @@ export function TimelineSection(props: TimelineSectionProps) {
               )}
             </div>
           </div>
-        </div>
+            </div>
+          );
+        })()}
 
         {/* Árvore de Natal */}
         <div className="relative">
@@ -1627,6 +1689,36 @@ export function TimelineSection(props: TimelineSectionProps) {
             <p className="text-xl text-yellow-300 font-bold">Que esta árvore traga muitas alegrias! ✨</p>
           </div>
         </div>
+
+        {/* Navegação mobile da timeline (barra inferior estilo Instagram) */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-black/85 border-t border-white/10 backdrop-blur-md">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-around py-2">
+              {([
+                { id: 'home' as TimelineTab, label: 'Início', icon: '🏠' },
+                { id: 'wall' as TimelineTab, label: 'Mural', icon: '💬' },
+                { id: 'album' as TimelineTab, label: 'Álbum', icon: '📸' },
+                { id: 'polls' as TimelineTab, label: 'Enquetes', icon: '📊' },
+                { id: 'attendance' as TimelineTab, label: 'Presença', icon: '✅' },
+              ] as const).map((tab) => {
+                const isActive = timelineTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setTimelineTab(tab.id)}
+                    className={`flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-colors ${
+                      isActive ? 'text-yellow-300' : 'text-gray-200'
+                    }`}
+                  >
+                    <span className={`text-lg mb-0.5 ${isActive ? 'text-yellow-300' : 'text-gray-300'}`}>{tab.icon}</span>
+                    <span className="truncate max-w-[64px]">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </nav>
       </div>
     </div>
   );

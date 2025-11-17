@@ -1277,7 +1277,7 @@ export default function ChristmasOrganizer() {
 
       {/* Navigation NATALINA */}
       {isAdmin && (
-        <nav className="bg-black/30 border-b border-white/10 shadow-sm overflow-x-auto">
+        <nav className="hidden md:block bg-black/30 border-b border-white/10 shadow-sm overflow-x-auto">
           <div className="max-w-7xl mx-auto px-4 md:px-6">
             <div className="flex gap-1.5 md:gap-2 min-w-max md:min-w-0">
               {[
@@ -1353,7 +1353,7 @@ export default function ChristmasOrganizer() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-6 pt-8 pb-24 md:pb-8">
         {loading && <div className="text-center py-8">Carregando...</div>}
 
         {/* 🎁 SEÇÃO DE REVELAÇÃO POR TOKEN (Público) */}
@@ -1520,6 +1520,43 @@ export default function ChristmasOrganizer() {
           />
         )}
       </div>
+
+      {/* Navegação mobile estilo Instagram (barra inferior) - só admin */}
+      {!loading && isAdmin && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-black/85 border-t border-white/10 backdrop-blur-md">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-around py-2">
+              {[
+                { id: 'dashboard', label: 'Visão', shortLabel: 'Visão', icon: DollarSign },
+                { id: 'participants', label: 'Família', shortLabel: 'Família', icon: Users },
+                { id: 'purchases', label: 'Compras', shortLabel: 'Compras', icon: ShoppingCart },
+                { id: 'secret-santa', label: 'Amigo', shortLabel: 'Amigo', icon: Users },
+                { id: 'timeline', label: 'Timeline', shortLabel: 'Timeline', icon: Clock },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-colors ${
+                      isActive ? 'text-yellow-300' : 'text-gray-200'
+                    }`}
+                  >
+                    <Icon
+                      className={`w-5 h-5 mb-0.5 ${
+                        isActive ? 'text-yellow-300' : 'text-gray-300'
+                      }`}
+                    />
+                    <span className="truncate max-w-[64px]">{tab.shortLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
