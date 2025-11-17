@@ -1,4 +1,4 @@
-import React, { useState, Dispatch, SetStateAction } from 'react';
+import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
 
 interface TimelineItem {
   type: 'payment' | 'purchase';
@@ -236,6 +236,22 @@ export function TimelineSection(props: TimelineSectionProps) {
   const natalDate = new Date('2025-12-25');
   const [selectedAlbumPost, setSelectedAlbumPost] = useState<FamilyPost | null>(null);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSelectedAlbumPost(null);
+      }
+    };
+
+    if (selectedAlbumPost) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedAlbumPost]);
+
   return (
     <div className="relative py-12 overflow-hidden">
       {/* Fundo da timeline: elementos decorativos */}
@@ -301,7 +317,10 @@ export function TimelineSection(props: TimelineSectionProps) {
 
       <div className="max-w-6xl mx-auto px-6 relative z-10">
         {selectedAlbumPost && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4"
+            onClick={() => setSelectedAlbumPost(null)}
+          >
             <button
               type="button"
               className="absolute top-4 right-4 md:top-8 md:right-8 text-white text-2xl md:text-3xl font-bold"
@@ -309,7 +328,10 @@ export function TimelineSection(props: TimelineSectionProps) {
             >
               ×
             </button>
-            <div className="bg-black/80 rounded-3xl shadow-2xl overflow-hidden max-w-3xl w-full border border-white/20">
+            <div
+              className="bg-black/80 rounded-3xl shadow-2xl overflow-hidden max-w-3xl w-full border border-white/20"
+              onClick={(e) => e.stopPropagation()}
+            >
               {selectedAlbumPost.image_url && (
                 <img
                   src={selectedAlbumPost.image_url}
