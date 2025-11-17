@@ -1707,7 +1707,7 @@ export default function ChristmasOrganizer() {
                 <div className="text-sm text-gray-600 mb-1">Esperado</div>
                 <div className="text-3xl font-bold text-gray-900">R$ {formatCurrency(totalExpected)}</div>
               </div>
-              
+
               <div className="bg-white/90 backdrop-blur-lg rounded-xl border border-white/30 p-6 card-hover relative overflow-hidden shadow-xl">
                 <div className="absolute top-2 right-2 text-2xl opacity-20">🎄</div>
                 <div className="flex items-center justify-between mb-4">
@@ -1718,7 +1718,7 @@ export default function ChristmasOrganizer() {
                 <div className="text-sm text-gray-600 mb-1">Arrecadado</div>
                 <div className="text-3xl font-bold text-green-600">R$ {formatCurrency(totalReceived)}</div>
               </div>
-              
+
               <div className="bg-white/90 backdrop-blur-lg rounded-xl border border-white/30 p-6 card-hover relative overflow-hidden shadow-xl">
                 <div className="absolute top-2 right-2 text-2xl opacity-20">🎅</div>
                 <div className="flex items-center justify-between mb-4">
@@ -1729,390 +1729,31 @@ export default function ChristmasOrganizer() {
                 <div className="text-sm text-gray-600 mb-1">Gasto</div>
                 <div className="text-3xl font-bold text-orange-600">R$ {formatCurrency(totalSpent)}</div>
               </div>
-              
+
               <div className="bg-white/90 backdrop-blur-lg rounded-xl border border-white/30 p-6 card-hover relative overflow-hidden shadow-xl">
                 <div className="absolute top-2 right-2 text-2xl opacity-20">⭐</div>
                 <div className="flex items-center justify-between mb-4">
-                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                    balance >= 0 ? 'bg-purple-100' : 'bg-red-100'
-                  }`}>
+                  <div
+                    className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                      balance >= 0 ? 'bg-purple-100' : 'bg-red-100'
+                    }`}
+                  >
                     <DollarSign className={balance >= 0 ? 'text-purple-600' : 'text-red-600'} size={24} />
                   </div>
                 </div>
                 <div className="text-sm text-gray-600 mb-1">Saldo</div>
-                <div className={`text-3xl font-bold ${balance >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+                <div
+                  className={`text-3xl font-bold ${
+                    balance >= 0 ? 'text-purple-600' : 'text-red-600'
+                  }`}
+                >
                   R$ {formatCurrency(balance)}
                 </div>
               </div>
-
-              {(() => {
-                const unpaidCount = participants.filter(p => !p.paid).length;
-                const withoutAttendanceCount = participants.filter(p => !familyAttendance.some(a => a.name === p.name)).length;
-
-                return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white/95 backdrop-blur-lg rounded-xl border border-red-100 p-4 shadow-md flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-xl">
-                        <span>⚠️</span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs font-semibold text-red-700 uppercase mb-1">Pagamentos pendentes</p>
-                        <p className="text-sm text-gray-800">
-                          {unpaidCount === 0
-                            ? 'Todos os participantes marcados como pagos.'
-                            : `${unpaidCount} participante${unpaidCount === 1 ? '' : 's'} ainda não marcado${unpaidCount === 1 ? '' : 's'} como pago.`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="bg-white/95 backdrop-blur-lg rounded-xl border border-emerald-100 p-4 shadow-md flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-xl">
-                        <span>📋</span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs font-semibold text-emerald-700 uppercase mb-1">Presenças não respondidas</p>
-                        <p className="text-sm text-gray-800">
-                          {withoutAttendanceCount === 0
-                            ? 'Todos os participantes já têm presença marcada.'
-                            : `${withoutAttendanceCount} participante${withoutAttendanceCount === 1 ? '' : 's'} ainda não marcou presença (vou/talvez/não vou).`}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
             </div>
-
-            {/* Álbum da Família */}
-            <div className="mb-12 -mx-4 md:-mx-8">
-                <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-emerald-100">
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div>
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 mb-2">
-                        <span className="text-sm">📸</span>
-                        <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Álbum da família</span>
-                      </div>
-                      <h2 className="text-lg md:text-xl font-bold text-gray-900">
-                        Fotos do Natal em Família
-                      </h2>
-                      <p className="text-xs md:text-sm text-gray-600 mt-1">
-                        Todas as fotos postadas no mural aparecem aqui, em uma grade especial do Natal.
-                      </p>
-                    </div>
-                  </div>
-
-                  {familyPosts.some(p => p.image_url) ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {familyPosts
-                        .filter(p => p.image_url)
-                        .map((post) => (
-                          <div
-                            key={post.id}
-                            className="relative group rounded-xl overflow-hidden border border-white shadow-sm bg-gray-900/5"
-                          >
-                            <img
-                              src={post.image_url as string}
-                              alt={post.content || `Foto de ${post.user_name}`}
-                              className="w-full h-28 md:h-32 object-cover transition-transform duration-300 group-hover:scale-105"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <div className="absolute bottom-1 left-1 right-1 px-2 py-1 flex justify-between items-end text-[10px] text-white">
-                              <span className="font-semibold truncate max-w-[70%]">
-                                {post.user_name}
-                              </span>
-                              <span className="opacity-80">
-                                {new Date(post.created_at).toLocaleDateString('pt-BR', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                })}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500 text-center py-4">
-                      Ainda não há fotos no álbum. Poste uma mensagem com foto no mural para começar! 🎄
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* ✅ Presença no Natal (RSVP) */}
-            <div className="mb-12 -mx-6 md:-mx-12">
-                <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-emerald-100/70">
-                  {(() => {
-                    const yesCount = familyAttendance.filter(a => a.status === 'yes').length;
-                    const maybeCount = familyAttendance.filter(a => a.status === 'maybe').length;
-                    const noCount = familyAttendance.filter(a => a.status === 'no').length;
-                    const totalResponded = yesCount + maybeCount + noCount;
-                    const myStatus = familyUser
-                      ? familyAttendance.find(a => a.name === familyUser.name)?.status || null
-                      : null;
-
-                    return (
-                      <>
-                        <div className="flex items-start justify-between gap-3 mb-4">
-                          <div>
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 mb-2">
-                              <span className="text-sm">✅</span>
-                              <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Presença no Natal</span>
-                            </div>
-                            <h2 className="text-lg md:text-xl font-bold text-gray-900">
-                              Quem vai estar na ceia?
-                            </h2>
-                            <p className="text-xs md:text-sm text-gray-600 mt-1">
-                              Marque se você vai, talvez vá ou não vai. Isso ajuda a organizar comida, bebida e presentes.
-                            </p>
-                          </div>
-                          {totalResponded > 0 && (
-                            <div className="hidden md:flex flex-col items-end text-xs text-gray-600">
-                              <span className="font-semibold text-emerald-700">{yesCount} confirmad{yesCount === 1 ? 'o' : 'os'}</span>
-                              {maybeCount > 0 && (
-                                <span className="text-amber-600">{maybeCount} talvez</span>
-                              )}
-                              {noCount > 0 && (
-                                <span className="text-gray-500">{noCount} não vão</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Botões do meu RSVP */}
-                        <div className="mb-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              onClick={() => handleSetAttendance('yes')}
-                              className={`px-3 py-2 rounded-full text-xs md:text-sm font-semibold flex items-center gap-2 border transition-all ${
-                                myStatus === 'yes'
-                                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
-                                  : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
-                              }`}
-                            >
-                              <span>✅</span>
-                              <span>Vou</span>
-                            </button>
-                            <button
-                              onClick={() => handleSetAttendance('maybe')}
-                              className={`px-3 py-2 rounded-full text-xs md:text-sm font-semibold flex items-center gap-2 border transition-all ${
-                                myStatus === 'maybe'
-                                  ? 'bg-amber-500 text-white border-amber-500 shadow-md'
-                                  : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
-                              }`}
-                            >
-                              <span>🤔</span>
-                              <span>Talvez</span>
-                            </button>
-                            <button
-                              onClick={() => handleSetAttendance('no')}
-                              className={`px-3 py-2 rounded-full text-xs md:text-sm font-semibold flex items-center gap-2 border transition-all ${
-                                myStatus === 'no'
-                                  ? 'bg-gray-600 text-white border-gray-600 shadow-md'
-                                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                              }`}
-                            >
-                              <span>❌</span>
-                              <span>Não vou</span>
-                            </button>
-                          </div>
-                          {!familyUser && (
-                            <p className="text-[11px] md:text-xs text-gray-500">
-                              Faça login no mural para marcar sua presença.
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Resumo de presença */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs md:text-sm">
-                          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 flex flex-col">
-                            <span className="text-[11px] font-semibold text-emerald-700 uppercase mb-1">Confirmados ✅</span>
-                            {yesCount === 0 ? (
-                              <span className="text-gray-500">Ninguém confirmou ainda.</span>
-                            ) : (
-                              <span className="text-gray-800">
-                                {familyAttendance
-                                  .filter(a => a.status === 'yes')
-                                  .map(a => a.name)
-                                  .join(', ')}
-                              </span>
-                            )}
-                          </div>
-                          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3 flex flex-col">
-                            <span className="text-[11px] font-semibold text-amber-700 uppercase mb-1">Talvez 🤔</span>
-                            {maybeCount === 0 ? (
-                              <span className="text-gray-500">Ninguém marcou talvez.</span>
-                            ) : (
-                              <span className="text-gray-800">
-                                {familyAttendance
-                                  .filter(a => a.status === 'maybe')
-                                  .map(a => a.name)
-                                  .join(', ')}
-                              </span>
-                            )}
-                          </div>
-                          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-3 flex flex-col">
-                            <span className="text-[11px] font-semibold text-gray-700 uppercase mb-1">Não vão ❌</span>
-                            {noCount === 0 ? (
-                              <span className="text-gray-500">Ninguém marcou que não vai.</span>
-                            ) : (
-                              <span className="text-gray-800">
-                                {familyAttendance
-                                  .filter(a => a.status === 'no')
-                                  .map(a => a.name)
-                                  .join(', ')}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {/* 📊 Enquetes da Família */}
-              <div className="mb-12 -mx-4 md:-mx-8">
-                <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-5 md:p-7 shadow-xl border border-blue-100">
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div>
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 mb-2">
-                        <span className="text-sm">📊</span>
-                        <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Enquetes da família</span>
-                      </div>
-                      <h2 className="text-lg md:text-xl font-bold text-gray-900">
-                        Combinações rápidas pro Natal
-                      </h2>
-                      <p className="text-xs md:text-sm text-gray-600 mt-1">
-                        Decidam juntos horário da ceia, sobremesas, brincadeiras e outros detalhes.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Criar enquete - apenas usuário logado no mural */}
-                  {familyUser ? (
-                    <div className="mb-5 space-y-3">
-                      <div className="flex flex-col md:flex-row gap-3 md:gap-4 items-start">
-                        <div className="flex-1 min-w-0">
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            Pergunta da enquete
-                          </label>
-                          <input
-                            type="text"
-                            value={newPollQuestion}
-                            onChange={(e) => setNewPollQuestion(e.target.value)}
-                            placeholder="Ex: Que horas começamos a ceia?"
-                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-gray-50"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            Opções (uma por linha)
-                          </label>
-                          <textarea
-                            value={newPollOptionsText}
-                            onChange={(e) => setNewPollOptionsText(e.target.value)}
-                            rows={3}
-                            placeholder={"Ex:\n20h\n20h30\n21h"}
-                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-none bg-gray-50"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex justify-end">
-                        <button
-                          onClick={handleCreatePoll}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 text-white text-xs md:text-sm font-semibold shadow-md hover:bg-blue-700 hover:shadow-lg transition-all"
-                        >
-                          <span>✨</span>
-                          <span>Criar enquete</span>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="mb-4 text-xs md:text-sm text-gray-500">
-                      Faça login no mural para criar enquetes.
-                    </p>
-                  )}
-
-                  {/* Lista de enquetes */}
-                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                    {familyPolls.length === 0 ? (
-                      <p className="text-sm text-gray-500 text-center py-4">
-                        Ainda não há enquetes. Crie a primeira para combinar os detalhes do Natal! ✨
-                      </p>
-                    ) : (
-                      familyPolls.map((poll) => {
-                        const totalVotes = Object.values(poll.votes || {}).reduce((sum, v) => sum + Number(v || 0), 0);
-                        return (
-                          <div key={poll.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                            <div className="flex items-start justify-between gap-3 mb-3">
-                              <div>
-                                <p className="text-sm font-bold text-gray-900 mb-0.5">{poll.question}</p>
-                                <p className="text-[11px] text-gray-500">
-                                  Criada por {poll.created_by_name} em{' '}
-                                  {new Date(poll.created_at).toLocaleDateString('pt-BR', {
-                                    day: '2-digit',
-                                    month: '2-digit',
-                                  })}
-                                </p>
-                              </div>
-                              {totalVotes > 0 && (
-                                <span className="text-[11px] text-blue-700 bg-blue-50 px-2 py-1 rounded-full font-semibold">
-                                  {totalVotes} voto{totalVotes === 1 ? '' : 's'}
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              {poll.options.map((opt, idx) => {
-                                const count = poll.votes?.[String(idx)] || 0;
-                                const percent = totalVotes > 0 ? Math.round((Number(count) / totalVotes) * 100) : 0;
-                                return (
-                                  <button
-                                    key={idx}
-                                    onClick={() => handleVotePoll(poll.id, idx)}
-                                    className="flex flex-col items-start text-left px-3 py-2 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-xs"
-                                  >
-                                    <div className="flex justify-between w-full items-center mb-1">
-                                      <span className="font-semibold text-gray-800">{opt}</span>
-                                      <span className="text-[11px] text-gray-500">
-                                        {count} voto{Number(count) === 1 ? '' : 's'}{totalVotes > 0 ? ` • ${percent}%` : ''}
-                                      </span>
-                                    </div>
-                                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                                      <div
-                                        className="h-full bg-gradient-to-r from-blue-500 to-indigo-500"
-                                        style={{ width: `${percent}%` }}
-                                      ></div>
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {participants.filter(p => !p.paid).length > 0 && (
-              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-l-4 border-yellow-500 p-4 rounded-lg shadow-md">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="text-yellow-600" size={20} />
-                  <span className="font-bold text-yellow-800">Pendentes: </span>
-                  <span className="text-yellow-700">
-                    {participants.filter(p => !p.paid).map(p => p.name).join(', ')}
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        {/* PARTICIPANTES - Só admin */}
         {isAdmin && activeTab === 'participants' && !loading && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
