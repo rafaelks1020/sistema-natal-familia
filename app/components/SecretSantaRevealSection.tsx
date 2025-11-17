@@ -61,7 +61,11 @@ export function SecretSantaRevealSection({
         {!revealedDraw ? (
           <div className="space-y-4">
             <p className="text-gray-700 text-center">
-              Digite o token que você recebeu para descobrir quem é seu amigo oculto!
+              Você recebeu um <span className="font-semibold">token</span> (código) do organizador do sorteio.
+              Ele parece algo como <span className="font-mono font-bold">ABC12345</span>.
+            </p>
+            <p className="text-gray-600 text-center text-sm">
+              Digite esse código abaixo para descobrir quem você tirou e ver sugestões de presente da pessoa.
             </p>
             <div className="flex flex-col md:flex-row gap-3">
               <input
@@ -115,9 +119,13 @@ export function SecretSantaRevealSection({
             )}
 
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border-2 border-green-300">
-              <h3 className="text-xl font-bold text-green-700 mb-3 flex items-center gap-2">
+              <h3 className="text-xl font-bold text-green-700 mb-1 flex items-center gap-2">
                 🎁 Sugestões de Presente de {revealedDraw.receiver_name}
               </h3>
+              <p className="text-xs md:text-sm text-green-700 mb-3">
+                Use essa lista como guia. Você pode marcar um item como <span className="font-semibold">comprado</span>
+                para evitar presentes repetidos.
+              </p>
               {receiverWishList.length > 0 ? (
                 <div className="space-y-3">
                   {receiverWishList.map((item) => (

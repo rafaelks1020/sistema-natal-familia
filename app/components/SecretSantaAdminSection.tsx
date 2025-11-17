@@ -93,6 +93,10 @@ export function SecretSantaAdminSection({
   return (
     <div className="space-y-6">
       <h2 className="text-3xl font-bold text-white drop-shadow-lg">🎅 Amigo Oculto</h2>
+      <p className="text-sm text-white/80 max-w-2xl">
+        Aqui você configura o sorteio, define quem participa, cria regras (quem não pode tirar quem), gera os
+        tokens para cada pessoa e cadastra as listas de desejos da família.
+      </p>
 
       {/* Status do Sorteio / Configuração */}
       {secretSantaConfig ? (
@@ -121,7 +125,11 @@ export function SecretSantaAdminSection({
         </div>
       ) : (
         <div className="bg-white/90 backdrop-blur-lg p-6 rounded-xl shadow-lg border-2 border-blue-200">
-          <h3 className="text-2xl font-bold mb-4 text-gray-800">Configurar Sorteio</h3>
+          <h3 className="text-2xl font-bold mb-2 text-gray-800">Configurar Sorteio (Passo 1)</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Defina o intervalo de valores dos presentes e as regras básicas. Depois disso, você poderá fazer o sorteio
+            e distribuir os tokens para a família.
+          </p>
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
@@ -235,7 +243,7 @@ export function SecretSantaAdminSection({
 
       {allDraws.length > 0 && (
         <div className="bg-white/90 backdrop-blur-lg p-6 rounded-xl shadow-lg border-2 border-purple-200">
-          <h3 className="text-2xl font-bold mb-4 text-gray-800">🎫 Tokens para Distribuir</h3>
+          <h3 className="text-2xl font-bold mb-4 text-gray-800">🎫 Tokens para Distribuir (Passo 2)</h3>
           <p className="text-sm text-blue-700 bg-blue-50 p-3 rounded-lg mb-4 border-l-4 border-blue-400">
             💡 <span className="font-bold">Como funciona:</span> Entregue cada token para a pessoa correspondente.
             Elas usarão o token para revelar seu amigo oculto na aba pública.
@@ -272,7 +280,7 @@ export function SecretSantaAdminSection({
       )}
 
       <div className="bg-white/90 backdrop-blur-lg p-6 rounded-xl shadow-lg border-2 border-pink-200">
-        <h3 className="text-2xl font-bold mb-4 text-gray-800">📝 Gerenciar Listas de Desejos</h3>
+        <h3 className="text-2xl font-bold mb-4 text-gray-800">📝 Gerenciar Listas de Desejos (Passo 3)</h3>
         <p className="text-sm text-pink-700 bg-pink-50 p-3 rounded-lg mb-4 border-l-4 border-pink-400">
           💡 <span className="font-bold">Cadastre as sugestões de presente</span> para cada participante. Quando
           alguém revelar o token, verá automaticamente a lista da pessoa que tirou!

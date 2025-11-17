@@ -234,6 +234,7 @@ export function TimelineSection(props: TimelineSectionProps) {
   } = props;
 
   const natalDate = new Date('2025-12-25');
+  const [selectedAlbumPost, setSelectedAlbumPost] = useState<FamilyPost | null>(null);
 
   return (
     <div className="relative py-12 overflow-hidden">
@@ -299,6 +300,39 @@ export function TimelineSection(props: TimelineSectionProps) {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 relative z-10">
+        {selectedAlbumPost && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+            <button
+              type="button"
+              className="absolute top-4 right-4 md:top-8 md:right-8 text-white text-2xl md:text-3xl font-bold"
+              onClick={() => setSelectedAlbumPost(null)}
+            >
+              ×
+            </button>
+            <div className="bg-black/80 rounded-3xl shadow-2xl overflow-hidden max-w-3xl w-full border border-white/20">
+              {selectedAlbumPost.image_url && (
+                <img
+                  src={selectedAlbumPost.image_url}
+                  alt={selectedAlbumPost.content || `Foto de ${selectedAlbumPost.user_name}`}
+                  className="w-full max-h-[75vh] object-contain bg-black"
+                />
+              )}
+              <div className="px-4 py-3 flex items-center justify-between text-xs md:text-sm text-white/90 bg-gradient-to-r from-black/80 via-black/60 to-black/80">
+                <span className="font-semibold truncate max-w-[70%]">
+                  {selectedAlbumPost.user_name}
+                </span>
+                <span className="opacity-80">
+                  {new Date(selectedAlbumPost.created_at).toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                  })}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showTour && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 md:p-6 border border-yellow-200">
@@ -486,7 +520,16 @@ export function TimelineSection(props: TimelineSectionProps) {
                   .map((post) => (
                     <div
                       key={post.id}
-                      className="relative group rounded-xl overflow-hidden border border-white shadow-sm bg-gray-900/5"
+                      className="relative group rounded-xl overflow-hidden border border-white shadow-sm bg-gray-900/5 cursor-pointer"
+                      onClick={() => setSelectedAlbumPost(post)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedAlbumPost(post);
+                        }
+                      }}
                     >
                       <img
                         src={post.image_url as string}
