@@ -125,6 +125,10 @@ interface TimelineSectionProps {
   familyCommentDrafts: Record<number, string>;
   setFamilyCommentDrafts: Dispatch<SetStateAction<Record<number, string>>>;
   handleCreateComment: (postId: number) => void | Promise<void>;
+  handleUpdatePost: (postId: number, content: string) => void | Promise<void>;
+  handleDeletePost: (postId: number) => void | Promise<void>;
+  handleUpdateComment: (commentId: number, content: string) => void | Promise<void>;
+  handleDeleteComment: (commentId: number) => void | Promise<void>;
   timeline: TimelineItem[];
 }
 
@@ -244,18 +248,78 @@ export function TimelineSection(props: TimelineSectionProps) {
     familyCommentDrafts,
     setFamilyCommentDrafts,
     handleCreateComment,
+    handleUpdatePost,
+    handleDeletePost,
+    handleUpdateComment,
+    handleDeleteComment,
     timeline,
   } = props;
 
   const natalDate = new Date('2025-12-25');
   const [selectedAlbumPost, setSelectedAlbumPost] = useState<FamilyPost | null>(null);
-  const [wallSortMode, setWallSortMode] = useState<'recent' | 'top'>('recent');
+  const [wallSortMode, setWallSortMode] = useState<'recent' | 'top' | 'comments'>('recent');
   const [notifications, setNotifications] = useState<FamilyNotification[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [timelineTab, setTimelineTab] = useState<TimelineTab>('home');
+  const [albumTouchStart, setAlbumTouchStart] = useState<number | null>(null);
+  const [albumTouchEnd, setAlbumTouchEnd] = useState<number | null>(null);
 
+  const albumPosts = familyPosts.filter((p) => p.image_url);
   const unreadNotifications = notifications.filter((n) => !n.read_at).length;
+
+  const showNextAlbumPhoto = () => {
+    if (!selectedAlbumPost) return;
+    if (albumPosts.length === 0) return;
+
+    const currentIndex = albumPosts.findIndex((p) => p.id === selectedAlbumPost.id);
+    if (currentIndex === -1) return;
+
+    const nextIndex = (currentIndex + 1) % albumPosts.length;
+    setSelectedAlbumPost(albumPosts[nextIndex]);
+  };
+
+  const showPrevAlbumPhoto = () => {
+    if (!selectedAlbumPost) return;
+    if (albumPosts.length === 0) return;
+
+    const currentIndex = albumPosts.findIndex((p) => p.id === selectedAlbumPost.id);
+    if (currentIndex === -1) return;
+
+    const prevIndex = (currentIndex - 1 + albumPosts.length) % albumPosts.length;
+    setSelectedAlbumPost(albumPosts[prevIndex]);
+  };
+
+  const handleAlbumTouchStart = (e: React.TouchEvent) => {
+    if (!albumPosts.length) return;
+    setAlbumTouchStart(e.targetTouches[0].clientX);
+    setAlbumTouchEnd(null);
+  };
+
+  const handleAlbumTouchMove = (e: React.TouchEvent) => {
+    if (albumTouchStart === null) return;
+    setAlbumTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleAlbumTouchEnd = () => {
+    if (albumTouchStart === null || albumTouchEnd === null) {
+      setAlbumTouchStart(null);
+      setAlbumTouchEnd(null);
+      return;
+    }
+
+    const distance = albumTouchStart - albumTouchEnd;
+    const swipeThreshold = 50;
+
+    if (distance > swipeThreshold) {
+      showNextAlbumPhoto();
+    } else if (distance < -swipeThreshold) {
+      showPrevAlbumPhoto();
+    }
+
+    setAlbumTouchStart(null);
+    setAlbumTouchEnd(null);
+  };
 
   const loadNotifications = async () => {
     if (!familyUser) {
@@ -307,6 +371,13 @@ export function TimelineSection(props: TimelineSectionProps) {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setSelectedAlbumPost(null);
+        return;
+      }
+
+      if (event.key === 'ArrowRight') {
+        showNextAlbumPhoto();
+      } else if (event.key === 'ArrowLeft') {
+        showPrevAlbumPhoto();
       }
     };
 
@@ -316,7 +387,7 @@ export function TimelineSection(props: TimelineSectionProps) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedAlbumPost]);
+  }, [selectedAlbumPost, familyPosts]);
 
   return (
     <div className="relative py-12 overflow-hidden">
@@ -395,15 +466,44 @@ export function TimelineSection(props: TimelineSectionProps) {
               ×
             </button>
             <div
-              className="bg-black/80 rounded-3xl shadow-2xl overflow-hidden max-w-3xl w-full border border-white/20"
+              className="bg-black/80 rounded-3xl shadow-2xl overflow-hidden max-w-3xl w-full border border-white/20 relative"
               onClick={(e) => e.stopPropagation()}
             >
               {selectedAlbumPost.image_url && (
-                <img
-                  src={selectedAlbumPost.image_url}
-                  alt={selectedAlbumPost.content || `Foto de ${selectedAlbumPost.user_name}`}
-                  className="w-full max-h-[75vh] object-contain bg-black"
-                />
+                <div className="relative">
+                  <img
+                    src={selectedAlbumPost.image_url}
+                    alt={selectedAlbumPost.content || `Foto de ${selectedAlbumPost.user_name}`}
+                    className="w-full max-h-[75vh] object-contain bg-black"
+                    onTouchStart={handleAlbumTouchStart}
+                    onTouchMove={handleAlbumTouchMove}
+                    onTouchEnd={handleAlbumTouchEnd}
+                  />
+                  {albumPosts.length > 1 && (
+                    <>
+                      <button
+                        type="button"
+                        className="flex items-center justify-center absolute left-2 md:left-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 rounded-full bg-black/60 text-white hover:bg-black/80 focus:outline-none"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          showPrevAlbumPhoto();
+                        }}
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        className="flex items-center justify-center absolute right-2 md:right-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 rounded-full bg-black/60 text-white hover:bg-black/80 focus:outline-none"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          showNextAlbumPhoto();
+                        }}
+                      >
+                        ›
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
               <div className="px-4 py-3 flex items-center justify-between text-xs md:text-sm text-white/90 bg-gradient-to-r from-black/80 via-black/60 to-black/80">
                 <span className="font-semibold truncate max-w-[70%]">
@@ -523,6 +623,108 @@ export function TimelineSection(props: TimelineSectionProps) {
             })}
           </div>
         </div>
+
+        {isAdmin && timelineTab === 'home' && (
+          <div className="mb-8 -mx-4 md:-mx-8">
+            {(() => {
+              const yesCount = familyAttendance.filter((a) => a.status === 'yes').length;
+              const maybeCount = familyAttendance.filter((a) => a.status === 'maybe').length;
+              const noCount = familyAttendance.filter((a) => a.status === 'no').length;
+              const totalResponded = yesCount + maybeCount + noCount;
+              const pinnedPost = pinnedPostId ? familyPosts.find((p) => p.id === pinnedPostId) || null : null;
+              const pollsCount = familyPolls.length;
+              const latestPoll = familyPolls[0] || null;
+
+              return (
+                <div className="bg-gradient-to-r from-red-700/90 via-green-700/90 to-red-700/90 text-white rounded-3xl px-4 md:px-6 py-4 md:py-5 shadow-2xl border border-white/20">
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl md:text-2xl">🎅</span>
+                      <h2 className="text-sm md:text-base font-black uppercase tracking-wide">
+                        Painel do Papai Noel
+                      </h2>
+                    </div>
+                    <p className="hidden md:block text-xs text-white/80">
+                      Visão rápida de presença, posts fixados e enquetes.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 text-xs md:text-sm">
+                    <div className="bg-black/25 rounded-2xl p-3 border border-white/10">
+                      <p className="font-semibold mb-1 flex items-center gap-1">
+                        <span>✅</span>
+                        <span>Presença</span>
+                      </p>
+                      {totalResponded === 0 ? (
+                        <p className="text-white/80">Ainda ninguém respondeu.</p>
+                      ) : (
+                        <ul className="space-y-0.5 text-white/85">
+                          <li>
+                            <span className="font-semibold">Confirmados:</span> {yesCount}
+                          </li>
+                          <li>
+                            <span className="font-semibold">Talvez:</span> {maybeCount}
+                          </li>
+                          <li>
+                            <span className="font-semibold">Não vão:</span> {noCount}
+                          </li>
+                        </ul>
+                      )}
+                    </div>
+                    <div className="bg-black/25 rounded-2xl p-3 border border-white/10">
+                      <p className="font-semibold mb-1 flex items-center gap-1">
+                        <span>📌</span>
+                        <span>Post fixado</span>
+                      </p>
+                      {pinnedPost ? (
+                        <div className="space-y-1">
+                          <p className="text-[11px] md:text-xs text-white/85 font-semibold truncate">
+                            {pinnedPost.user_name}
+                          </p>
+                          <p className="text-[11px] text-white/80 line-clamp-2">
+                            {pinnedPost.content || 'Post sem texto'}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePinPost(pinnedPost.id)}
+                            className="mt-1 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-[11px] font-semibold"
+                          >
+                            <span>Desafixar</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-white/80 text-[11px]">
+                          Nenhum post fixado. Você pode fixar um direto no mural.
+                        </p>
+                      )}
+                    </div>
+                    <div className="bg-black/25 rounded-2xl p-3 border border-white/10">
+                      <p className="font-semibold mb-1 flex items-center gap-1">
+                        <span>📊</span>
+                        <span>Enquetes</span>
+                      </p>
+                      {pollsCount === 0 ? (
+                        <p className="text-white/80 text-[11px]">
+                          Ainda não há enquetes criadas.
+                        </p>
+                      ) : (
+                        <div className="space-y-1">
+                          <p className="text-white/85 text-[11px]">
+                            <span className="font-semibold">Total:</span> {pollsCount}
+                          </p>
+                          {latestPoll && (
+                            <p className="text-white/80 text-[11px] line-clamp-2">
+                              Última: {latestPoll.question}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
 
         {/* Resumo Financeiro */}
         {timelineTab === 'home' && (
@@ -982,6 +1184,17 @@ export function TimelineSection(props: TimelineSectionProps) {
                       >
                         Mais curtidos
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setWallSortMode('comments')}
+                        className={`px-2.5 py-1 rounded-full font-semibold transition-all ${
+                          wallSortMode === 'comments'
+                            ? 'bg-white text-green-700 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-800'
+                        }`}
+                      >
+                        Mais comentados
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1237,6 +1450,15 @@ export function TimelineSection(props: TimelineSectionProps) {
                       return dateB - dateA;
                     }
 
+                    if (wallSortMode === 'comments') {
+                      const commentsA = a.post.comments?.length || 0;
+                      const commentsB = b.post.comments?.length || 0;
+                      if (commentsA === commentsB) {
+                        return dateB - dateA;
+                      }
+                      return commentsB - commentsA;
+                    }
+
                     if (a.score === b.score) {
                       return dateB - dateA;
                     }
@@ -1276,7 +1498,7 @@ export function TimelineSection(props: TimelineSectionProps) {
                               })}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap justify-end">
                             {pinnedPostId === post.id && (
                               <span className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
                                 Post fixado
@@ -1293,6 +1515,33 @@ export function TimelineSection(props: TimelineSectionProps) {
                                 <span>📌</span>
                                 <span>{pinnedPostId === post.id ? 'Desafixar' : 'Fixar'}</span>
                               </button>
+                            )}
+                            {((familyUser && familyUser.id === post.user_id) || isAdmin) && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const novo = window.prompt('Editar mensagem do post', post.content || '');
+                                    if (novo !== null) {
+                                      handleUpdatePost(post.id, novo);
+                                    }
+                                  }}
+                                  className="text-[11px] text-gray-500 hover:text-blue-700 underline-offset-2 hover:underline"
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (window.confirm('Tem certeza que deseja apagar este post?')) {
+                                      handleDeletePost(post.id);
+                                    }
+                                  }}
+                                  className="text-[11px] text-gray-500 hover:text-red-700 underline-offset-2 hover:underline"
+                                >
+                                  Apagar
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -1359,18 +1608,47 @@ export function TimelineSection(props: TimelineSectionProps) {
                                     <p className="text-[11px] text-gray-700 whitespace-pre-line mb-1">
                                       {comment.content}
                                     </p>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleToggleCommentLike(comment.id)}
-                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold transition-all ${
-                                        likedComments[comment.id]
-                                          ? 'border-pink-400 text-pink-600 bg-pink-50'
-                                          : 'border-gray-200 text-gray-500 hover:border-pink-300 hover:text-pink-600 hover:bg-pink-50'
-                                      }`}
-                                    >
-                                      <span>{likedComments[comment.id] ? '❤️' : '🤍'}</span>
-                                      <span>Curtir</span>
-                                    </button>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleToggleCommentLike(comment.id)}
+                                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold transition-all ${
+                                          likedComments[comment.id]
+                                            ? 'border-pink-400 text-pink-600 bg-pink-50'
+                                            : 'border-gray-200 text-gray-500 hover:border-pink-300 hover:text-pink-600 hover:bg-pink-50'
+                                        }`}
+                                      >
+                                        <span>{likedComments[comment.id] ? '❤️' : '🤍'}</span>
+                                        <span>Curtir</span>
+                                      </button>
+                                      {((familyUser && familyUser.id === comment.user_id) || isAdmin) && (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const novo = window.prompt('Editar comentário', comment.content || '');
+                                              if (novo !== null) {
+                                                handleUpdateComment(comment.id, novo);
+                                              }
+                                            }}
+                                            className="text-[10px] text-gray-500 hover:text-blue-700 underline-offset-2 hover:underline"
+                                          >
+                                            Editar
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (window.confirm('Tem certeza que deseja apagar este comentário?')) {
+                                                handleDeleteComment(comment.id);
+                                              }
+                                            }}
+                                            className="text-[10px] text-gray-500 hover:text-red-700 underline-offset-2 hover:underline"
+                                          >
+                                            Apagar
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               ))}

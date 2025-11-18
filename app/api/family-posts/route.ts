@@ -73,3 +73,63 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Erro ao criar post' }, { status: 500 });
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const data = await request.json();
+    const postId = Number(data.id);
+    const userId = Number(data.user_id);
+    const text = String(data.content || '').trim();
+
+    if (!postId || !userId || !text) {
+      return NextResponse.json({ message: 'Dados inválidos' }, { status: 400 });
+    }
+
+    const updateResult = await query(
+      `UPDATE family_posts
+         SET content = $1
+       WHERE id = $2 AND user_id = $3
+       RETURNING id, user_id, content, image_url, created_at`,
+      [text, postId, userId],
+    );
+
+    const post = updateResult.rows[0];
+    if (!post) {
+      return NextResponse.json({ message: 'Post não encontrado ou não autorizado' }, { status: 403 });
+    }
+
+    const userResult = await query('SELECT name FROM family_users WHERE id = $1', [post.user_id]);
+    const userName = userResult.rows[0]?.name || 'Família';
+
+    return NextResponse.json({ ...post, user_name: userName });
+  } catch (error) {
+    console.error('Erro PUT /api/family-posts:', error);
+    return NextResponse.json({ message: 'Erro ao atualizar post' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const data = await request.json();
+    const postId = Number(data.id);
+    const userId = Number(data.user_id);
+
+    if (!postId || !userId) {
+      return NextResponse.json({ message: 'Dados inválidos' }, { status: 400 });
+    }
+
+    const deleteResult = await query('DELETE FROM family_posts WHERE id = $1 AND user_id = $2 RETURNING id', [
+      postId,
+      userId,
+    ]);
+
+    if (deleteResult.rowCount === 0) {
+      return NextResponse.json({ message: 'Post não encontrado ou não autorizado' }, { status: 403 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Erro DELETE /api/family-posts:', error);
+    return NextResponse.json({ message: 'Erro ao apagar post' }, { status: 500 });
+  }
+}

@@ -45,3 +45,61 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Erro ao criar comentário' }, { status: 500 });
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const { comment_id, user_id, content } = await request.json();
+
+    const commentId = Number(comment_id);
+    const userId = Number(user_id);
+    const text = String(content || '').trim();
+
+    if (!commentId || !userId || !text) {
+      return NextResponse.json({ message: 'Dados inválidos' }, { status: 400 });
+    }
+
+    const updateResult = await query(
+      `UPDATE family_post_comments
+         SET content = $1
+       WHERE id = $2 AND user_id = $3
+       RETURNING id`,
+      [text, commentId, userId],
+    );
+
+    if (updateResult.rowCount === 0) {
+      return NextResponse.json({ message: 'Comentário não encontrado ou não autorizado' }, { status: 403 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Erro PUT /api/family-comments:', error);
+    return NextResponse.json({ message: 'Erro ao atualizar comentário' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { comment_id, user_id } = await request.json();
+
+    const commentId = Number(comment_id);
+    const userId = Number(user_id);
+
+    if (!commentId || !userId) {
+      return NextResponse.json({ message: 'Dados inválidos' }, { status: 400 });
+    }
+
+    const deleteResult = await query(
+      'DELETE FROM family_post_comments WHERE id = $1 AND user_id = $2 RETURNING id',
+      [commentId, userId],
+    );
+
+    if (deleteResult.rowCount === 0) {
+      return NextResponse.json({ message: 'Comentário não encontrado ou não autorizado' }, { status: 403 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Erro DELETE /api/family-comments:', error);
+    return NextResponse.json({ message: 'Erro ao apagar comentário' }, { status: 500 });
+  }
+}

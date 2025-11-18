@@ -437,6 +437,174 @@ export default function ChristmasOrganizer() {
     });
   };
 
+  const handleUpdatePost = async (postId: number, content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed) {
+      setToast({ message: 'A mensagem do post não pode ficar vazia', type: 'error' });
+      return;
+    }
+
+    const post = familyPosts.find(p => p.id === postId);
+    if (!post) {
+      setToast({ message: 'Post não encontrado', type: 'error' });
+      return;
+    }
+
+    const isOwner = familyUser && familyUser.id === post.user_id;
+    if (!isOwner && !isAdmin) {
+      setToast({ message: 'Você não pode editar este post', type: 'error' });
+      return;
+    }
+
+    const userIdForApi = post.user_id;
+
+    try {
+      const res = await fetch('/api/family-posts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: postId, user_id: userIdForApi, content: trimmed }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setToast({ message: data.message || 'Erro ao atualizar post', type: 'error' });
+        return;
+      }
+
+      await loadFamilyPosts();
+      setToast({ message: 'Post atualizado com sucesso!', type: 'success' });
+    } catch (error) {
+      setToast({ message: 'Erro ao atualizar post', type: 'error' });
+    }
+  };
+
+  const handleDeletePost = async (postId: number) => {
+    const post = familyPosts.find(p => p.id === postId);
+    if (!post) {
+      setToast({ message: 'Post não encontrado', type: 'error' });
+      return;
+    }
+
+    const isOwner = familyUser && familyUser.id === post.user_id;
+    if (!isOwner && !isAdmin) {
+      setToast({ message: 'Você não pode apagar este post', type: 'error' });
+      return;
+    }
+
+    const userIdForApi = post.user_id;
+
+    try {
+      const res = await fetch('/api/family-posts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: postId, user_id: userIdForApi }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setToast({ message: data.message || 'Erro ao apagar post', type: 'error' });
+        return;
+      }
+
+      await loadFamilyPosts();
+      setToast({ message: 'Post apagado com sucesso!', type: 'success' });
+    } catch (error) {
+      setToast({ message: 'Erro ao apagar post', type: 'error' });
+    }
+  };
+
+  const handleUpdateComment = async (commentId: number, content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed) {
+      setToast({ message: 'O comentário não pode ficar vazio', type: 'error' });
+      return;
+    }
+
+    let ownerId: number | null = null;
+    for (const post of familyPosts) {
+      const comment = post.comments?.find(c => c.id === commentId);
+      if (comment) {
+        ownerId = comment.user_id;
+        break;
+      }
+    }
+
+    if (!ownerId) {
+      setToast({ message: 'Comentário não encontrado', type: 'error' });
+      return;
+    }
+
+    const isOwner = familyUser && familyUser.id === ownerId;
+    if (!isOwner && !isAdmin) {
+      setToast({ message: 'Você não pode editar este comentário', type: 'error' });
+      return;
+    }
+
+    const userIdForApi = ownerId;
+
+    try {
+      const res = await fetch('/api/family-comments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment_id: commentId, user_id: userIdForApi, content: trimmed }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setToast({ message: data.message || 'Erro ao atualizar comentário', type: 'error' });
+        return;
+      }
+
+      await loadFamilyPosts();
+      setToast({ message: 'Comentário atualizado com sucesso!', type: 'success' });
+    } catch (error) {
+      setToast({ message: 'Erro ao atualizar comentário', type: 'error' });
+    }
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    let ownerId: number | null = null;
+    for (const post of familyPosts) {
+      const comment = post.comments?.find(c => c.id === commentId);
+      if (comment) {
+        ownerId = comment.user_id;
+        break;
+      }
+    }
+
+    if (!ownerId) {
+      setToast({ message: 'Comentário não encontrado', type: 'error' });
+      return;
+    }
+
+    const isOwner = familyUser && familyUser.id === ownerId;
+    if (!isOwner && !isAdmin) {
+      setToast({ message: 'Você não pode apagar este comentário', type: 'error' });
+      return;
+    }
+
+    const userIdForApi = ownerId;
+
+    try {
+      const res = await fetch('/api/family-comments', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment_id: commentId, user_id: userIdForApi }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setToast({ message: data.message || 'Erro ao apagar comentário', type: 'error' });
+        return;
+      }
+
+      await loadFamilyPosts();
+      setToast({ message: 'Comentário apagado com sucesso!', type: 'success' });
+    } catch (error) {
+      setToast({ message: 'Erro ao apagar comentário', type: 'error' });
+    }
+  };
+
   const handleToggleCommentLike = (commentId: number) => {
     if (!familyUser) {
       setToast({ message: 'Faça login para curtir comentários', type: 'error' });
@@ -1516,6 +1684,10 @@ export default function ChristmasOrganizer() {
             familyCommentDrafts={familyCommentDrafts}
             setFamilyCommentDrafts={setFamilyCommentDrafts}
             handleCreateComment={handleCreateComment}
+            handleUpdatePost={handleUpdatePost}
+            handleDeletePost={handleDeletePost}
+            handleUpdateComment={handleUpdateComment}
+            handleDeleteComment={handleDeleteComment}
             timeline={timeline}
           />
         )}
