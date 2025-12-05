@@ -188,13 +188,11 @@ export function SecretSantaAdminSection({
                 className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
               >
                 <option value={0}>Pessoa 1</option>
-                {participants
-                  .filter((p) => p.paid)
-                  .map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
+                {participants.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
               </select>
               <select
                 value={selectedP2}
@@ -202,13 +200,11 @@ export function SecretSantaAdminSection({
                 className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
               >
                 <option value={0}>Pessoa 2</option>
-                {participants
-                  .filter((p) => p.paid)
-                  .map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
+                {participants.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
               </select>
               <button
                 onClick={addDrawRule}
@@ -235,8 +231,8 @@ export function SecretSantaAdminSection({
           </button>
 
           <p className="text-sm text-gray-600 mt-3 text-center">
-            Apenas participantes que pagaram entrarão no sorteio ({' '}
-            {participants.filter((p) => p.paid).length} pessoas)
+            Todos os participantes cadastrados entrarão no sorteio ({' '}
+            {participants.length} pessoas)
           </p>
         </div>
       )}

@@ -104,16 +104,15 @@ export async function POST(request: NextRequest) {
     if (action === 'draw') {
       const { rules = [], min_gift_value, max_gift_value, reveal_date } = data;
       
-      // Buscar todos os participantes pagos
+      // Buscar todos os participantes cadastrados
       const { rows: participants } = await query(`
         SELECT id, name FROM participants 
-        WHERE paid = true
         ORDER BY name
       `);
       
       if (participants.length < 3) {
         return NextResponse.json(
-          { error: 'É necessário pelo menos 3 participantes que pagaram para fazer o sorteio' },
+          { error: 'É necessário pelo menos 3 participantes cadastrados para fazer o sorteio' },
           { status: 400 }
         );
       }
