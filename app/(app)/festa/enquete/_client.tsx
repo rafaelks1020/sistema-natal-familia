@@ -23,7 +23,7 @@ import {
   SUGESTOES_ENQUETE,
   type EnqueteData,
   type LivePollItem,
-} from '@/app/api/festa/enquete/_data';
+} from '@/app/api/festa/enquete/_tipos';
 
 export default function EnqueteClient({
   initial,
