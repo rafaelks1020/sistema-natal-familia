@@ -1,7 +1,7 @@
 # Natal em Família: checklist de TUDO que o Rafael pediu
 
 Status: [x] feito e no ar · [~] em andamento · [ ] a fazer · (R) depende do Rafael
-Atualizado: 05/11/2026 03:40
+Atualizado: 05/11/2026 15:10
 
 ## Pedidos, na ordem em que vieram
 1. [x] Montar o sistema do repositório e repaginar tudo
@@ -81,3 +81,14 @@ Decisão: **React Native com Expo** (componentes nativos de verdade, uma base, m
 ## Pendências do Rafael
 - (R) Decidir se apaga o Blob antigo "fotinhas-natal-familia" (o token dele vazou no GitHub; some com as fotos de 2025)
 - (R) Criar os apps nas lojas
+
+
+## Fechamento 05/11/2026
+- [x] Domínio https://natalemfamilia.com.br no ar (HTTPS, www redireciona, links universais)
+- [x] App nativo (Expo SDK 58) completo: todas as telas, push APNs/FCM, PDF do boleto, denunciar/bloquear/termos (regra 1.2), testado no emulador
+- [x] **iPhone ENVIADO À REVISÃO DA APPLE** (build 2611051634, só iPhone, grátis, Brasil): WAITING_FOR_REVIEW
+- [x] **Android ENVIADO À REVISÃO DA PLAY** (AAB 1.0.0, conta SpeedTechDev, Brasil): "Alterações em análise"
+- [x] Codemagic configurado para os próximos builds do iPhone
+- [ ] Acompanhar as duas revisões e responder se pedirem ajuste
+- [ ] Depois da aprovação: assetlinks.json com a impressão digital da chave de assinatura do Google Play (Integridade do app)
+- [ ] Prints de verdade do iPhone (simulador) numa próxima versão
