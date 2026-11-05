@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { HttpError, requireAdmin, route } from '@/app/lib/api';
 import { query } from '@/app/lib/db';
-import { ensurePlaylist, exchange, REDIRECT_URI, save, spotify } from '../_service';
+import { ensurePlaylist, exchange, REDIRECT_URI, save, spotify, SpotifyForbidden } from '../_service';
 
 export const GET = route(async req => {
   const me = await requireAdmin();
@@ -27,10 +27,11 @@ export const GET = route(async req => {
     const old = await query<{ value: string }>(`SELECT value FROM app_settings WHERE key='spotify_owner_id'`);
     if (old.rows[0]?.value && old.rows[0].value !== owner.id) throw new HttpError(400, 'Reconecte a mesma conta Spotify usada na playlist.');
     await save({ spotify_owner_id: owner.id, spotify_refresh_token: data.refresh_token,
-      spotify_access_token: data.access_token, spotify_access_expires: String(Date.now() + data.expires_in * 1000) });
+      spotify_access_token: data.access_token, spotify_access_expires: String(Date.now() + data.expires_in * 1000), spotify_api_bloqueada: '0' });
     await ensurePlaylist();
   } catch (error) {
-    status = error instanceof HttpError ? error.message : 'Não foi possível conectar o Spotify. Tente novamente.';
+    status = error instanceof SpotifyForbidden ? 'O Spotify não liberou a busca automática. Use o link da playlist e os pedidos da família.'
+      : error instanceof HttpError ? error.message : 'Não foi possível conectar o Spotify. Tente novamente.';
   }
   const target = new URL('/playlist', REDIRECT_URI);
   target.searchParams.set('spotify', status);

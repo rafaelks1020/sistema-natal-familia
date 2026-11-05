@@ -2,6 +2,7 @@ import 'server-only';
 import { HttpError } from '@/app/lib/api';
 import { query, transaction } from '@/app/lib/db';
 import { edicaoAtual } from '@/app/lib/edicao';
+import { parsePedido, parseSpotifyLink } from './link';
 import type { SessionUser } from '@/app/lib/session';
 
 export const REDIRECT_URI = 'https://natalemfamilia.com.br/api/spotify/callback';
@@ -10,9 +11,13 @@ export const configured = () => Boolean(process.env.SPOTIFY_CLIENT_ID && process
 export type SpotifyTrack = { uri: string; name: string; artists: { name: string }[]; album: { images: { url: string }[] } };
 export type Track = { id: number; user_id: number; track_uri: string; nome: string; artista: string; capa_url: string | null; autor: string; created_at: string };
 
+/** 403 da Web API: normalmente app em modo desenvolvimento cuja conta dona não é Premium. */
+export class SpotifyForbidden extends HttpError {}
+
 function friendly(status: number): HttpError {
+  if (status === 403) return new SpotifyForbidden(503, 'Peça a quem organiza para reconectar o Spotify e conferir o acesso da conta.');
   if (status === 429) return new HttpError(429, 'O Spotify está recebendo muitos pedidos. Aguarde um pouco e tente novamente.');
-  if (status === 401 || status === 403) return new HttpError(503, 'Peça a quem organiza para reconectar o Spotify e conferir o acesso da conta.');
+  if (status === 401) return new HttpError(503, 'Peça a quem organiza para reconectar o Spotify e conferir o acesso da conta.');
   return new HttpError(502, 'Não conseguimos conversar com o Spotify agora. Tente novamente em instantes.');
 }
 
@@ -36,7 +41,7 @@ export async function exchange(params: URLSearchParams) {
 export async function settings(q = query) {
   const { rows } = await q<{ key: string; value: string }>(
     `SELECT key, value FROM app_settings WHERE key = ANY($1::text[])`,
-    [['spotify_refresh_token', 'spotify_playlist_id', 'spotify_playlist_ano', 'spotify_access_token', 'spotify_access_expires']]);
+    [['spotify_refresh_token', 'spotify_playlist_id', 'spotify_playlist_ano', 'spotify_access_token', 'spotify_access_expires', 'spotify_playlist_link', 'spotify_api_bloqueada']]);
   return Object.fromEntries(rows.map(r => [r.key, r.value]));
 }
 
@@ -94,10 +99,27 @@ export async function ensurePlaylist() {
   });
 }
 
+const BLOQUEIO_MS = 6 * 60 * 60 * 1000;
+const PEDIDO = 'pedido:';
+
+/** Conexão OAuth feita e uma chamada de teste à Web API que não deu 403. Qualquer falha esconde a busca, sem erro na tela. */
+async function apiDisponivel(s: Record<string, string>): Promise<{ api: boolean; playlistId: string | null }> {
+  if (!configured() || !s.spotify_refresh_token) return { api: false, playlistId: null };
+  if (Date.now() - Number(s.spotify_api_bloqueada || 0) < BLOQUEIO_MS) return { api: false, playlistId: null };
+  try {
+    await spotify('/me');
+    return { api: true, playlistId: await ensurePlaylist() };
+  } catch (error) {
+    if (error instanceof SpotifyForbidden) await save({ spotify_api_bloqueada: String(Date.now()) }).catch(() => undefined);
+    return { api: false, playlistId: null };
+  }
+}
+
 export async function playlistData(me: SessionUser) {
   const s = await settings();
   const connected = configured() && Boolean(s.spotify_refresh_token);
-  const playlistId = connected ? await ensurePlaylist() : null;
+  const { api, playlistId } = await apiDisponivel(s);
+  const manual = s.spotify_playlist_link ? parseSpotifyLink(s.spotify_playlist_link) : null;
   const ano = edicaoAtual();
   const [tracks, count] = await Promise.all([
     query<Track>(`SELECT t.*, u.name AS autor FROM playlist_tracks t JOIN family_users u ON u.id=t.user_id
@@ -105,8 +127,49 @@ export async function playlistData(me: SessionUser) {
       ORDER BY t.created_at DESC, t.id DESC`, [ano, me.id]),
     query<{ total: number }>('SELECT COUNT(*)::int AS total FROM playlist_tracks WHERE ano=$1 AND user_id=$2', [ano, me.id]),
   ]);
-  return { ano, connected, configured: configured(), playlist_url: playlistId ? `https://open.spotify.com/playlist/${playlistId}` : null,
-    tracks: tracks.rows, minhas: count.rows[0].total, limite: 15 };
+  const playlistUrl = playlistId ? `https://open.spotify.com/playlist/${playlistId}` : null;
+  return { ano, connected, api, configured: configured(), playlist_url: playlistUrl,
+    link: manual?.link || playlistUrl, embed_id: manual?.id || playlistId,
+    tracks: tracks.rows.filter(t => !t.track_uri.startsWith(PEDIDO)),
+    pedidos: tracks.rows.filter(t => t.track_uri.startsWith(PEDIDO)),
+    minhas: count.rows[0].total, limite: 15 };
+}
+
+export async function salvarLink(raw: unknown) {
+  if (typeof raw === 'string' && !raw.trim()) {
+    await query(`DELETE FROM app_settings WHERE key = 'spotify_playlist_link'`);
+    return { ok: true, link: null, embed_id: null };
+  }
+  const parsed = parseSpotifyLink(raw);
+  if (!parsed) throw new HttpError(400, 'Cole o link de uma playlist do Spotify (open.spotify.com/playlist/...).');
+  await save({ spotify_playlist_link: parsed.link });
+  return { ok: true, link: parsed.link, embed_id: parsed.id };
+}
+
+export async function criarPedido(me: SessionUser, texto: unknown) {
+  const pedido = parsePedido(texto);
+  if (!pedido) throw new HttpError(400, 'Escreva a música e o artista (até 120 caracteres).');
+  const ano = edicaoAtual();
+  return transaction(async q => {
+    await q('SELECT pg_advisory_xact_lock($1, $2)', [16003, ano]);
+    const existing = await q('SELECT 1 FROM playlist_tracks WHERE ano=$1 AND track_uri=$2', [ano, pedido.chave]);
+    if (existing.rows.length) throw new HttpError(409, 'Já pediram essa.');
+    const count = await q<{ total: number }>('SELECT COUNT(*)::int AS total FROM playlist_tracks WHERE ano=$1 AND user_id=$2', [ano, me.id]);
+    if (count.rows[0].total >= 15) throw new HttpError(400, 'Você já escolheu 15 músicas nesta edição. Remova uma para escolher outra.');
+    await q(`INSERT INTO playlist_tracks(ano,user_id,track_uri,nome,artista,capa_url) VALUES ($1,$2,$3,$4,$5,NULL)`,
+      [ano, me.id, pedido.chave, pedido.nome, pedido.artista]);
+    return { ok: true };
+  });
+}
+
+export async function apagarPedido(me: SessionUser, id: number) {
+  return transaction(async q => {
+    const { rows } = await q<{ user_id: number }>(`SELECT user_id FROM playlist_tracks WHERE id=$1 AND ano=$2 AND track_uri LIKE 'pedido:%' FOR UPDATE`, [id, edicaoAtual()]);
+    if (!rows[0]) throw new HttpError(404, 'Este pedido já foi removido.');
+    if (rows[0].user_id !== me.id && !me.is_admin) throw new HttpError(403, 'Só quem pediu ou quem organiza pode remover.');
+    await q('DELETE FROM playlist_tracks WHERE id=$1', [id]);
+    return { ok: true };
+  });
 }
 
 export async function containsTrack(playlistId: string, uri: string, access: string) {
