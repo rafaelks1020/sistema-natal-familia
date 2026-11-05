@@ -3,3 +3,4 @@ mobile/
 docs/
 migrations/
 scripts/
+codemagic.yaml

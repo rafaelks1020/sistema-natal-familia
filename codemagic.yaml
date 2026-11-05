@@ -1,0 +1,38 @@
+# Build iOS do app nativo (app-nativo/) no Codemagic, disparado pela API.
+# A assinatura vem da API da App Store Connect (variáveis passadas no disparo):
+# APP_STORE_CONNECT_KEY_IDENTIFIER, APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_PRIVATE_KEY, CERTIFICATE_PRIVATE_KEY.
+workflows:
+  ios-api:
+    name: iOS pela API (App Store)
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    environment:
+      xcode: latest
+      node: 24
+    scripts:
+      - name: Assinatura
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "br.com.natalemfamilia.app" --type IOS_APP_STORE --create
+          keychain add-certificates
+      - name: Dependências
+        script: |
+          cd app-nativo
+          npm ci --no-audit --no-fund
+      - name: Prebuild iOS
+        script: |
+          cd app-nativo
+          npx expo prebuild --platform ios --clean
+      - name: Perfis e número do build
+        script: |
+          cd app-nativo/ios
+          PROJ=$(ls -d *.xcodeproj | head -1); NOME=${PROJ%.xcodeproj}
+          echo "NOME=$NOME" >> $CM_ENV
+          xcode-project use-profiles --project "$PROJ"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(date -u +%y%m%d%H%M)" "$NOME/Info.plist"
+      - name: IPA assinado
+        script: xcode-project build-ipa --workspace "app-nativo/ios/$NOME.xcworkspace" --scheme "$NOME"
+      - name: Enviar ao App Store Connect
+        script: app-store-connect publish --path build/ios/ipa/*.ipa
+    artifacts:
+      - build/ios/ipa/*.ipa
