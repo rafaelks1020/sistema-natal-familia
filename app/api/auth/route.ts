@@ -83,6 +83,7 @@ export const POST = route(async (req) => {
   }
 
   if (action === 'register') {
+    if (body.accept_terms !== true) throw new HttpError(400, 'Aceite os Termos de uso e a Política de privacidade para se cadastrar.');
     // Entra por convite (link do organizador) OU pelo código da família.
     const inviteToken = typeof body.invite === 'string' ? body.invite.trim() : '';
     if (!inviteToken) {
@@ -128,8 +129,8 @@ export const POST = route(async (req) => {
       }
 
       const created = await q<{ id: number }>(
-        `INSERT INTO family_users (name, username, password_hash, is_admin, invite_id)
-         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        `INSERT INTO family_users (name, username, password_hash, is_admin, invite_id, terms_accepted_at)
+         VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id`,
         [name, username, await hashPassword(password), isAdmin, invite?.id ?? null],
       );
       const id = created.rows[0].id;

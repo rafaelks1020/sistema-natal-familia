@@ -14,6 +14,7 @@ import {
   Trash2,
   Wine,
 } from 'lucide-react';
+import ModerationActions from './ModerationActions';
 import Avatar from '@/app/ui/Avatar';
 import LoopMedia from '@/app/ui/LoopMedia';
 import { timeAgo, thumb } from '@/app/ui/client';
@@ -184,8 +185,7 @@ export default function PostCard({
           </div>
         </Link>
 
-        {canManage && (
-          <div className="relative">
+        <div className="relative">
             <button
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
@@ -225,7 +225,7 @@ export default function PostCard({
                       Editar publicação
                     </button>
                   )}
-                  <button
+                  {canManage && <button
                     type="button"
                     onClick={() => {
                       setMenuOpen(false);
@@ -235,12 +235,12 @@ export default function PostCard({
                   >
                     <Trash2 size={16} strokeWidth={1.5} />
                     Apagar
-                  </button>
+                  </button>}
+                  {!isOwner && <ModerationActions userId={post.user_id} name={post.user_name} postId={post.id} />}
                 </div>
               </>
             )}
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Texto */}
@@ -439,6 +439,7 @@ export default function PostCard({
                     </p>
                     <div className="mt-0.5 flex items-center gap-3 text-[0.7rem] text-marfim-3">
                       <span>{timeAgo(c.created_at)}</span>
+                      {c.user_id !== meId && c.id > 0 && <details className="relative"><summary aria-label="Opções do comentário" className="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center"><MoreHorizontal size={18} strokeWidth={1.5} /></summary><div className="surface absolute right-0 z-20 min-w-48 py-1"><ModerationActions userId={c.user_id} name={c.user_name} commentId={c.id} /></div></details>}
                       {canDeleteComment && (
                         <button
                           type="button"

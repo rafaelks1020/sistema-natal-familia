@@ -31,8 +31,6 @@ function PostCardComponent({ post, width, visible, meId, isAdmin, onAuthor, onRe
   const [burst, setBurst] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-  const mine = post.user_id === meId;
-  const canManage = mine || isAdmin;
   const preview = post.comments.slice(-MURAL_PREVIEW_COMMENTS);
   const hidden = post.comments_count > preview.length;
   function playHeart() {
@@ -62,9 +60,9 @@ function PostCardComponent({ post, width, visible, meId, isAdmin, onAuthor, onRe
           <Text variant="muted" style={styles.time}>{timeAgo(post.created_at)}</Text>
         </View>
       </Pressable>
-      {canManage ? <Pressable accessibilityRole="button" accessibilityLabel="Opções da publicação" onPress={() => onOpenMenu(post)} style={styles.iconHit}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Opções da publicação" onPress={() => onOpenMenu(post)} style={styles.iconHit}>
         <Ellipsis size={20} color={theme.colors.secondary} strokeWidth={1.6} />
-      </Pressable> : null}
+      </Pressable>
     </View>
     {post.content ? <Text style={styles.body}>{post.content}</Text> : null}
     {post.images.length > 0 ? <PhotoStrip images={post.images} width={width} author={post.user_name} onDoubleTap={doubleTap}>

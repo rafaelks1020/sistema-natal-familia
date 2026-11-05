@@ -66,6 +66,7 @@ export async function getAlbum(
                 p.image_url, p.image_urls, p.created_at,
                 u.name AS author_name, u.avatar_url AS author_avatar
            FROM family_posts p JOIN family_users u ON u.id = p.user_id
+          WHERE NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = $5 AND b.blocked_id = p.user_id)
          UNION ALL
          SELECT id, 'compra'::text, description, image_url, image_urls, created_at,
                 NULL::text, NULL::text FROM purchases
@@ -76,7 +77,7 @@ export async function getAlbum(
              < ($1::timestamp, $2::text COLLATE "C", $3::int))
       ORDER BY sources.created_at DESC, source COLLATE "C" DESC, id DESC
       LIMIT $4`,
-    [cursor?.created_at ?? null, cursor?.source ?? null, cursor?.id ?? null, limit + 1],
+    [cursor?.created_at ?? null, cursor?.source ?? null, cursor?.id ?? null, limit + 1, user.id],
   );
 
   const items: AlbumItem[] = [];

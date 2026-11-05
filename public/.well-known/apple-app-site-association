@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["96D6HWHH5S.br.com.natalemfamilia.app"],
+        "components": [
+          { "/": "/entrar", "?": { "convite": "?*" }, "comment": "Link de convite abre o cadastro no app" },
+          { "/": "/mural*" },
+          { "/": "/amigo-oculto*" },
+          { "/": "/vaquinha*" },
+          { "/": "/album*" }
+        ]
+      }
+    ]
+  },
+  "webcredentials": { "apps": ["96D6HWHH5S.br.com.natalemfamilia.app"] }
+}

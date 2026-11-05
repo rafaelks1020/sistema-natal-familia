@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import Ellipsis from 'lucide-react-native/icons/ellipsis';
+import { useSession } from '../../session';
+import { Sheet } from '../../ui/Sheet';
+import { ModerationActions } from '../moderacao/Actions';
 import Heart from 'lucide-react-native/icons/heart';
 import { timeAgo } from '../../format';
 import type { CommentItem } from '../../types/mural';
@@ -17,6 +21,8 @@ export function CommentLine({ comment, canDelete, visible = true, onAuthor, onLi
   onLike: (commentId: number) => void;
   onDelete: (commentId: number) => void;
 }) {
+  const { user } = useSession();
+  const [menu, setMenu] = useState(false);
   const [burst, setBurst] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
@@ -47,6 +53,11 @@ export function CommentLine({ comment, canDelete, visible = true, onAuthor, onLi
         </Pressable> : null}
       </View>
     </View>
+    {!pending ? <Pressable accessibilityRole="button" accessibilityLabel="Opções do comentário" onPress={() => setMenu(true)} style={styles.like}><Ellipsis size={18} color={theme.colors.secondary} strokeWidth={1.5} /></Pressable> : null}
+    <Sheet visible={menu} onClose={() => setMenu(false)} title="Opções do comentário">
+      {user && comment.user_id !== user.id ? <ModerationActions userId={comment.user_id} name={comment.user_name} commentId={comment.id} onDone={() => setMenu(false)} /> : null}
+      {canDelete ? <Pressable accessibilityRole="button" onPress={() => { setMenu(false); onDelete(comment.id); }} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: theme.colors.error }}>Apagar comentário</Text></Pressable> : null}
+    </Sheet>
     <Pressable accessibilityRole="button" accessibilityLabel={comment.liked_by_me ? 'Desfazer curtida do comentário' : 'Curtir comentário'} accessibilityState={{ selected: comment.liked_by_me, disabled: pending }} disabled={pending} onPress={like} style={styles.like}>
       <View>
         <Heart size={15} strokeWidth={1.6} color={comment.liked_by_me ? theme.colors.cherry : theme.colors.muted} fill={comment.liked_by_me ? theme.colors.cherry : 'transparent'} />

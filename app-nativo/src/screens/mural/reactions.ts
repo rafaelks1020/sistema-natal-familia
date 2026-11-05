@@ -12,6 +12,7 @@ export const REACTIONS: { type: ReactionType; label: string; Icon: typeof Heart 
 ];
 
 export function describeNotification(item: NotificationItem): string {
+  if (item.type === 'report') return 'enviou uma denúncia. Analise em Organizar.';
   if (item.type === 'post_comment') return 'comentou na sua publicação.';
   if (item.type === 'comment_reaction') return 'curtiu seu comentário.';
   if (item.type === 'post_reaction') {

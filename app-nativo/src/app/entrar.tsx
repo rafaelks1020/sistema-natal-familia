@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,6 +29,7 @@ function LoginForm({ invitation }: { invitation: string }) {
   const invite = ignoreInvite ? '' : invitation;
   const [mode, setMode] = useState<'login' | 'register'>(invite ? 'register' : 'login');
   const [form, setForm] = useState<{ name: string | null; username: string; password: string; code: string }>({ name: null, username: '', password: '', code: '' });
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -43,6 +44,7 @@ function LoginForm({ invitation }: { invitation: string }) {
     if (username.length < 3) { setError('O usuário precisa ter pelo menos 3 letras ou números.'); return; }
     if (!form.password) { setError('Preencha sua senha.'); return; }
     if (mode === 'register') {
+      if (!acceptTerms) { setError('Aceite os Termos de uso e a Política de privacidade.'); return; }
       if (!name.trim()) { setError('Preencha seu nome, como a família te chama.'); return; }
       if (form.password.length < 6) { setError('A senha precisa ter pelo menos 6 caracteres.'); return; }
       if (invite && !check.data?.valid) { setError('Confira seu convite antes de continuar.'); return; }
@@ -52,7 +54,7 @@ function LoginForm({ invitation }: { invitation: string }) {
     try {
       const result = await api<{ ok: boolean; token?: string }>('/api/auth', { method: 'POST', public: true,
         json: { action: mode, username, password: form.password, client: 'app',
-          ...(mode === 'register' ? { name: name.trim(), code: invite ? undefined : form.code.trim(), invite: invite || undefined } : {}) } });
+          ...(mode === 'register' ? { accept_terms: acceptTerms, name: name.trim(), code: invite ? undefined : form.code.trim(), invite: invite || undefined } : {}) } });
       if (!result.ok || !result.token) throw new Error('O servidor não enviou seu acesso ao app. Tente novamente em instantes.');
       await session.signIn(result.token);
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Não foi possível entrar. Tente novamente.'); }
@@ -104,8 +106,16 @@ function LoginForm({ invitation }: { invitation: string }) {
                 </Pressable>} />
               {mode === 'register' && !invite ? <Field label="Código da família" placeholder="Peça para quem organiza" value={form.code} onChangeText={update('code')}
                 autoCapitalize="none" autoCorrect={false} editable={!busy} maxLength={120} onSubmitEditing={() => { void submit(); }} /> : null}
+              {mode === 'register' ? <View style={{ gap: 4 }}>
+                <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: acceptTerms, disabled: busy }} disabled={busy} onPress={() => setAcceptTerms(value => !value)} style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 24, height: 24, borderWidth: 1, borderRadius: 4, borderColor: theme.colors.champagne, backgroundColor: acceptTerms ? theme.colors.cherry : 'transparent', alignItems: 'center', justifyContent: 'center' }}><Text>{acceptTerms ? '✓' : ''}</Text></View>
+                  <Text style={{ flex: 1, fontSize: 14 }}>Li e aceito os Termos de uso e a Política de privacidade</Text>
+                </Pressable>
+                <Button variant="quiet" onPress={() => router.push('/termos')}>Termos de uso</Button>
+                <Button variant="quiet" onPress={() => router.push('/privacidade')}>Política de privacidade</Button>
+              </View> : null}
               {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.error}>{error}</Text> : null}
-              <Button loading={busy} disabled={mode === 'register' && invalidInvite} onPress={() => { void submit(); }}>{mode === 'login' ? 'Entrar' : 'Criar meu acesso'}</Button>
+              <Button loading={busy} disabled={mode === 'register' && (invalidInvite || !acceptTerms)} onPress={() => { void submit(); }}>{mode === 'login' ? 'Entrar' : 'Criar meu acesso'}</Button>
               <Button disabled={busy} variant="quiet" onPress={() => { setMode(current => current === 'login' ? 'register' : 'login'); setError(''); }}>
                 {mode === 'login' ? 'Primeira vez aqui? Cadastrar parente' : 'Já tenho acesso. Entrar'}
               </Button>

@@ -51,6 +51,8 @@ function Routes() {
   return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background }, animation: reduced ? 'none' : 'fade' }}>
     <Stack.Protected guard={status === 'guest' || status === 'locked'}><Stack.Screen name="entrar" /></Stack.Protected>
     <Stack.Protected guard={status === 'authenticated'}><Stack.Screen name="(tabs)" /></Stack.Protected>
+    <Stack.Screen name="termos" />
+    <Stack.Screen name="privacidade" />
     <Stack.Screen name="+not-found" />
   </Stack>;
 }

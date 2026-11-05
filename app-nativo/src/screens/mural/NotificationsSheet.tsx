@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import FaceGrinning from 'lucide-react-native/icons/face-grinning';
 import Heart from 'lucide-react-native/icons/heart';
@@ -46,7 +47,7 @@ export function NotificationsSheet({ visible, items, freshIds, loading, error, o
         </View>
         : items.map(item => {
           const fresh = !item.read || freshIds.includes(item.id);
-          return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`${item.actor_name} ${describeNotification(item)}`} onPress={() => { onClose(); if (item.post_id) onSelect(item.post_id); }} style={styles.row}>
+          return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`${item.actor_name} ${describeNotification(item)}`} onPress={() => { onClose(); if (item.type === 'report') router.push('/organizar'); else if (item.post_id) onSelect(item.post_id); }} style={styles.row}>
             <View>
               <Avatar name={item.actor_name} src={item.actor_avatar} size={40} />
               <View style={styles.badge}><Badge item={item} /></View>

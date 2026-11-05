@@ -1,3 +1,4 @@
+import { ModerationActions } from '../moderacao/Actions';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, View, type ListRenderItemInfo, type ListViewToken } from 'react-native';
 import { router } from 'expo-router';
@@ -185,7 +186,8 @@ export function MuralScreen() {
       <Sheet visible={menuPost !== null} onClose={() => setMenuPost(null)} title="Opções">
         {menuPost && user.is_admin ? <MenuRow label={menuPost.pinned ? 'Desafixar do topo' : 'Fixar no topo'} icon={<Pin size={18} color={theme.colors.champagne} strokeWidth={1.6} />} onPress={() => { const postId = menuPost.id; setMenuPost(null); mural.togglePin(postId); }} /> : null}
         {menuPost && menuPost.user_id === user.id ? <MenuRow label="Editar publicação" icon={<Pencil size={18} color={theme.colors.secondary} strokeWidth={1.6} />} onPress={() => { setComposer({ mode: 'post', editing: menuPost }); setMenuPost(null); }} /> : null}
-        {menuPost ? <MenuRow label="Apagar" color={theme.colors.error} icon={<Trash size={18} color={theme.colors.error} strokeWidth={1.6} />} onPress={() => { const postId = menuPost.id; setMenuPost(null); askDeletePost(postId); }} /> : null}
+        {menuPost && (menuPost.user_id === user.id || user.is_admin) ? <MenuRow label="Apagar" color={theme.colors.error} icon={<Trash size={18} color={theme.colors.error} strokeWidth={1.6} />} onPress={() => { const postId = menuPost.id; setMenuPost(null); askDeletePost(postId); }} /> : null}
+        {menuPost && menuPost.user_id !== user.id ? <ModerationActions userId={menuPost.user_id} name={menuPost.user_name} postId={menuPost.id} onDone={() => setMenuPost(null)} /> : null}
       </Sheet>
     </View>
   </View>;

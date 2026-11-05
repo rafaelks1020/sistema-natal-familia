@@ -1,11 +1,32 @@
 {
   "framework": "nextjs",
-  "regions": ["gru1"],
-  "crons": [{ "path": "/api/cron/conciliar", "schedule": "0 12 * * *" }],
+  "regions": [
+    "gru1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/conciliar",
+      "schedule": "0 12 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/media/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800, stale-while-revalidate=2592000" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800, stale-while-revalidate=2592000"
+        }
+      ]
+    },
+    {
+      "source": "/.well-known/apple-app-site-association",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
     }
   ]
 }

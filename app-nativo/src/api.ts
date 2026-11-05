@@ -28,6 +28,12 @@ export const sessionStore = {
   subscribe(listener: () => void) { subscribers.add(listener); return () => { subscribers.delete(listener); }; },
   getSnapshot: () => snapshot,
   getGeneration: () => generation,
+  async contentChanged() {
+    generation++;
+    const filters = { predicate: (entry: { queryKey: readonly unknown[] }) => ['mural', 'album', 'familia', 'home', 'moderacao'].includes(String(entry.queryKey[0])) };
+    await queryClient.cancelQueries(filters);
+    await queryClient.resetQueries(filters);
+  },
   async hydrate() {
     try {
       const biometric = await SecureStore.getItemAsync(BIO_KEY) === 'true';

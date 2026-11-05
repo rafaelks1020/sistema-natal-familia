@@ -35,6 +35,7 @@ export function NotificationBellButton({ unread, onClick }: BellButtonProps) {
 }
 
 function describeNotification(item: NotificationItem): string {
+  if (item.type === 'report') return 'enviou uma denúncia. Analise em Organizar.';
   if (item.type === 'post_comment') {
     return 'comentou na sua publicação.';
   }
@@ -130,7 +131,9 @@ export default function NotificationsSheet({
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  if (item.post_id && onSelectPost) {
+                  if (item.type === 'report') {
+                    window.location.href = '/organizar';
+                  } else if (item.post_id && onSelectPost) {
                     onSelectPost(item.post_id);
                   }
                   onClose();

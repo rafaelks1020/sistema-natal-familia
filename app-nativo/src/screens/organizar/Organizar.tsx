@@ -1,3 +1,4 @@
+import { Reports } from '../moderacao/Reports';
 import { useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
@@ -67,6 +68,7 @@ function Conteudo({ evento, erroEvento, familia, erroFamilia, onEvento, onFamili
   const semLogin = membros.filter((membro) => !membro.has_login && membro.participant_id !== null);
   const vinculaveis = acessos.filter((membro) => membro.can_link);
   return <View style={styles.corpo}>
+    <Reports />
     <Text variant="muted" style={styles.intro}>Os preparativos ficam mais leves quando a família cuida junto.</Text>
     <Secao indice="01" kicker="A nossa noite" titulo="Detalhes da ceia">
       {evento ? <FormularioEvento ajustes={evento} /> : <Falha mensagem={erroEvento ?? 'Não foi possível buscar os detalhes do evento.'} onTentar={onEvento} />}

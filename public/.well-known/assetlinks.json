@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls", "delegate_permission/common.get_login_creds"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "br.com.natalemfamilia.app",
+      "sha256_cert_fingerprints": [
+        "A1:6A:76:DF:97:F0:B5:A5:A8:18:6A:4E:A7:88:40:26:A3:64:1B:13:1E:89:29:96:9D:0F:BD:CC:C2:5A:B5:71"
+      ]
+    }
+  }
+]

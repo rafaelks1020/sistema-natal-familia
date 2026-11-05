@@ -23,7 +23,7 @@ export async function getFeed(
        COALESCE(r.reactions, '{}'::jsonb) AS reactions,
        COALESCE(mr.my_reactions, '[]'::jsonb) AS my_reactions,
        COALESCE(c.comments, '[]'::jsonb) AS comments,
-       (SELECT COUNT(*)::int FROM family_post_comments WHERE post_id = p.id) AS comments_count
+       (SELECT COUNT(*)::int FROM family_post_comments fc WHERE fc.post_id = p.id AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = $1 AND b.blocked_id = fc.user_id)) AS comments_count
      FROM family_posts p
      JOIN family_users u ON u.id = p.user_id
      LEFT JOIN LATERAL (
@@ -57,6 +57,7 @@ export async function getFeed(
        FROM (
          SELECT * FROM family_post_comments
          WHERE post_id = p.id
+           AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = $1 AND b.blocked_id = family_post_comments.user_id)
          ORDER BY created_at DESC, id DESC
          LIMIT 3
        ) cm
@@ -70,7 +71,8 @@ export async function getFeed(
        ) cl ON TRUE
        WHERE cm.post_id = p.id
      ) c ON TRUE
-     WHERE ($2::int IS NULL OR p.user_id = $2)
+     WHERE NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = $1 AND b.blocked_id = p.user_id)
+       AND ($2::int IS NULL OR p.user_id = $2)
        AND ($3::int IS NULL OR (NOT COALESCE(p.pinned, false) AND p.id < $3))
      ORDER BY COALESCE(p.pinned, false) DESC, p.id DESC
      LIMIT $4`,

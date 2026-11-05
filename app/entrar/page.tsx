@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import LoopMedia from '@/app/ui/LoopMedia';
@@ -49,6 +51,7 @@ export default function EntrarPage() {
   const [mode, setMode] = useState<Mode>('login');
   const [form, setForm] = useState({ name: '', username: '', password: '', code: '' });
   const [show, setShow] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // Convite por link: /entrar?convite=<token> abre direto no cadastro, sem código da família.
@@ -86,7 +89,7 @@ export default function EntrarPage() {
     setBusy(true);
     setError('');
     try {
-      await api('/api/auth', { method: 'POST', json: { action: mode, ...form, invite: convite?.token } });
+      await api('/api/auth', { method: 'POST', json: { action: mode, ...form, accept_terms: acceptTerms, invite: convite?.token } });
       window.location.href = '/';
     } catch (err) {
       setError((err as Error).message);
@@ -180,6 +183,10 @@ export default function EntrarPage() {
             />
           )}
 
+          {mode === 'register' && <div className="flex items-start gap-3 py-2 text-sm text-marfim-2">
+            <input id="accept-terms" type="checkbox" required checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-cereja" />
+            <label htmlFor="accept-terms">Li e aceito os <Link href="/termos" target="_blank" className="underline text-champagne">Termos de uso</Link> e a <Link href="/privacidade" target="_blank" className="underline text-champagne">Política de privacidade</Link></label>
+          </div>}
           {error && <p role="alert" className="px-1 text-sm text-[#ff8a8d]">{error}</p>}
 
           <button type="submit" disabled={busy} className="btn btn-primary w-full">

@@ -1,3 +1,4 @@
+import { BlockedPeople } from '../moderacao/BlockedPeople';
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -126,6 +127,8 @@ export default function Perfil() {
               <Fingerprint size={16} color={theme.colors.champagne} strokeWidth={1.5} />
               <Text variant="muted">Face ID ou digital ativo neste aparelho.</Text>
             </View> : null}
+            <BlockedPeople />
+            <Button variant="quiet" onPress={() => router.push('/termos')}>Termos de uso</Button>
             <View style={styles.links}>
               <Pressable accessibilityRole="button" onPress={() => router.push('/privacidade')} style={styles.link}><Text variant="muted" style={styles.linkTexto}>Privacidade</Text></Pressable>
               <Pressable accessibilityRole="button" onPress={() => router.push('/conta/excluir')} style={styles.link}><Text variant="muted" style={styles.linkTexto}>Excluir minha conta</Text></Pressable>
