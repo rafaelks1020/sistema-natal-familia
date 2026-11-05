@@ -93,3 +93,52 @@ Decisão: **React Native com Expo** (componentes nativos de verdade, uma base, m
 - [ ] Acompanhar as duas revisões e responder se pedirem ajuste
 - [ ] Depois da aprovação: assetlinks.json com a impressão digital da chave de assinatura do Google Play (Integridade do app)
 - [ ] Prints de verdade do iPhone (simulador) numa próxima versão
+
+## F. Novidades aprovadas pelo Rafael (05/11/2026)
+Numeração da lista de ideias. Recusadas: 24 (recados de quem não veio) e 40 (vaquinha solidária). 1 (edição do ano) não comentada.
+Cada fase sai no site na hora e no app numa versão nova das lojas (Android versionCode 2 em diante).
+
+### Fase 1, até 30/11 (versão 1.1 do app, antes do Advento)
+- [ ] 8. Contagem regressiva e avisos no celular (faltam X dias)
+- [ ] 37. Avisos que importam (comentaram sua foto, mudou a lista do seu amigo oculto)
+- [ ] 10. Confirmação de presença (quantas pessoas, restrição alimentar)
+- [ ] 9. Quem leva o quê
+- [ ] 12. Votação (local, cardápio, data)
+- [ ] 39. Vaquinha com meta e destino visível (IMPORTANTE)
+- [ ] 41. Prestação de contas do organizador com comprovante
+- [ ] 14. Dicas anônimas do amigo oculto
+- [ ] 16. Histórico do amigo oculto, sem repetir o par do ano anterior
+- [ ] 17. Lista de desejos com link, faixa de preço e "já comprei"
+- [ ] 38. Convite fácil para parente novo
+- [ ] 7. Calendário do Advento (1 a 24/12): conteúdo dos 24 dias montado com o Rafael
+
+### Fase 2, até 20/12
+- [ ] 11. Divisão de custos da ceia com acerto por Pix
+- [ ] 13. Carona e hospedagem
+- [ ] 18. Amigo oculto temático (sugestões: até R$ 50, feito à mão, livro, brechó, cozinha, pior presente)
+- [ ] 26. Livro de receitas da família (foto, áudio e o segredo)
+- [ ] 23. Playlist colaborativa no Spotify (busca no app, adiciona na playlist do organizador)
+- [ ] 35. Selos e conquistas (sem expor valores)
+- [ ] 36. Ranking leve do ano
+
+### Fase 3, noite da ceia (24/12)
+- [ ] 19. Modo festa: telão na TV com as fotos chegando ao vivo
+- [ ] 15. Revelação do amigo oculto ao vivo
+- [ ] 20. Desafio de foto da noite com votação
+- [ ] 21. Quiz e bingo da família
+- [ ] 22. Enquetes ao vivo
+- [ ] 6. Foto oficial anual (começa em 2026, mesma pose todo ano)
+- [ ] 5. Cápsula do tempo: escrita na ceia de 2026, abre no Natal de 2027
+
+### Fase 4, depois da ceia (até 10/01)
+- [ ] 2. Retrospectiva em vídeo do ano
+- [ ] 3. Linha do tempo de todos os Natais
+- [ ] 30. Livro de fotos impresso (PDF pronto para gráfica)
+- [ ] 4. "Neste dia, ano passado" (funciona a partir de 2027; fotos de 2025 sumiram com o Blob antigo, dá para subir as que a família tiver)
+
+### Fase 5, 2027
+- [ ] 25. Árvore genealógica
+- [ ] 27. Homenagem a quem partiu
+- [ ] 28. Histórias em áudio dos mais velhos (testar)
+- [ ] 29. Álbum por pessoa (marcação manual primeiro, rosto automático depois)
+- [ ] Depois: 31 aniversários, 32 outras datas, 33 notícias da família, 34 "acordar" em novembro
