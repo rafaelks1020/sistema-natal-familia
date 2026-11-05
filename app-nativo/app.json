@@ -10,7 +10,7 @@
     "backgroundColor": "#171B18",
     "ios": {
       "bundleIdentifier": "br.com.natalemfamilia.app",
-      "supportsTablet": true,
+      "supportsTablet": false,
       "associatedDomains": [
         "applinks:natalemfamilia.com.br"
       ],
