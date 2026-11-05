@@ -12,6 +12,7 @@ import Check from 'lucide-react-native/icons/check';
 import Gift from 'lucide-react-native/icons/gift';
 import MapPin from 'lucide-react-native/icons/map-pin';
 import Settings2 from 'lucide-react-native/icons/settings-2';
+import Sparkles from 'lucide-react-native/icons/sparkles';
 import Users from 'lucide-react-native/icons/users';
 import { api, ApiError, queryClient, queryKeys, sessionStore } from '../api';
 import { brl, greeting, timeAgo } from '../format';
@@ -146,6 +147,13 @@ export default function Home() {
             </View><Text variant="muted" style={styles.footnote}>{vaquinha.pagos} de {vaquinha.total} contribuições recebidas</Text>
           </Pressable>
         </Rise>
+        <Rise index={4}><Pressable accessibilityRole="button" accessibilityLabel="Abrir Tudo do Natal" onPress={() => router.push('/natal')}>
+          <Surface style={[styles.santa, { borderColor: 'rgba(197,41,45,0.3)' }]}><Sparkles color={theme.colors.cherry} size={30} strokeWidth={1.3} />
+            <View style={styles.flex}><Text variant="kicker">Novidades deste Natal</Text><Text variant="display" style={{ fontSize: 25, lineHeight: 33 }}>Tudo do Natal</Text>
+              <Text variant="muted" style={styles.footnote}>Advento, ceia, caronas, jogos da noite, receitas e memórias</Text></View>
+            <ArrowUpRight color={theme.colors.champagne} size={18} />
+          </Surface>
+        </Pressable></Rise>
         <Rise index={4}><Pressable accessibilityRole="button" accessibilityLabel="Abrir amigo oculto" onPress={() => router.navigate('/amigo-oculto')}>
           <Surface style={styles.santa}><Gift color={theme.colors.champagne} size={32} strokeWidth={1.2} />
             <View style={styles.flex}><Text variant="kicker">Um segredo da família</Text><Text variant="display" style={{ fontSize: 25, lineHeight: 33 }}>
