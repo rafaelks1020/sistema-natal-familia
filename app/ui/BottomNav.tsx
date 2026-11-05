@@ -17,7 +17,7 @@ export default function BottomNav() {
   return (
     <nav
       aria-label="Navegação principal"
-      className="safe-bottom fixed inset-x-0 bottom-0 z-50 border-t border-linha bg-carvao/85 backdrop-blur-xl"
+      className="safe-bottom fixed inset-x-0 bottom-0 z-50 border-t border-linha bg-carvao/92 backdrop-blur-md"
     >
       <ul className="mx-auto flex h-[var(--nav-h)] max-w-lg items-stretch justify-between px-2">
         {TABS.map(({ href, label, icon: Icon }) => {
