@@ -95,10 +95,11 @@ export default function AlbumScreen() {
             : canLoad && filtered.length > 0 ? <Button variant="ghost" onPress={() => { void album.fetchNextPage(); }}>Carregar mais fotos</Button>
               : filtered.length > 0 ? <Text variant="muted" style={styles.center}>Todas as memórias, até a próxima foto.</Text> : null}
       </View>} />
-    <View style={[styles.floating, { bottom: Math.max(inset.bottom, 12) + 12 }]}>
+    {/* Com o álbum vazio o próprio estado vazio já convida a postar: o botão flutuante cobriria o texto. */}
+    {filtered.length > 0 ? <View style={[styles.floating, { bottom: Math.max(inset.bottom, 12) + 12 }]}>
       <Button accessibilityLabel="Compartilhar uma nova foto no mural" onPress={goToMural}
         icon={<Plus size={23} color={theme.colors.ivory} />}>Nova memória</Button>
-    </View>
+    </View> : null}
     {selected ? <PhotoViewer initialKey={selected} photos={filtered} hasMore={Boolean(album.hasNextPage)}
       loadingMore={album.isFetchingNextPage} error={album.isError ? album.error.message : null}
       onLoadMore={() => { if (!album.isFetching) void album.fetchNextPage(); }} onClose={() => setSelected(null)} /> : null}
