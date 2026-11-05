@@ -20,7 +20,8 @@
         "NSFaceIDUsageDescription": "Use o Face ID para desbloquear seu acesso à família.",
         "NSUserNotificationUsageDescription": "Receba avisos da ceia e novidades da família.",
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "1"
     },
     "android": {
       "package": "br.com.natalemfamilia.app",
@@ -52,7 +53,8 @@
         "android.permission.RECORD_AUDIO"
       ],
       "predictiveBackGestureEnabled": true,
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 1
     },
     "plugins": [
       "expo-router",
@@ -113,7 +115,8 @@
             "photo"
           ]
         }
-      ]
+      ],
+      "./plugins/withAndroidSigning"
     ],
     "experiments": {
       "typedRoutes": true

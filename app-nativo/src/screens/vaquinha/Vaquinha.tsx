@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import Check from 'lucide-react-native/icons/check';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import Plus from 'lucide-react-native/icons/plus';
-import Trash2 from 'lucide-react-native/icons/trash-2';
+import Trash2 from 'lucide-react-native/icons/trash';
 import { api, queryClient, sessionStore } from '../../api';
 import { useSession } from '../../session';
 import { brl } from '../../format';
