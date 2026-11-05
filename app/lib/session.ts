@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'crypto';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { query } from './db';
 
@@ -68,10 +68,15 @@ export function clearSessionCookie(res: NextResponse): void {
   res.cookies.set(SESSION_COOKIE, '', { httpOnly: true, path: '/', maxAge: 0 });
 }
 
-/** Usuário logado (lido do banco a cada chamada, para is_admin valer na hora) ou null. */
+/**
+ * Usuário logado (lido do banco a cada chamada, para is_admin valer na hora) ou null.
+ * Site: cookie httpOnly. App nativo: "Authorization: Bearer <token>" (mesmo token assinado).
+ */
 export async function getSessionUser(): Promise<SessionUser | null> {
   const store = await cookies();
-  const uid = readSessionToken(store.get(SESSION_COOKIE)?.value);
+  const auth = (await headers()).get('authorization') ?? '';
+  const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : undefined;
+  const uid = readSessionToken(bearer || store.get(SESSION_COOKIE)?.value);
   if (!uid) return null;
   const { rows } = await query<SessionUser>(
     `SELECT u.id, u.name, u.username, u.is_admin, u.avatar_url, p.id AS participant_id

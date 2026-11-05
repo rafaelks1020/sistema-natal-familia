@@ -1,5 +1,8 @@
+import { NextResponse } from 'next/server';
 import { cleanText, HttpError, isBlobUrl, ok, readJson, requireUser, route } from '@/app/lib/api';
-import { transaction } from '@/app/lib/db';
+import { query, transaction } from '@/app/lib/db';
+import { verifyPassword } from '@/app/lib/password';
+import { clearSessionCookie } from '@/app/lib/session';
 
 export const PUT = route(async (req) => {
   const me = await requireUser();
@@ -26,4 +29,32 @@ export const PUT = route(async (req) => {
     return rows[0];
   });
   return ok({ ...user, participant_id: me.participant_id });
+});
+
+// DELETE /api/me { password } -> exclui a conta (exigência da App Store e da Play).
+// Apaga login, posts, comentários, reações, enquetes, notificações e o CPF/endereço guardados.
+// O participante fica sem login (o histórico da vaquinha e do sorteio não some para os outros).
+export const DELETE = route(async (req) => {
+  const me = await requireUser();
+  const body = await readJson<Record<string, unknown>>(req);
+  const password = typeof body.password === 'string' ? body.password : '';
+  const { rows } = await query('SELECT password_hash FROM family_users WHERE id = $1', [me.id]);
+  if (!rows[0] || !(await verifyPassword(password, rows[0].password_hash))) {
+    throw new HttpError(400, 'Senha não confere.');
+  }
+  if (me.is_admin) {
+    const { rows: outros } = await query(
+      `SELECT count(*) FILTER (WHERE is_admin AND id <> $1)::int AS admins,
+              count(*) FILTER (WHERE id <> $1)::int AS pessoas
+         FROM family_users`,
+      [me.id],
+    );
+    if (outros[0].pessoas > 0 && outros[0].admins === 0) {
+      throw new HttpError(409, 'Você é o único organizador. Torne outra pessoa organizadora antes de excluir sua conta.');
+    }
+  }
+  await query('DELETE FROM family_users WHERE id = $1', [me.id]);
+  const res = NextResponse.json({ ok: true });
+  clearSessionCookie(res);
+  return res;
 });

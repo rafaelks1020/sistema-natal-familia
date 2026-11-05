@@ -4,7 +4,7 @@ import { transaction, query } from '@/app/lib/db';
 import { HttpError, cleanText, ok, readJson, route } from '@/app/lib/api';
 import { hashPassword, verifyPassword } from '@/app/lib/password';
 import { motivoInvalido, SQL_VENCIDO } from '@/app/lib/convites';
-import { clearSessionCookie, getSessionUser, setSessionCookie } from '@/app/lib/session';
+import { clearSessionCookie, createSessionToken, getSessionUser, setSessionCookie } from '@/app/lib/session';
 
 // GET    /api/auth            -> usuário logado ou { user: null }
 // POST   /api/auth            -> { action: 'login' | 'register', username, password, name?, code? }
@@ -77,7 +77,7 @@ export const POST = route(async (req) => {
       await registrarFalha(ip, username);
       throw new HttpError(401, 'Usuário ou senha não conferem.');
     }
-    const res = NextResponse.json({ ok: true });
+    const res = NextResponse.json(body.client === 'app' ? { ok: true, token: createSessionToken(user.id) } : { ok: true });
     setSessionCookie(res, user.id);
     return res;
   }
@@ -151,7 +151,10 @@ export const POST = route(async (req) => {
       return id;
     });
 
-    const res = NextResponse.json({ ok: true }, { status: 201 });
+    const res = NextResponse.json(
+      body.client === 'app' ? { ok: true, token: createSessionToken(userId) } : { ok: true },
+      { status: 201 },
+    );
     setSessionCookie(res, userId);
     return res;
   }

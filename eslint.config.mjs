@@ -18,6 +18,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Apps móveis têm projeto e lint próprios.
+    "app-nativo/**",
+    "mobile/**",
   ]),
 ]);
 
