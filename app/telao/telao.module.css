@@ -1,0 +1,14 @@
+.screen { position: fixed; inset: 0; overflow: hidden; background: #171b18; color: #f3ebdc; }
+.slide { position: absolute; inset: 0; overflow: hidden; animation: aparecer 1.5s ease both; }
+.photo { height: 100%; width: 100%; object-fit: contain; animation: respirar 18s ease-in-out both; }
+.header, .footer { position: absolute; left: 0; right: 0; padding: clamp(20px, 4vw, 64px); pointer-events: none; }
+.header { top: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; background: linear-gradient(#171b18dd, transparent); }
+.footer { bottom: 0; padding-right: clamp(120px, 18vw, 260px); padding-top: 90px; background: linear-gradient(transparent, #171b18ef); }
+.footer a { pointer-events: auto; }
+.clock { font-variant-numeric: tabular-nums; font-size: clamp(20px, 3vw, 40px); }
+.empty { display: grid; align-content: center; gap: 24px; height: 100%; padding: 8vw; max-width: 900px; }
+.controls { position: absolute; bottom: max(20px, env(safe-area-inset-bottom)); right: 20px; max-width: min(320px, calc(100vw - 40px)); z-index: 2; }
+@keyframes respirar { from { transform: scale(1); } to { transform: scale(1.07) translate(0.3%, -0.3%); } }
+@keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .photo, .slide { animation: none; } }
+@media (max-width: 480px) { .header { padding: 20px; } .header > p { max-width: 100px; } .footer { padding-left: 20px; padding-bottom: 84px; padding-right: 20px; } }

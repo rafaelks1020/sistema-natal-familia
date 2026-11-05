@@ -44,7 +44,9 @@ function Routes() {
     if (status !== 'authenticated') return;
     const rota = rotaDaNotificacao(ultima ?? null);
     if (!rota) return;
-    const destino = rota === '/' ? '/(tabs)' : `/(tabs)${rota}`;
+    // Só as abas ficam dentro de (tabs); as telas novas (ceia, advento, festa...) são rotas do Stack.
+    const aba = rota === '/' || /^\/(mural|amigo-oculto|vaquinha|album)(?=$|[/?#])/.test(rota);
+    const destino = rota === '/' ? '/(tabs)' : aba ? `/(tabs)${rota}` : rota;
     router.push(destino as never);
     void Notifications.clearLastNotificationResponseAsync();
   }, [ultima, status]);

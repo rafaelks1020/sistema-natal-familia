@@ -49,9 +49,6 @@
       "permissions": [
         "android.permission.POST_NOTIFICATIONS"
       ],
-      "blockedPermissions": [
-        "android.permission.RECORD_AUDIO"
-      ],
       "predictiveBackGestureEnabled": true,
       "googleServicesFile": "./google-services.json",
       "versionCode": 1
@@ -116,7 +113,15 @@
           ]
         }
       ],
-      "./plugins/withAndroidSigning"
+      "./plugins/withAndroidSigning",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "O Natal em Família usa o microfone para gravar receitas e histórias da família.",
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

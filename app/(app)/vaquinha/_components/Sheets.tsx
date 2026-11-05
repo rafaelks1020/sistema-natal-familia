@@ -42,6 +42,7 @@ interface PurchaseDetailSheetProps {
   isAdmin: boolean;
   onClose: () => void;
   onDeleted: () => void;
+  onEdit: () => void;
 }
 
 export function PurchaseDetailSheet({
@@ -49,11 +50,13 @@ export function PurchaseDetailSheet({
   isAdmin,
   onClose,
   onDeleted,
+  onEdit,
 }: PurchaseDetailSheetProps) {
   const toast = useToast();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
+  const [receiptOpen, setReceiptOpen] = useState(false);
 
   if (!purchase) return null;
 
@@ -109,6 +112,8 @@ export function PurchaseDetailSheet({
           <span className="numeral text-3xl text-champagne">{brl(purchase.value)}</span>
         </div>
 
+        {purchase.receipt_url ? <div className="my-4"><button className="btn btn-ghost w-full" onClick={() => setReceiptOpen(true)}>Ampliar comprovante</button>{receiptOpen ? <div role="dialog" aria-modal="true" aria-label="Comprovante ampliado" className="fixed inset-0 z-[60] flex flex-col gap-3 bg-carvao p-5" onClick={event => event.stopPropagation()}><button className="btn btn-ghost" onClick={() => setReceiptOpen(false)}>Fechar comprovante</button>{/* eslint-disable-next-line @next/next/no-img-element */}
+<img src={purchase.receipt_url} alt={`Comprovante de ${purchase.description}`} className="min-h-0 flex-1 object-contain" /></div> : null}</div> : null}
         {images.length > 0 && (
           <div className="mb-5 space-y-2.5">
             <div className="overflow-hidden rounded-[16px] bg-carvao-3">
@@ -168,7 +173,7 @@ export function PurchaseDetailSheet({
         )}
 
         {isAdmin && (
-          <div className="mt-6 border-t border-linha pt-4">
+          <div className="mt-6 space-y-3 border-t border-linha pt-4"><button className="btn btn-ghost w-full" onClick={onEdit}>Editar gasto e comprovante</button>
             {!confirmDelete ? (
               <button
                 type="button"
@@ -389,6 +394,7 @@ interface AdminCreateSheetProps {
   initialMode?: 'purchase' | 'participant';
   onClose: () => void;
   onSaved: () => void;
+  purchase?: VaquinhaPurchase | null;
 }
 
 export function AdminCreateSheet({
@@ -396,6 +402,7 @@ export function AdminCreateSheet({
   initialMode = 'purchase',
   onClose,
   onSaved,
+  purchase,
 }: AdminCreateSheetProps) {
   const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -405,15 +412,16 @@ export function AdminCreateSheet({
   const [participantName, setParticipantName] = useState('');
 
   // Estado de novo gasto
-  const [description, setDescription] = useState('');
-  const [value, setValue] = useState('');
-  const [category, setCategory] = useState<PurchaseCategory>('Ceia');
-  const [brand, setBrand] = useState('');
-  const [color, setColor] = useState('');
-  const [size, setSize] = useState('');
-  const [quantity, setQuantity] = useState('1');
-  const [notes, setNotes] = useState('');
-  const [images, setImages] = useState<string[]>([]);
+  const [description, setDescription] = useState(purchase?.description || '');
+  const [value, setValue] = useState(purchase ? String(purchase.value).replace('.', ',') : '');
+  const [category, setCategory] = useState<PurchaseCategory>((purchase?.category as PurchaseCategory) || 'Ceia');
+  const [brand, setBrand] = useState(purchase?.brand || '');
+  const [color, setColor] = useState(purchase?.color || '');
+  const [size, setSize] = useState(purchase?.size || '');
+  const [quantity, setQuantity] = useState(String(purchase?.quantity || 1));
+  const [notes, setNotes] = useState(purchase?.notes || '');
+  const [images, setImages] = useState<string[]>(purchase?.images || []);
+  const [receipt, setReceipt] = useState(purchase?.receipt_url || '');
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -485,8 +493,8 @@ export function AdminCreateSheet({
     }
     setSubmitting(true);
     try {
-      await api('/api/vaquinha/purchases', {
-        method: 'POST',
+      await api(purchase ? `/api/vaquinha/purchases/${purchase.id}` : '/api/vaquinha/purchases', {
+        method: purchase ? 'PUT' : 'POST',
         json: {
           description: description.trim(),
           value: value.trim(),
@@ -497,6 +505,7 @@ export function AdminCreateSheet({
           quantity: quantity ? Number(quantity) : 1,
           notes: notes.trim() || undefined,
           images,
+          receipt_url: receipt || null,
         },
       });
       toast('Gasto registrado no livro da ceia');
@@ -535,7 +544,7 @@ export function AdminCreateSheet({
           <div>
             <p className="kicker">Organização</p>
             <h2 className="display text-2xl text-marfim">
-              {mode === 'purchase' ? 'Novo gasto da ceia' : 'Novo participante'}
+              {mode === 'purchase' ? purchase ? 'Editar gasto' : 'Novo gasto da ceia' : 'Novo participante'}
             </h2>
           </div>
           <button
@@ -549,7 +558,7 @@ export function AdminCreateSheet({
         </div>
 
         {/* Alternador entre Novo Gasto e Novo Participante */}
-        <div className="mt-4 grid grid-cols-2 border-b border-linha">
+        {!purchase ? <div className="mt-4 grid grid-cols-2 border-b border-linha">
           <button
             type="button"
             onClick={() => setMode('purchase')}
@@ -574,7 +583,7 @@ export function AdminCreateSheet({
             <UserPlus size={16} strokeWidth={1.5} />
             Novo participante
           </button>
-        </div>
+        </div> : null}
 
         {mode === 'participant' ? (
           <form onSubmit={submitParticipant} className="mt-5 space-y-4">
@@ -791,7 +800,8 @@ export function AdminCreateSheet({
               )}
             </div>
 
-            <button
+  <label className="block text-sm text-marfim-2">Comprovante (foto)<input type="file" accept="image/*" className="field mt-2 min-h-11" disabled={uploading || submitting} onChange={async event => { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; setUploading(true); try { setReceipt(await uploadImage(file)); } catch (error) { toast((error as Error).message, 'erro'); } finally { setUploading(false); } }} /></label>{receipt ? <div className="space-y-2"><p className="text-xs text-champagne">Comprovante anexado</p><button type="button" className="btn btn-quiet min-h-11" disabled={submitting || uploading} onClick={() => setReceipt('')}>Remover comprovante</button></div> : null}
+          <button
               type="submit"
               disabled={submitting || uploading}
               className="btn btn-primary mt-2 w-full"

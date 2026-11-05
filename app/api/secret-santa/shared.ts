@@ -1,3 +1,4 @@
+import { edicaoAtual } from '@/app/lib/edicao';
 import { query } from '@/app/lib/db';
 
 // Config ativo mais recente. reveal_date sai como texto (YYYY-MM-DD) para não
@@ -41,9 +42,10 @@ const CONFIG_SQL = `SELECT id,
 export async function loadActiveConfig(): Promise<SantaConfig | null> {
   const { rows } = await query<ConfigRow>(
     `${CONFIG_SQL}
-      WHERE is_active IS TRUE
+      WHERE is_active IS TRUE AND ano = $1
       ORDER BY created_at DESC, id DESC
       LIMIT 1`,
+    [edicaoAtual()],
   );
   return rows[0] ? mapConfig(rows[0]) : null;
 }

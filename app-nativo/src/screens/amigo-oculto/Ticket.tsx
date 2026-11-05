@@ -11,6 +11,7 @@ import { Button } from '../../ui/Button';
 import { useReduceMotion } from '../../ui/motion';
 import { Surface } from '../../ui/Surface';
 import { Text } from '../../ui/Text';
+import { ThemeBanner } from './Features';
 import { revealDateLabel } from './data';
 
 function pulse(level: number) {
@@ -57,6 +58,7 @@ export function Ticket({ canReveal, opensAt, busy, onReveal }: {
   const hintStyle = useAnimatedStyle(() => ({ opacity: 1 - x.get() / distance }));
 
   return <Surface style={styles.ticket}>
+    <ThemeBanner compact />
     <View style={styles.top}><Text variant="kicker">Edição em família</Text><Text variant="kicker" style={styles.vip}>VIP</Text></View>
     <Text variant="muted" style={styles.reserved}>Convite reservado para você</Text>
     <Text variant="display" style={styles.title}>Um segredo.{ '\n' }Só seu.</Text>

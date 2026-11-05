@@ -13,7 +13,7 @@ import { api, queryClient, sessionStore } from '../../api';
 import { useSession } from '../../session';
 import { brl } from '../../format';
 import { enviarFoto, type FotoLocal } from '../../upload';
-import type { Participant, Purchase, PurchaseInput, TimelineEvent, VaquinhaData } from '../../types/vaquinha';
+import type { Participant, TimelineEvent } from '../../types/vaquinha';
 import { theme } from '../../theme';
 import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
@@ -25,6 +25,8 @@ import { Sheet } from '../../ui/Sheet';
 import { Skeleton } from '../../ui/Skeleton';
 import { Text } from '../../ui/Text';
 import { useToast } from '../../ui/Toast';
+import type { Purchase, PurchaseInput, VaquinhaData } from './data';
+import { GoalCard } from './GoalCard';
 import { dateLabel, getVaquinha, refreshVaquinha, requireCurrentSession, sessionIsCurrent, vaquinhaKeys } from './data';
 import { PurchaseDetail } from './PurchaseDetail';
 import { PurchaseForm } from './PurchaseForm';
@@ -32,17 +34,16 @@ import { confettiMediaName } from './celebration';
 
 type Action = { generation: number } & (
   { kind: 'toggle'; participant: Participant } | { kind: 'participant'; name: string } |
-  { kind: 'purchase'; input: PurchaseInput; photos: FotoLocal[] } |
+  { kind: 'purchase'; input: PurchaseInput; photos: FotoLocal[]; purchaseId?: number } |
   { kind: 'deleteParticipant'; id: number } | { kind: 'deletePurchase'; id: number }
 );
 type Row = { kind: 'participant'; data: Participant } | { kind: 'purchase'; data: Purchase } | { kind: 'event'; data: TimelineEvent };
-const tabs = ['Quem pagou', 'Gastos', 'Linha do tempo'] as const;
+const tabs = ['Quem pagou', 'Contas', 'Linha do tempo'] as const;
 
 function optimistic(data: VaquinhaData, action: Action): VaquinhaData {
   if (action.kind === 'toggle') {
     const person = action.participant;
-    const difference = person.pix ? 0 : (person.paid ? -1 : 1) * data.contribution_value;
-    return { ...data, participants: data.participants.map(p => p.id === person.id ? { ...p, paid: !person.paid, paid_date: person.paid ? null : new Date().toISOString() } : p), arrecadado: data.arrecadado + difference, saldo: data.saldo + difference };
+    return { ...data, participants: data.participants.map(p => p.id === person.id ? { ...p, paid: !person.paid, paid_date: person.paid ? null : new Date().toISOString() } : p) };
   }
   // Remoções aguardam a validação do servidor: podem envolver vínculos e pagamentos.
   return data;
@@ -54,6 +55,7 @@ export default function Vaquinha() {
   const [tab, setTab] = useState(0);
   const [editor, setEditor] = useState<'participant' | 'purchase' | null>(null);
   const [name, setName] = useState('');
+  const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
   const [detail, setDetail] = useState<Purchase | null>(null);
   const [celebrate, setCelebrate] = useState(false);
   const celebrated = useRef(false);
@@ -73,7 +75,7 @@ export default function Vaquinha() {
       if (action.kind === 'deletePurchase') return api(`/api/vaquinha/purchases/${action.id}`, { method: 'DELETE' });
       const images = await Promise.all(action.photos.map(photo => { requireCurrentSession(action.generation); return enviarFoto(photo); }));
       requireCurrentSession(action.generation);
-      return api('/api/vaquinha/purchases', { method: 'POST', json: { ...action.input, images } });
+      return api(action.purchaseId ? `/api/vaquinha/purchases/${action.purchaseId}` : '/api/vaquinha/purchases', { method: action.purchaseId ? 'PUT' : 'POST', json: { ...action.input, images: [...(action.input.images || []), ...images] } });
     },
     onMutate: async action => {
       await queryClient.cancelQueries({ queryKey: vaquinhaKeys.all, exact: true });
@@ -89,7 +91,7 @@ export default function Vaquinha() {
     },
     onSuccess: (_data, action) => {
       if (!sessionIsCurrent(action.generation)) return;
-      if (action.kind === 'participant' || action.kind === 'purchase') { setEditor(null); setName(''); }
+      if (action.kind === 'participant' || action.kind === 'purchase') { setEditor(null); setEditingPurchase(null); setName(''); }
       if (action.kind === 'deletePurchase') setDetail(null);
       toast(action.kind.startsWith('delete') ? 'Registro apagado.' : 'Vaquinha atualizada.');
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -119,7 +121,8 @@ export default function Vaquinha() {
       refreshControl={<RefreshControl refreshing={fund.isRefetching && !mutation.isPending} onRefresh={() => { if (!saving.current) void fund.refetch(); }} tintColor={theme.colors.champagne} colors={[theme.colors.cherry]} progressBackgroundColor={theme.colors.surface} />}
       ListHeaderComponent={<View style={styles.header}>
         <Rise><Text variant="kicker">Cada um faz parte</Text><Text variant="display" accessibilityRole="header" style={styles.title}>Vaquinha da ceia</Text></Rise>
-        <Rise index={1} style={styles.balance}><Text variant="muted">Saldo da nossa ceia</Text><Text variant="numeral" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={[styles.amount, data.saldo < 0 && { color: theme.colors.cherry }]}>{brl(data.saldo)}</Text>
+        <GoalCard data={data} isAdmin={user.is_admin} />
+        <Rise index={1} style={styles.balance}><Text variant="display" style={{ fontSize: 25 }}>Prestação de contas</Text><Text variant="muted">Saldo da nossa ceia</Text><Text variant="numeral" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={[styles.amount, data.saldo < 0 && { color: theme.colors.cherry }]}>{brl(data.saldo)}</Text>
           <View style={styles.totals}>{([['Arrecadado', data.arrecadado], ['Gasto', data.gasto]] as const).map(([label, value]) => <View key={label} style={styles.flex}><Text variant="muted">{label}</Text><Text variant="numeral" style={styles.subAmount}>{brl(value)}</Text></View>)}</View>
           <View style={styles.progress} accessibilityRole="progressbar" accessibilityLabel="Participantes que contribuíram" accessibilityValue={{ min: 0, max: data.participants.length || 1, now: paid }}><View style={{ height: 5, width: `${data.participants.length ? paid / data.participants.length * 100 : 0}%`, backgroundColor: theme.colors.sage }} /></View>
           <Text variant="muted" style={styles.small}>{paid} de {data.participants.length} contribuições recebidas</Text>
@@ -128,7 +131,7 @@ export default function Vaquinha() {
           : mine ? <View style={styles.gap}><Button onPress={() => router.push('/pagar')}>Pagar minha parte com Pix</Button><Text variant="muted" style={styles.small}>A partir de {brl(data.contribution_value)}. Você escolhe quanto contribuir.</Text></View> : <Text variant="muted">Peça a quem organiza para vincular seu acesso a um participante.</Text>}
         {allPaid ? <View style={styles.celebration}><Text variant="display" style={styles.celebrationTitle}>A família toda fez parte.</Text><Text variant="muted">Nossa ceia começa com esse carinho.</Text>{celebrate && confettiMediaName ? <LoopVideo name={confettiMediaName} once onEnded={() => setCelebrate(false)} style={styles.confetti} /> : null}</View> : null}
         <View accessibilityRole="tablist" style={styles.segments}>{tabs.map((label, index) => <Pressable key={label} accessibilityRole="tab" accessibilityState={{ selected: index === tab }} onPress={() => { setTab(index); void Haptics.selectionAsync().catch(() => {}); }} style={[styles.segment, tab === index && styles.segmentActive]}><Text style={[styles.segmentLabel, tab === index && { color: theme.colors.ivory }]}>{label}</Text></Pressable>)}</View>
-        {user.is_admin ? <View style={styles.actions}><Button variant="ghost" style={styles.flex} disabled={mutation.isPending} onPress={() => setEditor('participant')} icon={<Plus size={15} color={theme.colors.champagne} />}>Participante</Button><Button variant="ghost" style={styles.flex} disabled={mutation.isPending} onPress={() => setEditor('purchase')} icon={<Plus size={15} color={theme.colors.champagne} />}>Compra</Button></View> : null}
+        {user.is_admin ? <View style={styles.actions}><Button variant="ghost" style={styles.flex} disabled={mutation.isPending} onPress={() => setEditor('participant')} icon={<Plus size={15} color={theme.colors.champagne} />}>Participante</Button><Button variant="ghost" style={styles.flex} disabled={mutation.isPending} onPress={() => { setEditingPurchase(null); setEditor('purchase'); }} icon={<Plus size={15} color={theme.colors.champagne} />}>Compra</Button></View> : null}
       </View>}
       ListEmptyComponent={<EmptyState title={tab === 0 ? 'A mesa está se formando' : tab === 1 ? 'Os preparativos vão começar' : 'Nossa história começa aqui'} message={tab === 0 ? 'Os participantes da vaquinha vão aparecer aqui.' : tab === 1 ? 'As compras e os comprovantes ficarão aqui para a família acompanhar.' : 'Contribuições e compras aparecerão nesta linha do tempo.'} />}
       renderItem={({ item }) => {
@@ -148,12 +151,12 @@ export default function Vaquinha() {
         }
         const event = item.data;
         return <Pressable style={styles.event} accessibilityRole={event.type === 'purchase' ? 'button' : 'text'} disabled={event.type !== 'purchase'} onPress={() => { const purchase = data.purchases.find(p => p.id === event.ref_id); if (purchase) setDetail(purchase); }}>
-          <View style={styles.timelineRail}><View style={[styles.dot, { backgroundColor: event.type === 'payment' ? theme.colors.sage : theme.colors.cherry }]} /><View style={styles.rail} /></View><View style={styles.eventBody}><Text variant="muted" style={styles.small}>{dateLabel(event.date)}</Text><Text>{event.description}</Text><Text variant="numeral" style={[styles.price, { color: event.type === 'payment' ? theme.colors.champagne : theme.colors.ivory }]}>{event.type === 'payment' ? '+' : '-'} {brl(event.value)}</Text></View>
+          <View style={styles.timelineRail}><View style={[styles.dot, { backgroundColor: event.type === 'payment' ? theme.colors.sage : theme.colors.cherry }]} /><View style={styles.rail} /></View><View style={styles.eventBody}><Text variant="muted" style={styles.small}>{dateLabel(event.date)}</Text><Text>{event.description}</Text><Text variant="numeral" style={[styles.price, { color: event.type === 'payment' ? theme.colors.champagne : theme.colors.ivory }]}>{event.type === 'payment' ? 'Contribuição recebida' : `- ${brl(event.value)}`}</Text></View>
         </Pressable>;
       }} />
     <Sheet visible={editor === 'participant'} title="Mais alguém à mesa" onClose={() => { if (!saving.current) setEditor(null); }}><View style={styles.gap}><Field label="Nome do participante" value={name} onChangeText={setName} maxLength={60} editable={!mutation.isPending} autoCapitalize="words" /><Button loading={mutation.isPending} disabled={!name.trim()} onPress={() => run({ kind: 'participant', name: name.trim(), generation: sessionStore.getGeneration() })}>Adicionar participante</Button></View></Sheet>
-    <Sheet visible={editor === 'purchase'} title="Nova compra" onClose={() => { if (!saving.current) setEditor(null); }}>{editor === 'purchase' ? <PurchaseForm busy={mutation.isPending} onSave={(input, photos) => run({ kind: 'purchase', input, photos, generation: sessionStore.getGeneration() })} /> : null}</Sheet>
-    {detail ? <PurchaseDetail key={detail.id} purchase={detail} busy={mutation.isPending} onClose={() => setDetail(null)} onDelete={user.is_admin ? () => remove('deletePurchase', detail.id, `${detail.description}, ${brl(detail.value)}. Essa compra será retirada do total gasto.`) : undefined} /> : null}
+    <Sheet visible={editor === 'purchase'} title={editingPurchase ? "Editar gasto" : "Novo gasto"} onClose={() => { if (!saving.current) { setEditor(null); setEditingPurchase(null); } }}>{editor === 'purchase' ? <PurchaseForm key={editingPurchase?.id || 0} initial={editingPurchase} busy={mutation.isPending} onSave={(input, photos) => run({ kind: 'purchase', input, photos, purchaseId: editingPurchase?.id, generation: sessionStore.getGeneration() })} /> : null}</Sheet>
+    {detail ? <PurchaseDetail key={detail.id} purchase={detail} busy={mutation.isPending} onClose={() => setDetail(null)} onEdit={user.is_admin ? () => { setEditingPurchase(detail); setDetail(null); setEditor('purchase'); } : undefined} onDelete={user.is_admin ? () => remove('deletePurchase', detail.id, `${detail.description}, ${brl(detail.value)}. Essa compra será retirada do total gasto.`) : undefined} /> : null}
   </View>;
 }
 const styles = StyleSheet.create({

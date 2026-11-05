@@ -1,107 +1,127 @@
 import 'server-only';
-import { HttpError } from '@/app/lib/api';
+import { HttpError, readJson, toInt } from '@/app/lib/api';
 import type { SessionUser } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
-import { parsePostImages } from '../posts/_utils';
+import { edicaoAtual } from '@/app/lib/edicao';
+import type { AlbumItem, AlbumMetadata, AlbumPerson, AlbumResponse } from './types';
+export type { AlbumItem, AlbumResponse } from './types';
 
-export interface AlbumItem {
-  key: string;
-  url: string;
-  source: 'post' | 'compra';
-  post_id?: number;
-  author_name?: string;
-  author_avatar?: string | null;
-  caption: string;
-  created_at: string;
+export async function readAlbumJson(req: Request): Promise<Record<string, unknown>> {
+  const body = await readJson<unknown>(req);
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new HttpError(400, 'Dados inválidos.');
+  return body as Record<string, unknown>;
 }
 
-export interface AlbumResponse {
-  items: AlbumItem[];
-  nextCursor: string | null;
+export function albumYear(value: unknown = edicaoAtual()): number {
+  const year = toInt(value, 'ano');
+  if (year < 1900 || year > edicaoAtual()) throw new HttpError(400, 'Escolha uma edição válida, até a edição atual.');
+  return year;
 }
 
-interface AlbumRow {
-  id: number;
-  source: 'post' | 'compra';
-  caption: string | null;
-  image_url: string | null;
-  image_urls: string | null;
-  created_at: string;
-  author_name: string | null;
-  author_avatar: string | null;
-}
+// $1 é sempre a identidade da sessão. Todas as leituras, inclusive memórias, excluem bloqueados.
+export const PHOTO_CTE = `WITH sources AS (
+  SELECT p.id, 'post'::text AS source, p.ano, p.user_id, p.content AS caption,
+    p.image_url, p.image_urls,
+    p.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo' AS created_at,
+    (p.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date AS taken_on,
+    (SELECT count(*)::int FROM family_post_reactions r WHERE r.post_id = p.id
+      AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = $1 AND b.blocked_id = r.user_id)) AS likes,
+    (SELECT count(*)::int FROM family_post_comments c WHERE c.post_id = p.id
+      AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = $1 AND b.blocked_id = c.user_id)) AS comments,
+    EXISTS(SELECT 1 FROM family_post_reactions r WHERE r.post_id = p.id AND r.user_id = $1) AS liked
+  FROM family_posts p
+  UNION ALL
+  SELECT id, 'compra', ano, NULL::int, description, image_url, image_urls, created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date, 0, 0, false FROM purchases
+  UNION ALL
+  SELECT a.id, 'album', a.ano, a.user_id, a.caption, a.image_url, NULL::text,
+    a.taken_on::timestamp + interval '12 hours', a.taken_on,
+    (SELECT count(*)::int FROM album_photo_likes l WHERE l.photo_id = a.id
+      AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = $1 AND b.blocked_id = l.user_id)), 0,
+    EXISTS(SELECT 1 FROM album_photo_likes l WHERE l.photo_id = a.id AND l.user_id = $1)
+  FROM album_photos a
+), photos AS (
+  SELECT s.id, s.source, s.ano, s.user_id, s.caption, s.likes, s.comments, s.liked,
+    s.source || '-' || s.id || '-' || (image.ordinality - 1) AS key, image.url,
+    to_char(s.created_at, 'YYYY-MM-DD"T"HH24:MI:SS.US') AS sort_date,
+    to_char(s.created_at AT TIME ZONE 'America/Sao_Paulo' AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US') || 'Z' AS created_at,
+    to_char(s.taken_on, 'YYYY-MM-DD') AS taken_on,
+    COALESCE(u.name, 'Compras da ceia') AS author_name, u.avatar_url AS author_avatar
+  FROM sources s CROSS JOIN LATERAL unnest(album_urls(s.image_urls, s.image_url)) WITH ORDINALITY AS image(url, ordinality)
+  LEFT JOIN family_users u ON u.id = s.user_id
+  WHERE NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = $1 AND b.blocked_id = s.user_id)
+)`;
 
-type Cursor = { created_at: string; source: 'post' | 'compra'; id: number };
+interface PhotoRow extends Omit<AlbumItem, 'tags' | 'can_edit'> { id: number; sort_date: string }
 
-function decodeCursor(value: string): Cursor {
-  try {
-    const cursor = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Cursor;
-    if (!cursor || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}$/.test(cursor.created_at)
-        || Number.isNaN(Date.parse(cursor.created_at + 'Z'))
-        || new Date(cursor.created_at + 'Z').toISOString().slice(0, 19) !== cursor.created_at.slice(0, 19)
-        || !['post', 'compra'].includes(cursor.source)
-        || !Number.isSafeInteger(cursor.id) || cursor.id < 1) throw new Error();
-    return cursor;
-  } catch {
-    throw new HttpError(400, 'Cursor do álbum inválido.');
+export async function getPeople(user: SessionUser): Promise<AlbumPerson[]> {
+  const { rows } = await query<{ id: number; name: string }>(`SELECT id, name FROM family_users u
+    WHERE NOT EXISTS(SELECT 1 FROM user_blocks b WHERE b.blocker_id = $1 AND b.blocked_id = u.id) ORDER BY name, id`, [user.id]);
+  const people: AlbumPerson[] = rows.map(p => ({ ...p, source: 'user' }));
+  const exists = await query<{ exists: boolean }>("SELECT to_regclass('public.family_tree_people') IS NOT NULL AS exists");
+  if (exists.rows[0].exists) {
+    // A árvore é opcional. to_jsonb permite ignorar campos opcionais de outra parte.
+    const tree = await query<{ person: Record<string, unknown> }>(`SELECT to_jsonb(p) AS person FROM family_tree_people p WHERE NOT EXISTS(SELECT 1 FROM user_blocks b WHERE b.blocker_id = $1 AND b.blocked_id = (to_jsonb(p)->>'criado_por')::int)`, [user.id]);
+    for (const { person: p } of tree.rows) {
+      if (p.user_id || p.family_user_id) continue;
+      const id = Number(p.id); const name = String(p.name ?? p.nome ?? '').trim();
+      if (Number.isSafeInteger(id) && id > 0 && name) people.push({ id, name, source: 'tree' });
+    }
   }
+  return people;
 }
 
-export async function getAlbum(
-  user: SessionUser,
-  { cursor: rawCursor = null, limit: rawLimit = 40 }: { cursor?: string | null; limit?: number } = {},
-): Promise<AlbumResponse> {
-  if (!user) throw new HttpError(401, 'Entre para continuar.');
-  if (!Number.isInteger(rawLimit) || rawLimit < 1) throw new HttpError(400, 'Limite inválido.');
-  const limit = Math.min(rawLimit, 100);
-  const cursor = rawCursor ? decodeCursor(rawCursor) : null;
+export async function getAlbumMetadata(user: SessionUser): Promise<AlbumMetadata> {
+  const [years, people] = await Promise.all([
+    query<{ ano: number }>(`${PHOTO_CTE} SELECT DISTINCT ano FROM photos ORDER BY ano DESC`, [user.id]), getPeople(user),
+  ]);
+  return { currentYear: edicaoAtual(), years: [...new Set([edicaoAtual(), 2025, ...years.rows.map(r => r.ano).filter(y => y >= 1900 && y <= edicaoAtual())])].sort((a, b) => b - a), people, isAdmin: user.is_admin };
+}
 
-  // Mantém a precisão de microssegundos do Postgres no cursor, sem passar por Date.
-  const { rows } = await query<AlbumRow>(
-    `SELECT id, source, caption, image_url, image_urls,
-            to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.US') AS created_at,
-            author_name, author_avatar
-       FROM (
-         SELECT p.id, 'post'::text AS source, p.content AS caption,
-                p.image_url, p.image_urls, p.created_at,
-                u.name AS author_name, u.avatar_url AS author_avatar
-           FROM family_posts p JOIN family_users u ON u.id = p.user_id
-          WHERE NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = $5 AND b.blocked_id = p.user_id)
-         UNION ALL
-         SELECT id, 'compra'::text, description, image_url, image_urls, created_at,
-                NULL::text, NULL::text FROM purchases
-       ) sources
-      WHERE (NULLIF(image_url, '') IS NOT NULL
-          OR (NULLIF(image_urls, '') IS NOT NULL AND image_urls <> '[]'))
-        AND ($1::timestamp IS NULL OR (created_at, source COLLATE "C", id)
-             < ($1::timestamp, $2::text COLLATE "C", $3::int))
-      ORDER BY sources.created_at DESC, source COLLATE "C" DESC, id DESC
-      LIMIT $4`,
-    [cursor?.created_at ?? null, cursor?.source ?? null, cursor?.id ?? null, limit + 1, user.id],
-  );
+export async function decoratePhotos(user: SessionUser, rows: PhotoRow[]): Promise<AlbumItem[]> {
+  if (!rows.length) return [];
+  const [tags, people] = await Promise.all([
+    query<{ photo_key: string; person_source: string; person_id: number; image_url: string }>('SELECT photo_key, person_source, person_id, image_url FROM album_tags WHERE photo_key = ANY($1::text[])', [rows.map(r => r.key)]),
+    getPeople(user),
+  ]);
+  const names = new Map(people.map(p => [`${p.source}:${p.id}`, p]));
+  return rows.map(row => ({
+    key: row.key, url: row.url, source: row.source, user_id: row.user_id,
+    caption: row.caption, author_name: row.author_name, author_avatar: row.author_avatar,
+    created_at: row.created_at, taken_on: row.taken_on, ano: row.ano,
+    likes: row.likes, comments: row.comments, liked: row.liked,
+    ...(row.source === 'post' ? { post_id: row.id } : row.source === 'album' ? { photo_id: row.id } : {}),
+    can_edit: user.is_admin || row.user_id === user.id,
+    tags: tags.rows.filter(t => t.photo_key === row.key && t.image_url === row.url).flatMap(t => names.get(`${t.person_source}:${t.person_id}`) ?? []),
+  }));
+}
 
-  const items: AlbumItem[] = [];
-  let consumed = 0;
-  let last: AlbumRow | undefined;
-  // O limite de fotos é flexível: inclui sempre todas as fotos da última origem.
-  for (const row of rows.slice(0, limit)) {
-    const urls = parsePostImages(row.image_urls, row.image_url);
-    urls.forEach((url, index) => items.push({
-      key: `${row.source}-${row.id}-${index}`,
-      url,
-      source: row.source,
-      ...(row.source === 'post' ? { post_id: row.id } : {}),
-      author_name: row.author_name ?? undefined,
-      author_avatar: row.author_avatar,
-      caption: row.caption ?? '',
-      created_at: row.created_at + 'Z',
-    }));
-    consumed++;
-    last = row;
-    if (items.length >= limit) break;
+export async function getAlbum(user: SessionUser, { cursor: rawCursor = null, limit = 40, ano = edicaoAtual(), pessoa, all = false }:
+  { cursor?: string | null; limit?: number; ano?: number; pessoa?: string | null; all?: boolean } = {}): Promise<AlbumResponse> {
+  albumYear(ano);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new HttpError(400, 'Limite inválido (1 a 100).');
+  if (pessoa && !/^(user|tree):[1-9]\d*$/.test(pessoa)) throw new HttpError(400, 'Pessoa inválida.');
+  let cursor: { date: string; key: string } | null = null;
+  if (rawCursor) {
+    try {
+      cursor = JSON.parse(Buffer.from(rawCursor, 'base64url').toString('utf8'));
+      if (!cursor || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}$/.test(cursor.date)
+        || !/^(post|compra|album)-[1-9]\d*-\d+$/.test(cursor.key)) throw new Error();
+    } catch { throw new HttpError(400, 'Cursor do álbum inválido.'); }
   }
-  const nextCursor = last && consumed < rows.length
-    ? Buffer.from(JSON.stringify({ created_at: last.created_at, source: last.source, id: last.id })).toString('base64url')
-    : null;
-  return { items, nextCursor };
+  const { rows } = await query<PhotoRow>(`${PHOTO_CTE} SELECT * FROM photos p
+    WHERE ano = $2 AND ($3::text IS NULL OR EXISTS(SELECT 1 FROM album_tags t WHERE t.photo_key = p.key AND t.image_url = p.url
+      AND t.person_source || ':' || t.person_id = $3))
+    AND ($4::text IS NULL OR (sort_date, key COLLATE "C") < ($4::text, $5::text COLLATE "C"))
+    ORDER BY sort_date DESC, key COLLATE "C" DESC LIMIT $6`,
+  [user.id, ano, pessoa || null, cursor?.date ?? null, cursor?.key ?? null, all ? null : limit + 1]);
+  const page = all ? rows : rows.slice(0, limit); const last = page.at(-1);
+  return { items: await decoratePhotos(user, page), nextCursor: !all && rows.length > limit && last
+    ? Buffer.from(JSON.stringify({ date: last.sort_date, key: last.key })).toString('base64url') : null };
+}
+
+export async function findPhoto(user: SessionUser, key: unknown, includeBlocked = false): Promise<PhotoRow> {
+  if (typeof key !== 'string' || !/^(post|compra|album)-[1-9]\d*-\d+$/.test(key)) throw new HttpError(400, 'Foto inválida.');
+  const { rows } = await query<PhotoRow>(`${PHOTO_CTE} SELECT * FROM photos WHERE key = $2`, [includeBlocked && user.is_admin ? null : user.id, key]);
+  if (!rows[0]) throw new HttpError(404, 'Foto não encontrada.');
+  return rows[0];
 }

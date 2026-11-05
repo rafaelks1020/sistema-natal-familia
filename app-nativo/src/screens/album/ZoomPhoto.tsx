@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
-import type { AlbumItem } from '../../types/album';
+import type { AlbumItem } from './types';
 import { theme } from '../../theme';
 import { Button } from '../../ui/Button';
 import { Text } from '../../ui/Text';

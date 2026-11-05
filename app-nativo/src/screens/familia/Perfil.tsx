@@ -1,3 +1,4 @@
+import { SelosPerfil } from '../conquistas/SelosPerfil';
 import { BlockedPeople } from '../moderacao/BlockedPeople';
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -111,6 +112,7 @@ export default function Perfil() {
           <Text variant="display" accessibilityRole="header" style={styles.nome}>{dados.name}</Text>
           {dados.is_admin ? <Text variant="kicker" style={styles.kicker}>organiza o nosso Natal</Text> : null}
           {dados.bio ? <Text style={styles.bio}>{dados.bio}</Text> : null}
+          <SelosPerfil id={id} />
           <View style={styles.numeros}>
             {([[dados.posts_count, 'posts'], [dados.reactions_received, 'curtidas'], [dados.comments_count, 'comentários']] as const).map(([valor, rotulo], indice) => <View key={rotulo} style={[styles.numero, indice > 0 && styles.numeroBorda]}>
               <Text variant="numeral" style={styles.cifra}>{valor}</Text>

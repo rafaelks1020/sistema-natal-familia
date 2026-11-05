@@ -20,6 +20,7 @@ export interface VaquinhaPurchase {
   quantity: number;
   notes: string | null;
   images: string[];
+  receipt_url: string | null;
   created_at: string;
 }
 

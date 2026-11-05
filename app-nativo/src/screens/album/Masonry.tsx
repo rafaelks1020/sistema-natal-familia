@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import ImageOff from 'lucide-react-native/icons/image-off';
 import * as Haptics from 'expo-haptics';
 import { theme } from '../../theme';
-import type { AlbumItem } from '../../types/album';
+import type { AlbumItem } from './types';
 import { Text } from '../../ui/Text';
 
 export interface MasonryPhoto { photo: AlbumItem; height: number }
@@ -63,7 +63,7 @@ const PhotoCard = memo(function PhotoCard({ photo, height, onOpen, reduced }: {
       onError={() => setFailed(true)} style={StyleSheet.absoluteFill} accessible={false} />
     {failed ? <View style={styles.failure}><ImageOff color={theme.colors.secondary} size={24} />
       <Text variant="muted" style={styles.retry}>Tentar de novo</Text></View> : null}
-    <View style={styles.source}><Text style={styles.sourceLabel}>{photo.source === 'post' ? 'Mural' : 'Compras'}</Text></View>
+    <View style={styles.source}><Text style={styles.sourceLabel}>{photo.source === 'post' ? 'Mural' : photo.source === 'album' ? 'Álbum' : 'Compras'}</Text></View>
   </Pressable>;
 });
 

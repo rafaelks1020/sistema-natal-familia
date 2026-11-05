@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useContext, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import LoopMedia from '@/app/ui/LoopMedia';
-import { api } from '@/app/ui/client';
+import { api, brl } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
+import { SantaThemeContext } from './Extras';
 import { diaLongo } from './format';
 import type { Receiver, SantaConfig } from './types';
 
@@ -64,6 +65,7 @@ export default function Ticket({
   onDone: (receiver: Receiver) => void;
 }) {
   const toast = useToast();
+  const tema = useContext(SantaThemeContext);
   const [phase, setPhase] = useState<'sealed' | 'show'>('sealed');
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [glide, setGlide] = useState(true);
@@ -188,6 +190,7 @@ export default function Ticket({
         <div className="relative flex min-h-[460px] flex-col px-6 pb-6 pt-8">
           <p className="kicker text-center">Ingresso</p>
           <p className="display mt-2 text-center text-[1.7rem]">Amigo oculto</p>
+          <p className="mt-3 break-words text-center text-sm text-champagne">{tema.tema}{tema.valor_centavos !== null ? ` · ${brl(tema.valor_centavos / 100)}` : ''}</p>
 
           <div className="flex flex-1 flex-col items-center justify-center py-6">
             <div

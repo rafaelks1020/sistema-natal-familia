@@ -17,9 +17,10 @@ import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import ArrowUpRight from 'lucide-react-native/icons/arrow-up-right';
 import { API_BASE_URL, sessionStore } from '../../api';
 import { theme } from '../../theme';
-import type { AlbumItem } from '../../types/album';
+import type { AlbumItem } from './types';
 import { Button } from '../../ui/Button';
 import { Text } from '../../ui/Text';
+import { PhotoActions } from './AlbumTools';
 import { ZoomPhoto } from './ZoomPhoto';
 
 class AlbumExportError extends Error {}
@@ -31,6 +32,7 @@ export function PhotoViewer({ photos, initialKey, onClose, hasMore, loadingMore,
   const { width, height } = useWindowDimensions();
   const inset = useSafeAreaInsets();
   const [currentKey, setCurrentKey] = useState(initialKey);
+  const [actions, setActions] = useState(false);
   const [busy, setBusy] = useState<'save' | 'share' | null>(null);
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
   const [stageHeight, setStageHeight] = useState(Math.max(120, height - inset.top - inset.bottom - 260));
@@ -47,7 +49,7 @@ export function PhotoViewer({ photos, initialKey, onClose, hasMore, loadingMore,
   const navigate = useCallback((delta: number) => {
     const target = photos[index + delta];
     if (!target) return;
-    dismissY.set(0); setCurrentKey(target.key); setNotice(null);
+    dismissY.set(0); setCurrentKey(target.key); setNotice(null); setActions(false);
     void Haptics.selectionAsync().catch(() => {});
   }, [dismissY, index, photos]);
   if (!photo) return null;
@@ -125,6 +127,8 @@ export function PhotoViewer({ photos, initialKey, onClose, hasMore, loadingMore,
             <Text style={styles.author}>{current.author_name || (current.source === 'compra' ? 'Compras da ceia' : 'Família')}</Text>
             {dateLabel ? <Text variant="muted">{dateLabel}</Text> : null}
             {current.caption ? <Text>{current.caption}</Text> : null}
+            <Button variant="quiet" onPress={() => setActions(v => !v)}>Pessoas, opções e denúncia</Button>
+            {actions ? <PhotoActions key={current.key} photo={current} onDone={onClose} /> : null}
             {notice ? <Text accessibilityRole="alert" style={{ color: notice.error ? theme.colors.error : theme.colors.champagne }}>{notice.text}</Text> : null}
             {error ? <Text accessibilityRole="alert" style={{ color: theme.colors.error }}>{error}</Text> : null}
           </ScrollView>

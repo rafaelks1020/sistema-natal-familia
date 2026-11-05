@@ -18,7 +18,8 @@ import { useToast } from '../../ui/Toast';
 import { assertSession, revealDateLabel, sameSession, santaKeys } from './data';
 import { RevealDate } from './RevealDate';
 
-type AdminOperation = { kind: 'draw'; body: DrawInput; generation: number } | { kind: 'cancel'; generation: number };
+type ExtendedDrawInput = DrawInput & { confirm_without_previous?: boolean };
+type AdminOperation = { kind: 'draw'; body: ExtendedDrawInput; generation: number } | { kind: 'cancel'; generation: number };
 
 export function Organizer() {
   const query = useQuery({ queryKey: santaKeys.admin, queryFn: ({ signal }) => api<SantaAdminData>('/api/secret-santa/admin', { signal }), refetchInterval: 60_000 });
@@ -43,7 +44,12 @@ export function Organizer() {
     },
     onError: (error, operation) => {
       if (!sameSession(operation.generation)) return;
-      if (error instanceof ApiError && error.status === 409 && operation.kind === 'draw' && !operation.body.force) {
+      if (error instanceof ApiError && error.status === 422 && operation.kind === 'draw' && !operation.body.confirm_without_previous) {
+        Alert.alert('Evitar pares anteriores', error.message, [
+          { text: 'Revisar', style: 'cancel' },
+          { text: 'Sortear sem essa regra', onPress: () => execute({ ...operation, body: { ...operation.body, confirm_without_previous: true } }) },
+        ]);
+      } else if (error instanceof ApiError && error.status === 409 && error.message.startsWith('Já tem gente que viu') && operation.kind === 'draw' && !operation.body.force) {
         Alert.alert('Já tem gente que revelou', `${error.message}\nOs nomes serão trocados e as marcações de compra serão zeradas.`, [
           { text: 'Manter o sorteio', style: 'cancel' },
           { text: 'Refazer mesmo assim', style: 'destructive', onPress: () => execute({ ...operation, body: { ...operation.body, force: true } }) },

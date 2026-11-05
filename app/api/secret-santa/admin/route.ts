@@ -2,7 +2,8 @@ import { enviarPush } from '@/app/lib/push';
 import { randomBytes } from 'crypto';
 import { HttpError, ok, readJson, requireAdmin, route, toInt } from '@/app/lib/api';
 import { query, transaction } from '@/app/lib/db';
-import { drawSecretSanta, validateRules, DrawRule } from '@/app/lib/secretSanta';
+import { drawSecretSanta, DrawRule, DrawResult } from '@/app/lib/secretSanta';
+import { edicaoAtual } from '@/app/lib/edicao';
 import { loadActiveConfig, mapConfig } from '../shared';
 
 // GET    /api/secret-santa/admin  -> { config, participants, status } sem os pares
@@ -166,23 +167,11 @@ export const POST = route(async (req) => {
   }
   const people = [...rows].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR') || a.id - b.id);
 
-  let draws: { giver_id: number; receiver_id: number }[];
-  try {
-    const check = validateRules(people, rules);
-    if (!check.valid) throw new HttpError(400, check.error || 'Essas regras não deixam sortear.');
-    const result = drawSecretSanta(people, rules);
-    if (!result) throw new HttpError(400, 'Não foi possível sortear com essas regras.');
-    draws = result;
-  } catch (err) {
-    if (err instanceof HttpError) throw err;
-    const message = err instanceof Error ? err.message : 'Não foi possível sortear.';
-    throw new HttpError(400, message);
-  }
-  assertDraw(draws, new Set(people.map((p) => p.id)), rules);
-
   const { createdConfig, userIds } = await transaction(async (q) => {
     // Trava a transação (qualquer usuário do banco pode), para dois sorteios não ficarem ativos juntos.
     await q('SELECT pg_advisory_xact_lock(714203)');
+    const live = await q('SELECT 1 FROM secret_santa_live WHERE ano = $1', [edicaoAtual()]);
+    if (live.rows.length) throw new HttpError(409, 'A revelação ao vivo já começou. O sorteio está protegido.');
     const still = await q<{ id: number; user_id: number | null }>(
       'SELECT id, user_id FROM participants WHERE id = ANY($1::int[])',
       [ids],
@@ -190,11 +179,11 @@ export const POST = route(async (req) => {
     if (still.rows.length !== ids.length) {
       throw new HttpError(400, 'Alguma pessoa saiu da lista. Tente de novo.');
     }
-    const previous = await q<{ id: number }>(
-      'SELECT id FROM secret_santa_config ORDER BY created_at DESC, id DESC LIMIT 1',
+    const previous = await q<{ id: number; ano: number }>(
+      'SELECT id, ano FROM secret_santa_config ORDER BY ano DESC, created_at DESC, id DESC LIMIT 1',
     );
     const previousId = previous.rows[0]?.id ?? null;
-    if (previousId && body.force !== true) {
+    if (previousId && previous.rows[0].ano === edicaoAtual() && body.force !== true) {
       const opened = await q(
         'SELECT 1 FROM secret_santa_draws WHERE config_id = $1 AND revealed IS TRUE LIMIT 1',
         [previousId],
@@ -203,6 +192,32 @@ export const POST = route(async (req) => {
         throw new HttpError(409, 'Já tem gente que viu quem tirou. Para refazer mesmo assim, confirme.');
       }
     }
+    const previousConfig = previous.rows[0];
+    if (previousConfig && previousConfig.ano < edicaoAtual()) {
+      // Não substitui um ano cadastrado manualmente. Arquiva inclusive sorteios ainda secretos.
+      const archived = await q('SELECT 1 FROM secret_santa_history WHERE ano = $1 LIMIT 1', [previousConfig.ano]);
+      if (!archived.rows.length) await q(
+        `INSERT INTO secret_santa_history(ano,giver_participant_id,receiver_participant_id,revelado)
+         SELECT $1,giver_id,receiver_id,
+           (SELECT bool_and(revealed IS TRUE) FROM secret_santa_draws WHERE config_id = $2)
+         FROM secret_santa_draws WHERE config_id = $2`, [previousConfig.ano, previousConfig.id]);
+    }
+    const setting = await q<{ value: string }>("SELECT value FROM app_settings WHERE key = 'amigo_evitar_repeticao'");
+    const avoid = setting.rows[0]?.value !== 'false';
+    const history = await q<DrawResult>(
+      'SELECT giver_participant_id AS giver_id, receiver_participant_id AS receiver_id FROM secret_santa_history WHERE ano = $1', [edicaoAtual() - 1]);
+    const draws = drawSecretSanta(people, rules, avoid && body.confirm_without_previous !== true ? history.rows : []);
+    if (!draws && avoid && history.rows.length && body.confirm_without_previous !== true) {
+      const possible = drawSecretSanta(people, rules);
+      if (possible) throw new HttpError(422, 'Não foi possível evitar os pares do ano anterior. Confirme para sortear sem essa regra.');
+    }
+    if (!draws) throw new HttpError(400, 'Não foi possível sortear com essas regras. Revise as restrições.');
+    assertDraw(draws, new Set(people.map(p => p.id)), rules);
+    if (avoid && body.confirm_without_previous !== true && draws.some(d => history.rows.some(h => h.giver_id === d.giver_id && h.receiver_id === d.receiver_id))) {
+      throw new HttpError(400, 'O sorteio repetiu um par anterior. Revise as regras.');
+    }
+    await q('DELETE FROM secret_santa_hints WHERE ano = $1', [edicaoAtual()]);
+    await q('DELETE FROM secret_santa_guesses WHERE ano = $1', [edicaoAtual()]);
     await q('UPDATE secret_santa_config SET is_active = false WHERE is_active IS TRUE');
     const created = await q<{
       id: number;
@@ -210,13 +225,13 @@ export const POST = route(async (req) => {
       max_gift_value: unknown;
       reveal_date: string | null;
     }>(
-      `INSERT INTO secret_santa_config (is_active, min_gift_value, max_gift_value, reveal_date, rules)
-       VALUES (true, $1, $2, $3, $4::jsonb)
+      `INSERT INTO secret_santa_config (is_active, min_gift_value, max_gift_value, reveal_date, rules, ano)
+       VALUES (true, $1, $2, $3, $4::jsonb, $5)
        RETURNING id,
                  min_gift_value::float8 AS min_gift_value,
                  max_gift_value::float8 AS max_gift_value,
                  to_char(reveal_date, 'YYYY-MM-DD') AS reveal_date`,
-      [min, max, revealDate, JSON.stringify(rules)],
+      [min, max, revealDate, JSON.stringify(rules), edicaoAtual()],
     );
     const row = created.rows[0];
     for (const draw of draws) {
@@ -231,8 +246,8 @@ export const POST = route(async (req) => {
     if (previousId) {
       // Uma nova distribuição de pares começa sem compras marcadas.
       await q(
-        `INSERT INTO wish_list (participant_id, config_id, item_name, item_description, item_url, priority, purchased, created_at)
-         SELECT DISTINCT w.participant_id, $1, w.item_name, w.item_description, w.item_url, w.priority, false, w.created_at
+        `INSERT INTO wish_list (ano, participant_id, config_id, item_name, item_description, item_url, priority, price_min_cents, price_max_cents, image_url, purchased, created_at)
+         SELECT DISTINCT $4, w.participant_id, $1, w.item_name, w.item_description, w.item_url, w.priority, w.price_min_cents, w.price_max_cents, w.image_url, false, w.created_at
            FROM wish_list w
           WHERE w.config_id = $2 AND w.participant_id = ANY($3::int[])
             AND NOT EXISTS (
@@ -242,9 +257,12 @@ export const POST = route(async (req) => {
                  AND copied.item_description IS NOT DISTINCT FROM w.item_description
                  AND copied.item_url IS NOT DISTINCT FROM w.item_url
                  AND copied.priority IS NOT DISTINCT FROM w.priority
+                 AND copied.price_min_cents IS NOT DISTINCT FROM w.price_min_cents
+                 AND copied.price_max_cents IS NOT DISTINCT FROM w.price_max_cents
+                 AND copied.image_url IS NOT DISTINCT FROM w.image_url
                  AND copied.created_at IS NOT DISTINCT FROM w.created_at
             )`,
-        [row.id, previousId, ids],
+        [row.id, previousId, ids, edicaoAtual()],
       );
     }
     return {
@@ -263,6 +281,8 @@ export const DELETE = route(async () => {
   await requireAdmin();
   await transaction(async (q) => {
     await q('SELECT pg_advisory_xact_lock(714203)');
+    const live = await q('SELECT 1 FROM secret_santa_live WHERE ano = $1', [edicaoAtual()]);
+    if (live.rows.length) throw new HttpError(409, 'A revelação ao vivo já começou. O sorteio está protegido.');
     await q('UPDATE secret_santa_config SET is_active = false WHERE is_active IS TRUE');
   });
   return ok({ ok: true });

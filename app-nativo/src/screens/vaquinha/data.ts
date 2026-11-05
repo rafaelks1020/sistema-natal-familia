@@ -1,5 +1,9 @@
 import { api, ApiError, queryClient, queryKeys, sessionStore } from '../../api';
-import type { VaquinhaData } from '../../types/vaquinha';
+import type { VaquinhaData as BaseData, Purchase as BasePurchase, PurchaseInput as BaseInput } from '../../types/vaquinha';
+
+export interface Purchase extends BasePurchase { receipt_url: string | null }
+export interface PurchaseInput extends BaseInput { receipt_url?: string | null; images?: string[] }
+export interface VaquinhaData extends Omit<BaseData, 'purchases'> { purchases: Purchase[]; ano: number; meta_centavos: number; arrecadado_centavos: number; destino: string; contribuintes: number }
 
 export const vaquinhaKeys = { all: ['vaquinha'] as const, payment: ['vaquinha', 'payment'] as const };
 export const sessionIsCurrent = (generation: number) => generation === sessionStore.getGeneration() && sessionStore.getSnapshot().status === 'authenticated';

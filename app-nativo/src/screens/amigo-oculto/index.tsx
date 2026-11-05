@@ -23,6 +23,7 @@ import { Surface } from '../../ui/Surface';
 import { Text } from '../../ui/Text';
 import { useToast } from '../../ui/Toast';
 import { assertSession, sameSession, santaKeys } from './data';
+import { Features, ThemeBanner } from './Features';
 import { Organizer } from './Organizer';
 import { Ticket } from './Ticket';
 import { Wishlist } from './Wishlist';
@@ -131,6 +132,7 @@ function AmigoContent({ user }: { user: User }) {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void refresh(); }} tintColor={theme.colors.champagne} colors={[theme.colors.champagne]} />}>
       <Rise style={styles.header}><View style={styles.heading}><Text variant="kicker">Um segredo da família</Text><Gift size={23} color={theme.colors.cherry} strokeWidth={1.3} /></View>
         <Text variant="display" accessibilityRole="header" style={styles.title}>Amigo oculto</Text><View style={styles.redRule} /></Rise>
+      <ThemeBanner />
       <View onLayout={event => { heroBottom.current = event.nativeEvent.layout.y + event.nativeEvent.layout.height; }}>
         {query.isPending ? <View style={styles.loading} accessibilityLabel="Preparando sua surpresa"><Skeleton style={{ height: 340 }} /><Skeleton style={{ height: 48, width: '65%' }} /></View>
           : !data ? <EmptyState title="O segredo pode esperar um instante." message={query.error?.message ?? 'Não conseguimos carregar o sorteio.'} action="Tentar novamente" onAction={() => { void query.refetch(); }} />
@@ -148,6 +150,7 @@ function AmigoContent({ user }: { user: User }) {
                   : <Rise index={1}><Ticket key={data.config.id} canReveal={data.can_reveal} opensAt={data.reveal_opens_at} busy={mutation.isPending} onReveal={reveal} /></Rise>}
       </View>
       {data && query.isError ? <Text accessibilityRole="alert" variant="muted">Não conseguimos atualizar o sorteio. Puxe a tela para tentar novamente.</Text> : null}
+      <Features canSend={!!data?.draw?.revealed} configId={data?.config?.id ?? null} />
       <Rise index={2}><Wishlist canWrite={user.participant_id !== null} /></Rise>
       {user.is_admin ? <Rise index={3}><Organizer /></Rise> : null}
       <Text variant="kicker" style={styles.footer}>O melhor presente é estar junto</Text>

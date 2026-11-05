@@ -1,3 +1,4 @@
+import { edicaoAtual } from '@/app/lib/edicao';
 import { HttpError, ok, requireUser, route } from '@/app/lib/api';
 import { transaction } from '@/app/lib/db';
 import { canReveal, mapConfig, Receiver } from '../shared';
@@ -27,8 +28,9 @@ export const POST = route(async () => {
     }>(
       `SELECT id, min_gift_value, max_gift_value,
               to_char(reveal_date, 'YYYY-MM-DD') AS reveal_date
-         FROM secret_santa_config WHERE is_active IS TRUE
+         FROM secret_santa_config WHERE is_active IS TRUE AND ano = $1
         ORDER BY created_at DESC, id DESC LIMIT 1`,
+      [edicaoAtual()],
     );
     if (!active.rows[0]) throw new HttpError(404, 'Não há sorteio ativo.');
     const config = mapConfig(active.rows[0]);

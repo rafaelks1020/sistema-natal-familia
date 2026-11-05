@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import SelosPerfil from './_selos';
 import BlockedPeople from '../_components/BlockedPeople';
 import Link from 'next/link';
 import LetraMaior from '@/app/ui/LetraMaior';
@@ -87,6 +88,7 @@ export default function ProfilePage() {
       <div className="relative h-36 overflow-hidden"><LoopMedia name="mn-hero" className="h-full w-full object-cover opacity-65" fallback={<div className="absolute inset-0 bg-carvao-2" style={{ backgroundImage: 'radial-gradient(circle at 80% 30%, #BFA57766 0, transparent 14%), radial-gradient(circle at 30% 60%, #BFA57744 0, transparent 24%), radial-gradient(circle at 60% 10%, #BFA57755 0, transparent 18%)' }} />} /><div className="absolute inset-0 bg-gradient-to-t from-carvao to-transparent" /></div>
       <section className="rise relative -mt-14 px-5 text-center"><Avatar name={profile.name} src={profile.avatar_url} size={112} ring className="mx-auto" /><h2 className="display mt-5 break-words text-[2.5rem]">{profile.name}</h2>{profile.is_admin && <p className="kicker mt-2">organiza o nosso Natal</p>}{profile.bio && <p className="mx-auto mt-3 max-w-xs whitespace-pre-wrap break-words text-sm leading-relaxed text-marfim-2">{profile.bio}</p>}
       <div className="my-7 grid grid-cols-3 divide-x divide-linha">{[[profile.posts_count, 'posts'], [profile.reactions_received, 'curtidas'], [profile.comments_count, 'comentários']].map(([value, label]) => <div key={label}><p className="numeral text-3xl">{value}</p><p className="mt-1 text-xs text-marfim-2">{label}</p></div>)}</div>
+      <SelosPerfil id={id} />
       {own && <div className="mb-7"><button className="btn btn-ghost w-full" onClick={() => { setForm({ name: profile.name, bio: profile.bio ?? '', avatar_url: profile.avatar_url ?? '' }); setSheet('edit'); }}>Editar perfil</button><div className="mt-2 flex justify-center gap-4"><button className="btn btn-quiet text-xs" disabled={busy} onClick={() => setSheet('password')}><LockKeyhole size={15} strokeWidth={1.5} />Trocar senha</button><button className="btn btn-quiet text-xs" disabled={busy} onClick={logout}><LogOut size={15} strokeWidth={1.5} />Sair</button><LetraMaior /></div><div className="mt-3 flex justify-center gap-5 text-xs text-marfim-3"><Link href="/termos" className="underline underline-offset-4">Termos de uso</Link><Link href="/privacidade" className="underline underline-offset-4">Privacidade</Link><Link href="/conta/excluir" className="underline underline-offset-4">Excluir minha conta</Link></div></div>}
         {own && <BlockedPeople />}
       </section>

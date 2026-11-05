@@ -1,3 +1,4 @@
+import { PedidosConvite } from '../convidar/Pedidos';
 import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Share, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
@@ -77,6 +78,7 @@ export default function Convites() {
       <Cabecalho kicker={admin ? 'Só quem organiza' : 'Convites'} titulo={admin ? 'Convites' : 'Só para quem organiza'} aoVoltar={voltar} />
       {!admin ? <View style={styles.bloco}><EmptyState title="Um convite de quem organiza" message="Peça o link de convite para quem organiza o Natal." /><Button variant="ghost" onPress={voltar}>Voltar</Button></View>
         : <>
+          <View style={styles.bloco}><PedidosConvite organizar /></View>
           <Formulario semAcesso={semAcesso} avisoVaquinha={vaquinha.isError} toast={toast} />
           <View style={styles.enviados}>
             <Text variant="display" accessibilityRole="header" style={styles.subtitulo}>Enviados</Text>

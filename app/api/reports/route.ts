@@ -16,6 +16,11 @@ export const POST = route(async (req) => {
     const { rows: alvoRows } = await query(
       `SELECT user_id, LEFT(COALESCE(${alvo.texto}::text, ''), 1000) AS trecho FROM ${alvo.tabela} WHERE id = $1`, [alvoId]);
     if (!alvoRows.length) throw new HttpError(404, 'Conteúdo não encontrado.');
+    if (body.alvo_tipo === 'dica') {
+      // Dica anônima: só quem recebeu denuncia (ninguém mais sabe que ela existe).
+      const { rows: dono } = await query('SELECT 1 FROM secret_santa_hints WHERE id = $1 AND receiver_participant_id = $2', [alvoId, me.participant_id]);
+      if (!dono.length) throw new HttpError(404, 'Conteúdo não encontrado.');
+    }
     const { rows } = await query(
       `INSERT INTO content_reports (reporter_id, alvo_tipo, alvo_id, autor_id, trecho, motivo)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
@@ -62,6 +67,8 @@ export const GET = route(async () => {
     WHERE r.resolved_at IS NULL ORDER BY r.created_at, r.id`);
   return ok(rows.map((row) => ({
     ...row,
+    // O organizador também participa do sorteio: o autor da dica continua em segredo.
+    ...(row.alvo_tipo === 'dica' ? { author_id: null, author_name: 'Amigo oculto (anônimo)' } : {}),
     tipo_rotulo: alvoDe(row.alvo_tipo)?.rotulo ?? (row.comment_id ? 'Comentário' : 'Publicação'),
     images: row.comment_id || row.alvo_tipo ? [] : parsePostImages(row.image_urls, row.image_url),
   })));

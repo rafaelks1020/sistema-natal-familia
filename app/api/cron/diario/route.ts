@@ -16,12 +16,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'não autorizado' }, { status: 401 });
   }
   const resultado: Record<string, string> = {};
-  try {
-    resultado.pix = c6Configurado() ? JSON.stringify(await conciliar()) : 'C6 não configurado';
-  } catch (e) {
-    console.error('[cron diario] pix', (e as Error).message);
-    resultado.pix = 'falhou';
-  }
   for (const nome of TAREFAS) {
     try {
       const mod = (await import(`@/app/lib/tarefas/${nome}`)) as { default?: () => Promise<string> };
@@ -30,6 +24,13 @@ export async function GET(req: Request) {
       console.error(`[cron diario] ${nome}`, (e as Error).message);
       resultado[nome] = 'falhou';
     }
+  }
+  // Pix por último: se o C6 demorar, os avisos do dia já saíram.
+  try {
+    resultado.pix = c6Configurado() ? JSON.stringify(await conciliar()) : 'C6 não configurado';
+  } catch (e) {
+    console.error('[cron diario] pix', (e as Error).message);
+    resultado.pix = 'falhou';
   }
   return NextResponse.json({ ok: true, ...resultado });
 }

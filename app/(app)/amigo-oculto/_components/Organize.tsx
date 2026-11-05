@@ -124,7 +124,7 @@ export default function Organize({ onChanged }: { onChanged: () => void }) {
   const maxN = parseBrMoney(max);
   const ready = picked.length >= 3 && minN != null && maxN != null && minN <= maxN;
 
-  async function draw(force = false) {
+  async function draw(force = false, withoutPrevious = false) {
     setBusy(true);
     try {
       await api<{ config: SantaConfig }>('/api/secret-santa/admin', {
@@ -132,6 +132,7 @@ export default function Organize({ onChanged }: { onChanged: () => void }) {
         json: {
           action: 'draw',
           force,
+          confirm_without_previous: withoutPrevious,
           participant_ids: picked,
           min_gift_value: minN,
           max_gift_value: maxN,
@@ -146,7 +147,10 @@ export default function Organize({ onChanged }: { onChanged: () => void }) {
       onChanged();
     } catch (err) {
       const message = (err as Error).message;
-      if (message === 'Já tem gente que viu quem tirou. Para refazer mesmo assim, confirme.') {
+      if (message.startsWith('Não foi possível evitar os pares do ano anterior.')) {
+        if (window.confirm(message)) await draw(force, true);
+        else setAsk(null);
+      } else if (message === 'Já tem gente que viu quem tirou. Para refazer mesmo assim, confirme.') {
         setAsk('force');
       } else {
         toast(message, 'erro');

@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Plus from 'lucide-react-native/icons/plus';
 import { api } from '../../api';
 import { theme } from '../../theme';
-import type { AlbumFilter, AlbumResponse } from '../../types/album';
+import type { AlbumFilter, AlbumMetadata, AlbumResponse } from './types';
 import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { Skeleton } from '../../ui/Skeleton';
@@ -14,13 +14,13 @@ import { Text } from '../../ui/Text';
 import { useReduceMotion } from '../../ui/motion';
 import { AlbumMedia } from './AlbumMedia';
 import { PhotoViewer } from './PhotoViewer';
+import { Sheet } from '../../ui/Sheet';
+import { AlbumReports, UploadSheet } from './AlbumTools';
 import { Masonry, masonryBands, type MasonryBand } from './Masonry';
 
-const albumKeys = { pages: ['album', 'pages'] as const };
 const FILTERS: { value: AlbumFilter; label: string }[] = [
-  { value: 'tudo', label: 'Tudo' }, { value: 'post', label: 'Mural' }, { value: 'compra', label: 'Compras' },
+  { value: 'tudo', label: 'Tudo' }, { value: 'album', label: 'Álbum' }, { value: 'post', label: 'Mural' }, { value: 'compra', label: 'Compras' },
 ];
-const goToMural = () => router.navigate('/(tabs)/mural');
 
 export default function AlbumScreen() {
   const inset = useSafeAreaInsets();
@@ -28,6 +28,14 @@ export default function AlbumScreen() {
   const reduced = useReduceMotion();
   const [focused, setFocused] = useState(false);
   useFocusEffect(useCallback(() => { setFocused(true); return () => setFocused(false); }, []));
+  const metadata = useQuery({ queryKey: ['album', 'metadata'], queryFn: ({ signal }) => api<AlbumMetadata>('/api/album?meta=1', { signal }) });
+  const params = useLocalSearchParams<{ ano?: string }>();
+  const activeYear = params.ano && metadata.data?.years.includes(Number(params.ano)) ? Number(params.ano) : metadata.data?.currentYear;
+  const [person, setPerson] = useState('');
+  const [showPeople, setShowPeople] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
+  const [showReports, setShowReports] = useState(false);
+  const goToUpload = () => setShowUpload(true);
   const [filter, setFilter] = useState<AlbumFilter>('tudo');
   const [selected, setSelected] = useState<string | null>(null);
   const [heroVisible, setHeroVisible] = useState(true);
@@ -35,11 +43,12 @@ export default function AlbumScreen() {
   const pageWidth = Math.min(width, 720);
   const columnWidth = (pageWidth - 48 - 10) / 2;
   const album = useInfiniteQuery({
-    queryKey: albumKeys.pages,
+    queryKey: ['album', 'pages', activeYear, person],
+    enabled: activeYear !== undefined,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam, signal }) => {
       const cursor = pageParam ? `&cursor=${encodeURIComponent(pageParam)}` : '';
-      return api<AlbumResponse>(`/api/album?limit=24${cursor}`, { signal });
+      return api<AlbumResponse>(`/api/album?limit=24&ano=${activeYear}&pessoa=${encodeURIComponent(person)}${cursor}`, { signal });
     },
     getNextPageParam: lastPage => lastPage.nextCursor ?? undefined,
   });
@@ -53,7 +62,7 @@ export default function AlbumScreen() {
   const loadMore = () => {
     if (album.hasNextPage && !album.isFetching && !album.isError) void album.fetchNextPage();
   };
-  const error = album.isError;
+  const error = album.isError || metadata.isError;
   const canLoad = album.hasNextPage && !error;
 
   return <View style={styles.page}>
@@ -64,42 +73,54 @@ export default function AlbumScreen() {
       onEndReached={loadMore} onEndReachedThreshold={0.7}
       scrollEventThrottle={160} onScroll={event => setHeroVisible(event.nativeEvent.contentOffset.y < pageWidth * 0.65)}
       refreshControl={<RefreshControl refreshing={album.isRefetching && !album.isFetchingNextPage}
-        onRefresh={() => { if (!album.isFetching) void album.refetch(); }}
+        onRefresh={() => { if (!album.isFetching) { void metadata.refetch(); void album.refetch(); } }}
         tintColor={theme.colors.champagne} colors={[theme.colors.cherry]} progressBackgroundColor={theme.colors.surface} />}
       ListHeaderComponent={<View style={styles.header}>
         <View style={styles.titleRow}><View style={styles.flex}>
           <Text variant="kicker">Memórias que ficam</Text>
           <Text variant="display" accessibilityRole="header">Álbum da <Text variant="displayItalic">família</Text></Text>
-        </View><Button accessibilityLabel="Adicionar foto no mural" onPress={goToMural} style={styles.add}
+        </View><Button accessibilityLabel="Adicionar fotos ao álbum" onPress={goToUpload} style={styles.add}
           icon={<Plus size={24} color={theme.colors.ivory} />}>{null}</Button></View>
         <View style={styles.hero}><AlbumMedia name="mn-album" visible={focused && heroVisible && selected === null} style={StyleSheet.absoluteFill} /></View>
         <View style={styles.countRow}>
           {album.isPending ? <Skeleton style={{ width: 62, height: 50 }} /> : <Text variant="numeral">{filtered.length.toLocaleString('pt-BR')}</Text>}
           <Text variant="muted">{filtered.length === 1 ? 'foto' : 'fotos'}{album.hasNextPage ? ' carregadas' : ''}{filter === 'post' ? ' do mural' : filter === 'compra' ? ' das compras' : ' para guardar'}</Text>
         </View>
+        <Button variant="ghost" onPress={() => router.push('/memorias')}>Memórias e linha do tempo</Button>
+        {metadata.data?.isAdmin && <Button variant="quiet" onPress={() => setShowReports(true)}>Analisar denúncias do álbum</Button>}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} accessibilityLabel="Edição do álbum">
+          {metadata.data?.years.map(y => <Button key={y} variant={activeYear === y ? 'primary' : 'ghost'} selected={activeYear === y} onPress={() => { router.setParams({ ano: String(y) }); setSelected(null); }}>{y}</Button>)}
+        </ScrollView>
+        <Button variant="ghost" onPress={() => setShowPeople(true)}>{metadata.data?.people.find(p => `${p.source}:${p.id}` === person)?.name ?? 'Fotos de uma pessoa'}</Button>
         <View accessibilityRole="tablist" style={styles.filters}>{FILTERS.map(item => <Button key={item.value}
           variant={filter === item.value ? 'primary' : 'ghost'} selected={filter === item.value}
           style={styles.pill} onPress={() => { setFilter(item.value); list.current?.scrollToOffset({ offset: 0, animated: false }); }}>
           {item.label}</Button>)}</View>
       </View>}
-      ListEmptyComponent={album.isPending ? <AlbumSkeleton /> : error ? undefined : <View>
+      ListEmptyComponent={error ? undefined : album.isPending ? <AlbumSkeleton /> : <View>
         <AlbumMedia name="mn-vazio" visible={focused && selected === null} style={styles.emptyVideo} />
         <EmptyState title={canLoad ? 'Há mais memórias por aqui' : 'O álbum espera por vocês'}
-          message={canLoad ? 'Continue carregando para encontrar fotos deste filtro.' : filter === 'tudo' ? 'As fotos do mural e das compras se encontram aqui. Que tal compartilhar a primeira?' : 'Ainda não há fotos nesta categoria.'}
-          action={canLoad ? 'Carregar mais fotos' : 'Ir para o mural'} onAction={canLoad ? () => { void album.fetchNextPage(); } : goToMural} />
+          message={canLoad ? 'Continue carregando para encontrar fotos deste filtro.' : filter === 'tudo' ? 'Guarde aqui as fotos desta edição, incluindo os Natais anteriores.' : 'Ainda não há fotos nesta categoria.'}
+          action={canLoad ? 'Carregar mais fotos' : 'Adicionar fotos'} onAction={canLoad ? () => { void album.fetchNextPage(); } : goToUpload} />
       </View>}
       ListFooterComponent={<View style={styles.footer}>
-        {error ? <EmptyState title="As fotos não chegaram" message={album.error.message} action="Tentar de novo"
-          onAction={() => { if (album.isFetchNextPageError) void album.fetchNextPage(); else void album.refetch(); }} />
+        {error ? <EmptyState title="As fotos não chegaram" message={metadata.error?.message ?? album.error?.message ?? 'Tente novamente.'} action="Tentar de novo"
+          onAction={() => { if (metadata.isError) void metadata.refetch(); else if (album.isFetchNextPageError) void album.fetchNextPage(); else void album.refetch(); }} />
           : album.isFetchingNextPage ? <ActivityIndicator accessibilityLabel="Carregando mais fotos" color={theme.colors.champagne} />
             : canLoad && filtered.length > 0 ? <Button variant="ghost" onPress={() => { void album.fetchNextPage(); }}>Carregar mais fotos</Button>
               : filtered.length > 0 ? <Text variant="muted" style={styles.center}>Todas as memórias, até a próxima foto.</Text> : null}
       </View>} />
     {/* Com o álbum vazio o próprio estado vazio já convida a postar: o botão flutuante cobriria o texto. */}
     {filtered.length > 0 ? <View style={[styles.floating, { bottom: Math.max(inset.bottom, 12) + 12 }]}>
-      <Button accessibilityLabel="Compartilhar uma nova foto no mural" onPress={goToMural}
+      <Button accessibilityLabel="Adicionar fotos ao álbum" onPress={goToUpload}
         icon={<Plus size={23} color={theme.colors.ivory} />}>Nova memória</Button>
     </View> : null}
+    {showReports && metadata.data?.isAdmin ? <AlbumReports onClose={() => setShowReports(false)} /> : null}
+    {showUpload && metadata.data ? <UploadSheet metadata={metadata.data} onClose={year => { setShowUpload(false); if (year) router.setParams({ ano: String(year) }); }} /> : null}
+    <Sheet visible={showPeople} onClose={() => setShowPeople(false)} title="Fotos de uma pessoa"><ScrollView contentContainerStyle={{ gap: 8, paddingBottom: 24 }}>
+      <Button variant={!person ? 'primary' : 'ghost'} onPress={() => { setPerson(''); setShowPeople(false); }}>Todas as pessoas</Button>
+      {metadata.data?.people.map(p => <Button key={`${p.source}:${p.id}`} variant={person === `${p.source}:${p.id}` ? 'primary' : 'ghost'} onPress={() => { setPerson(`${p.source}:${p.id}`); setShowPeople(false); setSelected(null); }}>{p.name}</Button>)}
+    </ScrollView></Sheet>
     {selected ? <PhotoViewer initialKey={selected} photos={filtered} hasMore={Boolean(album.hasNextPage)}
       loadingMore={album.isFetchingNextPage} error={album.isError ? album.error.message : null}
       onLoadMore={() => { if (!album.isFetching) void album.fetchNextPage(); }} onClose={() => setSelected(null)} /> : null}
@@ -121,7 +142,7 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 }, flex: { flex: 1, minWidth: 0 },
   add: { width: 64 }, hero: { width: '100%', aspectRatio: 16 / 9, borderRadius: theme.radius.card, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.lineStrong },
   countRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  filters: { flexDirection: 'row', gap: 8 }, pill: { flex: 1, borderRadius: 999, overflow: 'hidden' },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, pill: { flexGrow: 1, minWidth: 64, borderRadius: 999, overflow: 'hidden' },
   emptyVideo: { width: 144, height: 112, alignSelf: 'center', borderRadius: theme.radius.card, marginTop: 16 },
   footer: { paddingTop: 18, paddingBottom: 16 }, center: { textAlign: 'center' },
   floating: { position: 'absolute', right: 24 }, skeleton: { flexDirection: 'row', gap: 10 },

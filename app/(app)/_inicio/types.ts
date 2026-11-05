@@ -10,7 +10,14 @@ export interface Settings {
 export interface Attendance {
   mine: AttendanceStatus | null;
   counts: Record<AttendanceStatus, number>;
-  people: { participant_id: number; name: string; avatar_url: string | null; status: AttendanceStatus }[];
+  people: {
+    participant_id: number;
+    name: string;
+    avatar_url: string | null;
+    status: AttendanceStatus;
+    adultos?: number;
+    criancas?: number;
+  }[];
 }
 
 export interface HomeData {
