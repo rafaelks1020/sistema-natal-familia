@@ -9,6 +9,7 @@ export const ALVOS = {
   homenagem: { tabela: 'family_tributes', texto: 'texto', rotulo: 'Homenagem' },
   carona: { tabela: 'ride_offers', texto: 'observacao', rotulo: 'Carona ou hospedagem' },
   prato: { tabela: 'ceia_dishes', texto: 'nome', rotulo: 'Prato da ceia' },
+  capsula: { tabela: 'time_capsules', texto: 'texto', rotulo: 'Mensagem da cápsula do tempo' },
 } as const;
 
 export type AlvoTipo = keyof typeof ALVOS;
