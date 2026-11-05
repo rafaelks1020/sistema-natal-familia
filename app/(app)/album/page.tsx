@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import LoopMedia from '@/app/ui/LoopMedia';
 import Avatar from '@/app/ui/Avatar';
-import { api, timeAgo } from '@/app/ui/client';
+import { api, timeAgo, thumb } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
 import type { AlbumItem } from '@/app/api/album/route';
 
@@ -54,7 +54,7 @@ function PolaroidMosaicFallback({ photos }: { photos: AlbumItem[] }) {
                 {item ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={item.url}
+                    src={thumb(item.url, 256)}
                     alt={item.caption || 'Memória de Natal'}
                     className="h-full w-full object-cover"
                   />
@@ -123,7 +123,7 @@ function AlbumPhotoCard({
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={item.url}
+        src={thumb(item.url, 640)}
         alt={item.caption || 'Foto do álbum da família'}
         loading="lazy"
         onLoad={() => setLoaded(true)}
@@ -556,7 +556,7 @@ export default function AlbumPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               key={activeItem.key}
-              src={activeItem.url}
+              src={thumb(activeItem.url, 1280, 80)}
               alt={activeItem.caption || 'Foto em tela cheia'}
               style={{
                 transform: `translate3d(${dragOffset.x * 0.35}px, ${Math.max(0, dragOffset.y * 0.45)}px, 0)`,

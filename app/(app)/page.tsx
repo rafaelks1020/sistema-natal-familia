@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ArrowUpRight, Check, Gift, MapPin, Settings2, Sparkles, Users, Wine } from 'lucide-react';
 import Avatar from '@/app/ui/Avatar';
 import LoopMedia from '@/app/ui/LoopMedia';
-import { api, brl, timeAgo } from '@/app/ui/client';
+import { api, brl, timeAgo, thumb } from '@/app/ui/client';
 import { useMe } from '@/app/ui/user';
 import { useToast } from '@/app/ui/toast';
 import type { Attendance, AttendanceStatus, HomeData } from './_inicio/types';
@@ -196,7 +196,7 @@ export default function InicioPage() {
           <div className="mb-2 flex items-center justify-between"><h2 id="mural-title" className="display text-3xl">No mural</h2><Link href="/mural" className="flex min-h-11 items-center gap-1 text-xs text-champagne">Ver tudo <ArrowUpRight size={16} strokeWidth={1.5} /></Link></div>
           {recentPosts.length === 0 ? <div className="py-7"><p className="display text-xl text-marfim-2">As primeiras memórias começam aqui.</p><Link href="/mural" className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm text-champagne">Deixe um recado para a família <ArrowUpRight size={16} strokeWidth={1.5} /></Link></div> : <div className="stagger divide-y divide-linha">{recentPosts.map((post) => <Link key={post.id} href="/mural" className="flex items-start gap-3 py-5"><Avatar name={post.user_name} src={post.avatar_url} size={36} /><div className="min-w-0 flex-1"><p className="text-sm font-medium">{post.user_name}</p><p className="mt-1 text-xs text-marfim-3">{timeAgo(post.created_at)}</p><p className="mt-3 line-clamp-3 whitespace-pre-line break-words text-sm leading-relaxed text-marfim-2">{post.content}</p></div>{post.first_image && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={post.first_image} alt="Foto compartilhada no mural" loading="lazy" className="h-20 w-20 shrink-0 rounded-[14px] object-cover" />
+            <img src={thumb(post.first_image, 160)} alt="Foto compartilhada no mural" loading="lazy" className="h-20 w-20 shrink-0 rounded-[14px] object-cover" />
           )}</Link>)}</div>}
         </section>
         {me.is_admin && <div className="border-t border-linha pt-4"><Link href="/organizar" className="flex min-h-11 items-center justify-center gap-2 text-xs text-marfim-3"><Settings2 size={15} strokeWidth={1.5} />Organizar o Natal</Link></div>}

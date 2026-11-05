@@ -10,7 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import Avatar from '@/app/ui/Avatar';
-import { api, brl, uploadImage } from '@/app/ui/client';
+import { api, brl, thumb, uploadImage } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
 import type {
    PurchaseCategory,
@@ -114,7 +114,7 @@ export function PurchaseDetailSheet({
             <div className="overflow-hidden rounded-[16px] bg-carvao-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={images[activeImg] || images[0]}
+                src={thumb(images[activeImg] || images[0], 1080)}
                 alt={purchase.description}
                 className="max-h-80 w-full object-cover"
               />

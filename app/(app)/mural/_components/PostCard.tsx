@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import Avatar from '@/app/ui/Avatar';
 import LoopMedia from '@/app/ui/LoopMedia';
-import { timeAgo } from '@/app/ui/client';
+import { timeAgo, thumb } from '@/app/ui/client';
 import type { PostItem, ReactionType } from '../types';
 
 const REACTIONS: {
@@ -258,7 +258,7 @@ export default function PostCard({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={post.images[0]}
+            src={thumb(post.images[0], 828)}
             alt={`Foto publicada por ${post.user_name}`}
             className="h-full w-full object-cover"
             loading="lazy"
@@ -297,7 +297,7 @@ export default function PostCard({
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={url}
+                  src={thumb(url, 828)}
                   alt={`Foto ${idx + 1} de ${post.user_name}`}
                   className="h-full w-full object-cover"
                   loading="lazy"

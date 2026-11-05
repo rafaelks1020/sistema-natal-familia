@@ -1,3 +1,5 @@
+import { thumb } from './thumb';
+
 // Foto do parente ou as iniciais em Bodoni sobre carvão, com aro champagne fino.
 
 interface Props {
@@ -18,7 +20,7 @@ export default function Avatar({ name, src, size = 40, ring = false, className =
   const ringCls = ring ? 'ring-1 ring-champagne/70 ring-offset-2 ring-offset-carvao' : '';
   if (src) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={name} style={style} className={`shrink-0 rounded-full object-cover ${ringCls} ${className}`} />;
+    return <img src={thumb(src, src && size > 90 ? 256 : 160)} alt={name} style={style} className={`shrink-0 rounded-full object-cover ${ringCls} ${className}`} />;
   }
   return (
     <span

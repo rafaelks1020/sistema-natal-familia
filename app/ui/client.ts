@@ -76,3 +76,6 @@ export function timeAgo(date: string | Date): string {
   if (dias < 7) return dias === 1 ? 'ontem' : `há ${dias} dias`;
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
+
+
+export { thumb } from './thumb';
