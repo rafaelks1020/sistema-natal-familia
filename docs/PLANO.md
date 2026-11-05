@@ -1,7 +1,7 @@
 # Natal em Família: checklist de TUDO que o Rafael pediu
 
 Status: [x] feito e no ar · [~] em andamento · [ ] a fazer · (R) depende do Rafael
-Atualizado: 05/11/2026 02:45
+Atualizado: 05/11/2026 03:20
 
 ## Pedidos, na ordem em que vieram
 1. [x] Montar o sistema do repositório e repaginar tudo
@@ -9,12 +9,11 @@ Atualizado: 05/11/2026 02:45
 3. [x] Ideias de estilo pelo ChatGPT web (3 estilos) e mandar no zap
 4. [x] Imagens do sistema pronto (login, rede social da família etc.) por estilo, no zap
 5. [x] Estilo escolhido: **Meia-Noite**
-6. [~] Vários GIFs do ChatGPT para o site ficar dinâmico no celular: 10 no ar (capa, login, contagem, brinde, presente,
-       revelação, curtida, coração, curtida de comentário, ceia). Faltam 5: confete, árvore (vazio), álbum, sino, carregamento
+6. [x] Vários GIFs do ChatGPT para o site ficar dinâmico no celular: 16 animações no ar
 7. [x] Código da família `FAMILY_CODE` trocado e fora de qualquer arquivo versionado
 8. [x] Baixar e usar todos os GIFs bons (o único fora do estilo ficou de fora)
 9. [~] Auditoria em todo o sistema e arrumar tudo que estiver ruim (ver seção A)
-10. [ ] Ideias para reter a família (seção D) **mandar no zap**
+10. [x] Ideias para reter a família (seção D) mandadas no zap; esperando o Rafael escolher quais fazer
 11. [x] Integrar o C6 para pagar pelo app, na conta da SpeedTech
 12. [~] Otimizar ao máximo, lindo, moderno, código limpo (seções A, B, C)
 13. [x] Prints no zap e colocar no ar: https://sistema-natal-familia.vercel.app
@@ -41,7 +40,7 @@ Atualizado: 05/11/2026 02:45
 - [x] Fotos comprimidas no celular antes do envio (8 MB vira ~300 KB)
 - [x] Animações em vídeo leve (GIF de 10 MB virou 250 KB), só carregam quando aparecem, cache de 7 dias
 - [x] Região gru1 (São Paulo)
-- [ ] Miniaturas das fotos no feed e álbum (srcset)
+- [x] Miniaturas das fotos (otimizador da Vercel, AVIF/WebP no tamanho da tela) no mural, álbum, vaquinha, início e avatares
 - [ ] Medir com Lighthouse mobile e atacar o que pesar
 - [ ] Conferir EXPLAIN do feed e do álbum com dados reais
 
@@ -65,13 +64,16 @@ Atualizado: 05/11/2026 02:45
 
 ## E. App nativo iPhone e Android
 Decisão: **React Native com Expo** (componentes nativos de verdade, uma base, mesma API do site). Pasta `app-nativo/`.
-- [ ] API: login por token para o app (além do cookie do site)
+- [x] API: login por token para o app (além do cookie do site)
+- [~] Fase 1 (fundação, login, biometria, abas nativas, Início) em execução
+- [ ] Fase 2: Mural, Amigo oculto, Vaquinha/Pix, Álbum, Família/Perfil/Convites
 - [ ] App: abas nativas, todas as telas no visual Meia-Noite, animações nativas, câmera e galeria, push, Face ID/biometria
 - [ ] Pix no app (copiar código, abrir app do banco)
-- [ ] Ícone e tela de abertura pelo ChatGPT web
+- [~] Ícone, frente adaptativa, tela de abertura e capa da Play pedidos ao ChatGPT web
 - [ ] Android: AAB assinado (build fora da VPS2)
 - [ ] iOS: build no Mac VPS (`~/bin/build-ios`), conta Apple do Rafael
-- [ ] Política de privacidade e exclusão de conta (as lojas exigem)
+- [x] Política de privacidade (/privacidade) e exclusão de conta (/conta/excluir) no site
+- [ ] As mesmas duas no app
 - [ ] (R) Criar os apps nas lojas pelo site e o 1º envio da Play com o Conteúdo do app
 
 ## Pendências do Rafael
