@@ -61,8 +61,8 @@ export const POST = route(async (req) => {
     const familyCode = process.env.FAMILY_CODE;
     if (!familyCode) throw new HttpError(503, 'Cadastro fechado: falta configurar o código da família.');
     const code = typeof body.code === 'string' ? body.code.trim() : '';
-    // Ignora maiúsculas, espaços e ponto final (a família digita no celular).
-    const norm = (s: string) => s.trim().toLowerCase().replace(/[.\s]+$/, '');
+    // Só letras e números contam: maiúscula, espaço, ponto e acento do teclado do celular não atrapalham.
+    const norm = (s: string) => s.normalize('NFD').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
     if (!sameText(norm(code), norm(familyCode))) {
       throw new HttpError(403, 'Código da família incorreto. Peça para quem organiza.');
     }
