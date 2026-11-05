@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import Camera from 'lucide-react-native/icons/camera';
-import Trash2 from 'lucide-react-native/icons/trash-2';
+import Trash2 from 'lucide-react-native/icons/trash';
 import { api, ApiError, queryClient, sessionStore } from '../../api';
 import { timeAgo } from '../../format';
 import { useSession } from '../../session';

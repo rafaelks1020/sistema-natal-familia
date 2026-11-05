@@ -17,7 +17,7 @@ import ChartColumn from 'lucide-react-native/icons/chart-column';
 import Check from 'lucide-react-native/icons/check';
 import Lock from 'lucide-react-native/icons/lock';
 import Plus from 'lucide-react-native/icons/plus';
-import Trash2 from 'lucide-react-native/icons/trash-2';
+import Trash2 from 'lucide-react-native/icons/trash';
 import Trophy from 'lucide-react-native/icons/trophy';
 import Tv from 'lucide-react-native/icons/tv';
 import X from 'lucide-react-native/icons/x';
