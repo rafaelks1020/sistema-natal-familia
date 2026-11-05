@@ -64,6 +64,8 @@ export default function MuralPage() {
 
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const pageRequestRef = useRef(false);
   const [hasMore, setHasMore] = useState(true);
 
   const [composerOpen, setComposerOpen] = useState(false);
@@ -102,7 +104,7 @@ export default function MuralPage() {
   }, [toast]);
 
   const loadMorePosts = useCallback(async () => {
-    if (loading || loadingMore || !hasMore) return;
+    if (loading || loadingMore || pageRequestRef.current || !hasMore) return;
     const unpinned = posts.filter((p) => !p.pinned);
     const oldest = unpinned.length > 0 ? unpinned[unpinned.length - 1] : posts[posts.length - 1];
     if (!oldest) {
@@ -110,6 +112,8 @@ export default function MuralPage() {
       return;
     }
 
+    pageRequestRef.current = true;
+    setPageError(null);
     setLoadingMore(true);
     try {
       const nextBatch = await api<PostItem[]>(
@@ -124,20 +128,23 @@ export default function MuralPage() {
         setHasMore(false);
       }
     } catch (err) {
+      setPageError((err as Error).message);
       toast((err as Error).message, 'erro');
     } finally {
+      pageRequestRef.current = false;
       setLoadingMore(false);
     }
   }, [hasMore, loading, loadingMore, posts, toast]);
 
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el || !hasMore || loading) return;
+    if (!el || !hasMore || loading || loadingMore || pageError) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
-          loadMorePosts();
+          observer.disconnect();
+          void loadMorePosts();
         }
       },
       { rootMargin: '280px' },
@@ -145,7 +152,7 @@ export default function MuralPage() {
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, loading, loadMorePosts]);
+  }, [hasMore, loading, loadingMore, pageError, loadMorePosts]);
 
   async function openNotifications() {
     setNotifOpen(true);
@@ -212,6 +219,18 @@ export default function MuralPage() {
     }
   }
 
+  async function handleLoadComments(postId: number) {
+    try {
+      const comments = await api<CommentItem[]>(`/api/posts/${postId}/comments`);
+      setPosts((prev) => prev.map((p) => p.id === postId
+        ? { ...p, comments, comments_count: comments.length } : p));
+      return true;
+    } catch (err) {
+      toast((err as Error).message, 'erro');
+      return false;
+    }
+  }
+
   async function handleAddComment(postId: number, content: string) {
     const tempId = -Date.now();
     const optimisticComment: CommentItem = {
@@ -227,7 +246,7 @@ export default function MuralPage() {
 
     const previousPosts = posts;
     setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, comments: [...p.comments, optimisticComment] } : p)),
+      prev.map((p) => (p.id === postId ? { ...p, comments: [...p.comments, optimisticComment], comments_count: p.comments_count + 1 } : p)),
     );
 
     try {
@@ -252,7 +271,7 @@ export default function MuralPage() {
     const previousPosts = posts;
     setPosts((prev) =>
       prev.map((p) =>
-        p.id === postId ? { ...p, comments: p.comments.filter((c) => c.id !== commentId) } : p,
+        p.id === postId ? { ...p, comments: p.comments.filter((c) => c.id !== commentId), comments_count: Math.max(0, p.comments_count - 1) } : p,
       ),
     );
 
@@ -497,6 +516,7 @@ export default function MuralPage() {
                   isAdmin={me.is_admin}
                   onReact={handleReact}
                   onAddComment={handleAddComment}
+                  onLoadComments={handleLoadComments}
                   onDeleteComment={handleDeleteComment}
                   onToggleCommentLike={handleToggleCommentLike}
                   onEditPost={(p) => {
@@ -519,6 +539,13 @@ export default function MuralPage() {
           ))}
 
           <div ref={sentinelRef} className="h-6" />
+          {pageError && (
+            <div className="px-5 pb-5 text-center">
+              <p className="mb-2 text-sm text-marfim-2">{pageError}</p>
+              <button type="button" className="btn btn-ghost" disabled={loadingMore}
+                onClick={() => void loadMorePosts()}>Tentar de novo</button>
+            </div>
+          )}
 
           {loadingMore && (
             <div className="flex justify-center py-6">

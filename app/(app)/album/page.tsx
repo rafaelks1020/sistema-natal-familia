@@ -169,6 +169,8 @@ export default function AlbumPage() {
   const [items, setItems] = useState<AlbumItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const pageRequestRef = useRef(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [filter, setFilter] = useState<FilterKind>('tudo');
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -180,6 +182,9 @@ export default function AlbumPage() {
 
   const fetchPage = useCallback(
     async (cursor?: string | null) => {
+      if (pageRequestRef.current) return;
+      pageRequestRef.current = true;
+      setPageError(null);
       const isFirst = !cursor;
       if (isFirst) {
         setLoading(true);
@@ -198,8 +203,10 @@ export default function AlbumPage() {
         });
         setNextCursor(data.nextCursor);
       } catch (err) {
+        setPageError((err as Error).message || 'Não foi possível carregar o álbum.');
         toast((err as Error).message || 'Não foi possível carregar o álbum.', 'erro');
       } finally {
+        pageRequestRef.current = false;
         setLoading(false);
         setLoadingMore(false);
       }
@@ -214,11 +221,12 @@ export default function AlbumPage() {
   // Carregamento infinito com IntersectionObserver
   useEffect(() => {
     const node = sentinelRef.current;
-    if (!node || !nextCursor || loading || loadingMore) return;
+    if (!node || !nextCursor || loading || loadingMore || pageError) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting && nextCursor && !loadingMore) {
+          observer.disconnect();
           void fetchPage(nextCursor);
         }
       },
@@ -227,7 +235,7 @@ export default function AlbumPage() {
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [nextCursor, loading, loadingMore, fetchPage]);
+  }, [nextCursor, loading, loadingMore, pageError, fetchPage]);
 
   const filteredItems = useMemo(() => {
     if (filter === 'tudo') return items;
@@ -469,9 +477,16 @@ export default function AlbumPage() {
               </div>
             )}
 
-            <div ref={sentinelRef} className="h-6 w-full" aria-hidden />
           </>
         )}
+        {pageError && (
+          <div className="py-4 text-center">
+            <p className="mb-2 text-sm text-marfim-2">{pageError}</p>
+            <button type="button" className="btn btn-ghost" disabled={loading || loadingMore}
+              onClick={() => void fetchPage(nextCursor)}>Tentar de novo</button>
+          </div>
+        )}
+        <div ref={sentinelRef} className="h-6 w-full" aria-hidden />
       </section>
 
       {/* Visualizador em tela cheia (fundo carvão 96%) */}

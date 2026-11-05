@@ -6,7 +6,8 @@ import { X, UsersRound } from 'lucide-react';
 export interface FamilyMember {
   id: number | null;
   name: string;
-  username: string | null;
+  username?: string | null;
+  can_link?: boolean;
   avatar_url: string | null;
   bio: string | null;
   is_admin: boolean;

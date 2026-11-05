@@ -434,7 +434,14 @@ export default function VaquinhaPage() {
                                     ring={p.paid}
                                   />
                                   <div className="min-w-0">
-                                    <p className="truncate font-medium text-marfim">{p.name}</p>
+                                    <p className="flex min-w-0 items-center gap-2">
+                                      <span className="truncate font-medium text-marfim">{p.name}</span>
+                                      {p.pix && (
+                                        <span className="shrink-0 rounded-full border border-champagne/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-champagne">
+                                          Pix
+                                        </span>
+                                      )}
+                                    </p>
                                     <p className="mt-0.5 text-xs text-marfim-3">
                                       {p.paid
                                         ? paidDateText

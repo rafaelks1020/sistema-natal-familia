@@ -12,6 +12,8 @@ export interface Receiver {
 }
 
 export interface SantaResponse {
+  can_reveal: boolean;
+  reveal_opens_at: string | null;
   config: SantaConfig | null;
   participating: boolean;
   draw: { revealed: boolean; receiver?: Receiver } | null;

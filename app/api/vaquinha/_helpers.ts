@@ -5,6 +5,8 @@ export interface VaquinhaParticipant {
   paid_date: string | null;
   user_id: number | null;
   avatar_url: string | null;
+  /** Há payment PAID: a baixa foi pelo Pix e não pode ser desmarcada. */
+  pix: boolean;
 }
 
 export interface VaquinhaPurchase {

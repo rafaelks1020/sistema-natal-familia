@@ -76,7 +76,7 @@ export default function AmigoOcultoPage() {
   } else if (!santa.participating || !santa.draw) {
     main = <NotInDraw linked={me.participant_id != null} />;
   } else if (!santa.draw.revealed || !santa.draw.receiver) {
-    main = <Ticket config={santa.config} onDone={onRevealed} />;
+    main = <Ticket key={santa.config.id} config={santa.config} canReveal={santa.can_reveal} revealOpensAt={santa.reveal_opens_at} onDone={onRevealed} />;
   } else {
     main = <Result config={santa.config} receiver={santa.draw.receiver} forceShow={justRevealed} />;
   }

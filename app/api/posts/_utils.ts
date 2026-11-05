@@ -1,4 +1,4 @@
-import { HttpError } from '@/app/lib/api';
+import { HttpError, isBlobUrl } from '@/app/lib/api';
 
 const MAX_IMAGES = 6;
 
@@ -9,7 +9,7 @@ export function parsePostImages(imageUrlsRaw: unknown, imageUrlSingle: unknown):
       const parsed = JSON.parse(imageUrlsRaw);
       if (Array.isArray(parsed)) {
         for (const item of parsed) {
-          if (typeof item === 'string' && item.trim() && !out.includes(item.trim())) {
+          if (typeof item === 'string' && isBlobUrl(item.trim()) && !out.includes(item.trim())) {
             out.push(item.trim());
           }
         }
@@ -20,7 +20,7 @@ export function parsePostImages(imageUrlsRaw: unknown, imageUrlSingle: unknown):
   }
   if (typeof imageUrlSingle === 'string' && imageUrlSingle.trim()) {
     const single = imageUrlSingle.trim();
-    if (!out.includes(single)) {
+    if (isBlobUrl(single) && !out.includes(single)) {
       out.unshift(single);
     }
   }
@@ -41,8 +41,8 @@ export function validateImagesInput(raw: unknown): string[] {
       throw new HttpError(400, 'URL de foto inválida.');
     }
     const url = item.trim();
-    if (!url.startsWith('https://')) {
-      throw new HttpError(400, 'As fotos precisam ter endereço seguro (https://).');
+    if (!isBlobUrl(url)) {
+      throw new HttpError(400, 'Use uma foto enviada pelo aplicativo.');
     }
     if (url.length > 1000) {
       throw new HttpError(400, 'URL de foto muito longa.');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Heart,
@@ -36,6 +36,7 @@ interface Props {
   isAdmin: boolean;
   onReact: (postId: number, type: ReactionType) => void;
   onAddComment: (postId: number, content: string) => Promise<void>;
+  onLoadComments: (postId: number) => Promise<boolean>;
   onDeleteComment: (postId: number, commentId: number) => void;
   onToggleCommentLike: (postId: number, commentId: number) => void;
   onEditPost: (post: PostItem) => void;
@@ -49,6 +50,7 @@ export default function PostCard({
   isAdmin,
   onReact,
   onAddComment,
+  onLoadComments,
   onDeleteComment,
   onToggleCommentLike,
   onEditPost,
@@ -57,6 +59,9 @@ export default function PostCard({
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showAllComments, setShowAllComments] = useState(false);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [commentBursts, setCommentBursts] = useState<Set<number>>(() => new Set());
+  const commentTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const [commentText, setCommentText] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
@@ -112,8 +117,51 @@ export default function PostCard({
     }
   }
 
-  const totalComments = post.comments.length;
-  const visibleComments = showAllComments ? post.comments : post.comments.slice(-2);
+  useEffect(() => {
+    const timers = commentTimers.current;
+    return () => { timers.forEach(clearTimeout); };
+  }, []);
+
+  async function toggleComments() {
+    if (loadingComments) return;
+    if (showAllComments) {
+      setShowAllComments(false);
+      return;
+    }
+    setLoadingComments(true);
+    try {
+      if (await onLoadComments(post.id)) setShowAllComments(true);
+    } finally {
+      setLoadingComments(false);
+    }
+  }
+
+  function toggleCommentLike(commentId: number, liked: boolean) {
+    const previousTimer = commentTimers.current.get(commentId);
+    if (previousTimer) clearTimeout(previousTimer);
+    setCommentBursts((prev) => {
+      const next = new Set(prev);
+      if (liked) next.delete(commentId);
+      else next.add(commentId);
+      return next;
+    });
+    if (!liked) {
+      commentTimers.current.set(commentId, setTimeout(() => {
+        setCommentBursts((prev) => {
+          const next = new Set(prev);
+          next.delete(commentId);
+          return next;
+        });
+        commentTimers.current.delete(commentId);
+      }, 1000));
+    } else {
+      commentTimers.current.delete(commentId);
+    }
+    onToggleCommentLike(post.id, commentId);
+  }
+
+  const totalComments = post.comments_count;
+  const visibleComments = showAllComments ? post.comments : post.comments.slice(-3);
 
   return (
     <article id={`post-${post.id}`} className="py-5">
@@ -357,13 +405,14 @@ export default function PostCard({
 
       {/* Comentários */}
       <div className="mt-1 px-5">
-        {totalComments > 2 && (
+        {(totalComments > 3 || totalComments > post.comments.length || showAllComments) && (
           <button
             type="button"
-            onClick={() => setShowAllComments((v) => !v)}
+            onClick={() => void toggleComments()}
+            disabled={loadingComments}
             className="mb-2 text-xs font-medium text-marfim-3 hover:text-marfim-2"
           >
-            {showAllComments
+            {loadingComments ? 'Carregando comentários...' : showAllComments
               ? 'Mostrar menos comentários'
               : `Ver todos os ${totalComments} comentários`}
           </button>
@@ -403,17 +452,25 @@ export default function PostCard({
                   </div>
                   <button
                     type="button"
-                    onClick={() => onToggleCommentLike(post.id, c.id)}
+                    onClick={() => toggleCommentLike(c.id, c.liked_by_me)}
+                    disabled={c.id < 0}
+                    aria-pressed={c.liked_by_me}
                     aria-label="Curtir comentário"
                     className={`flex h-9 min-w-[36px] shrink-0 items-center justify-end gap-1 text-xs ${
                       c.liked_by_me ? 'text-cereja' : 'text-marfim-3 hover:text-marfim-2'
                     }`}
                   >
-                    <Heart
-                      size={14}
-                      strokeWidth={1.5}
-                      className={c.liked_by_me ? 'fill-cereja text-cereja' : ''}
-                    />
+                    <span className="relative inline-flex items-center justify-center">
+                      <Heart size={14} strokeWidth={1.5}
+                        className={c.liked_by_me ? 'fill-cereja text-cereja' : ''} />
+                      {commentBursts.has(c.id) && (
+                        <span className="pointer-events-none absolute flex items-center justify-center" aria-hidden>
+                          <LoopMedia name="mn-curtida-comentario" once
+                            className="h-8 w-8 mix-blend-screen"
+                            fallback={<Heart size={14} strokeWidth={1.5} className="pop fill-cereja text-cereja" />} />
+                        </span>
+                      )}
+                    </span>
                     {c.likes > 0 && <span className="numeral">{c.likes}</span>}
                   </button>
                 </div>

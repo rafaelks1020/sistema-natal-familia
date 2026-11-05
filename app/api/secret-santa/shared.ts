@@ -95,3 +95,13 @@ export async function loadMyDraw(participantId: number, configId: number): Promi
     },
   };
 }
+
+/** A abertura considera o dia civil de São Paulo, sem depender do fuso do servidor. */
+export function canReveal(config: SantaConfig | null, now = new Date()): boolean {
+  if (!config) return false;
+  if (!config.reveal_date) return true;
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(now);
+  return today >= config.reveal_date;
+}

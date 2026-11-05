@@ -54,9 +54,13 @@ function SealBreak({ onDone }: { onDone: () => void }) {
 
 export default function Ticket({
   config,
+  canReveal,
+  revealOpensAt,
   onDone,
 }: {
   config: SantaConfig;
+  canReveal: boolean;
+  revealOpensAt: string | null;
   onDone: (receiver: Receiver) => void;
 }) {
   const toast = useToast();
@@ -99,7 +103,7 @@ export default function Ticket({
   }, [phase]);
 
   async function start() {
-    if (starting.current || phase !== 'sealed') return;
+    if (!canReveal || starting.current || phase !== 'sealed') return;
     starting.current = true;
     cancelled.current = false;
     animRef.current = false;
@@ -123,7 +127,7 @@ export default function Ticket({
   }
 
   function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
-    if (phase !== 'sealed') return;
+    if (!canReveal || phase !== 'sealed') return;
     e.currentTarget.setPointerCapture(e.pointerId);
     drag.current = { x: e.clientX, y: e.clientY, active: true };
     setGlide(false);
@@ -153,7 +157,7 @@ export default function Ticket({
   }
 
   const dist = Math.hypot(pos.x, pos.y);
-  const when = diaLongo(config.reveal_date);
+  const when = diaLongo(revealOpensAt ?? config.reveal_date);
   const texture = {
     backgroundImage: `
       radial-gradient(ellipse at 50% 38%, rgba(191,165,119,0.16), transparent 58%),
@@ -188,8 +192,9 @@ export default function Ticket({
           <div className="flex flex-1 flex-col items-center justify-center py-6">
             <div
               role="button"
-              tabIndex={0}
-              aria-label="Arraste o selo para revelar"
+              tabIndex={canReveal ? 0 : -1}
+              aria-disabled={!canReveal}
+              aria-label={canReveal ? "Arraste o selo para revelar" : `A revelação abre em ${when}`}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
@@ -200,7 +205,7 @@ export default function Ticket({
                   void start();
                 }
               }}
-              className="flex h-28 w-28 cursor-grab touch-none items-center justify-center rounded-full border border-champagne bg-champagne/10 active:cursor-grabbing focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-champagne"
+              className={`flex h-28 w-28 items-center justify-center rounded-full border border-champagne bg-champagne/10 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-champagne ${canReveal ? 'cursor-grab touch-none active:cursor-grabbing' : 'cursor-not-allowed opacity-50'}`}
               style={{
                 transform: `translate(${pos.x}px, ${pos.y}px) rotate(${pos.x * 0.06}deg)`,
                 transition: glide ? 'transform 0.6s var(--ease-cine)' : 'none',
@@ -209,15 +214,15 @@ export default function Ticket({
               <SealMark />
             </div>
             <p className="mt-5 text-sm text-marfim-2">
-              {dist > 72 ? 'Solte para revelar' : 'Arraste para revelar'}
+              {!canReveal ? 'Aguarde a data para revelar seu amigo oculto.' : dist > 72 ? 'Solte para revelar' : 'Arraste para revelar'}
             </p>
           </div>
 
           <div className="border-t border-dashed border-champagne/35 pt-4 text-center">
             <p className="kicker">Natal em família</p>
-            {when && <p className="mt-2 text-sm text-marfim-2">Data combinada: {when}</p>}
-            <button type="button" className="btn btn-ghost mt-4 w-full" onClick={() => void start()}>
-              Revelar
+            {when && <p className="mt-2 text-sm text-marfim-2">{canReveal ? 'Data combinada:' : 'Abre em'} {when}</p>}
+            <button type="button" className="btn btn-ghost mt-4 w-full" disabled={!canReveal} onClick={() => void start()}>
+              {canReveal ? 'Revelar' : 'Revelação bloqueada'}
             </button>
           </div>
         </div>

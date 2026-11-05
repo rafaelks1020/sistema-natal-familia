@@ -126,6 +126,7 @@ export default function ComposerSheet({
             reactions: editingPost.reactions,
             my_reactions: editingPost.my_reactions,
             comments: editingPost.comments,
+            comments_count: editingPost.comments_count,
           },
           true,
         );

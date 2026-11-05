@@ -38,7 +38,8 @@ export const GET = route(async (req) => {
        p.updated_at,
        COALESCE(r.reactions, '{}'::jsonb) AS reactions,
        COALESCE(mr.my_reactions, '[]'::jsonb) AS my_reactions,
-       COALESCE(c.comments, '[]'::jsonb) AS comments
+       COALESCE(c.comments, '[]'::jsonb) AS comments,
+       (SELECT COUNT(*)::int FROM family_post_comments WHERE post_id = p.id) AS comments_count
      FROM family_posts p
      JOIN family_users u ON u.id = p.user_id
      LEFT JOIN LATERAL (
@@ -69,7 +70,12 @@ export const GET = route(async (req) => {
          )
          ORDER BY cm.created_at ASC, cm.id ASC
        ) AS comments
-       FROM family_post_comments cm
+       FROM (
+         SELECT * FROM family_post_comments
+         WHERE post_id = p.id
+         ORDER BY created_at DESC, id DESC
+         LIMIT 3
+       ) cm
        JOIN family_users cu ON cu.id = cm.user_id
        LEFT JOIN LATERAL (
          SELECT
@@ -100,6 +106,7 @@ export const GET = route(async (req) => {
     reactions: (row.reactions ?? {}) as Record<string, number>,
     my_reactions: Array.isArray(row.my_reactions) ? (row.my_reactions as string[]) : [],
     comments: Array.isArray(row.comments) ? row.comments : [],
+    comments_count: Number(row.comments_count),
   }));
 
   return ok(posts);
@@ -144,6 +151,7 @@ export const POST = route(async (req) => {
       reactions: {},
       my_reactions: [],
       comments: [],
+      comments_count: 0,
     },
     201,
   );

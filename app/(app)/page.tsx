@@ -162,17 +162,23 @@ export default function InicioPage() {
           </div>
         </section>
 
-        <section className="relative" aria-labelledby="attendance-title">
-          <div className="mb-5 flex items-center gap-3"><Users className="text-champagne" size={20} strokeWidth={1.5} /><h2 id="attendance-title" className="display text-[1.8rem]">Você vai à ceia?</h2></div>
-          <div className="grid grid-cols-3 gap-2" aria-busy={busy}>
-            {(['yes', 'maybe', 'no'] as const).map((status, i) => <button key={status} onClick={() => void respond(status)} disabled={busy} aria-pressed={attendance.mine === status} className={`btn px-2 ${attendance.mine === status ? 'btn-primary' : 'btn-ghost'}`}>{attendance.mine === status && <Check size={16} strokeWidth={1.5} />}{['Vou', 'Talvez', 'Não'][i]}</button>)}
-          </div>
-          <div className="mt-5 flex flex-wrap items-center gap-3" aria-live="polite">
-            {confirmed.length > 0 && <div className="flex -space-x-2">{confirmed.slice(0, 5).map((person) => <Avatar key={person.participant_id} name={person.name} src={person.avatar_url} size={30} className="ring-2 ring-carvao" />)}</div>}
-            <p className="text-xs leading-relaxed text-marfim-2">{attendance.counts.yes === 0 ? 'A mesa está esperando pela família.' : `${attendance.counts.yes} ${attendance.counts.yes === 1 ? 'pessoa confirmada' : 'pessoas confirmadas'}${confirmed.length > 5 ? `, e mais ${confirmed.length - 5} nessa roda` : ''}`}</p>
-          </div>
+        <div className="relative">
+          <section className="relative overflow-hidden rounded-[18px]" aria-labelledby="attendance-title">
+            <LoopMedia name="mn-ceia" className="absolute inset-0 h-full w-full opacity-25" fallback={<Bokeh dim />} />
+            <div className="pointer-events-none absolute inset-0 bg-carvao/70" aria-hidden />
+            <div className="relative">
+              <div className="mb-5 flex items-center gap-3"><Users className="text-champagne" size={20} strokeWidth={1.5} /><h2 id="attendance-title" className="display text-[1.8rem]">Você vai à ceia?</h2></div>
+              <div className="grid grid-cols-3 gap-2" aria-busy={busy}>
+                {(['yes', 'maybe', 'no'] as const).map((status, i) => <button key={status} onClick={() => void respond(status)} disabled={busy} aria-pressed={attendance.mine === status} className={`btn px-2 ${attendance.mine === status ? 'btn-primary' : 'btn-ghost'}`}>{attendance.mine === status && <Check size={16} strokeWidth={1.5} />}{['Vou', 'Talvez', 'Não'][i]}</button>)}
+              </div>
+              <div className="mt-5 flex flex-wrap items-center gap-3" aria-live="polite">
+                {confirmed.length > 0 && <div className="flex -space-x-2">{confirmed.slice(0, 5).map((person) => <Avatar key={person.participant_id} name={person.name} src={person.avatar_url} size={30} className="ring-2 ring-carvao" />)}</div>}
+                <p className="text-xs leading-relaxed text-marfim-2">{attendance.counts.yes === 0 ? 'A mesa está esperando pela família.' : `${attendance.counts.yes} ${attendance.counts.yes === 1 ? 'pessoa confirmada' : 'pessoas confirmadas'}${confirmed.length > 5 ? `, e mais ${confirmed.length - 5} nessa roda` : ''}`}</p>
+              </div>
+            </div>
+          </section>
           {celebrate && <div role="status" className="rise pointer-events-none absolute -top-20 right-0 z-20 h-28 w-36 overflow-hidden rounded-2xl border border-champagne/30 bg-carvao-2"><LoopMedia name="mn-brinde" once className="h-full w-full" fallback={<div className="flex h-full flex-col items-center justify-center gap-2 text-champagne"><Wine size={32} strokeWidth={1.5} /><span className="text-xs">Vamos brindar!</span></div>} /></div>}
-        </section>
+        </div>
 
         <div className="rule" />
         <Link href="/vaquinha" className="block rounded-lg focus-visible:outline-2 focus-visible:outline-champagne">

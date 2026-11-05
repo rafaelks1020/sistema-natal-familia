@@ -1,4 +1,4 @@
-import { cleanText, HttpError, ok, readJson, requireUser, route } from '@/app/lib/api';
+import { cleanText, HttpError, isBlobUrl, ok, readJson, requireUser, route } from '@/app/lib/api';
 import { transaction } from '@/app/lib/db';
 
 export const PUT = route(async (req) => {
@@ -11,11 +11,8 @@ export const PUT = route(async (req) => {
     if (!(key in body)) continue;
     if (typeof body[key] !== 'string') throw new HttpError(400, `Campo ${key} inválido.`);
     const value = cleanText(body[key], key === 'name' ? 'nome' : key === 'bio' ? 'bio' : 'foto', key === 'bio' ? 160 : key === 'name' ? 120 : 2048, key === 'name');
-    if (key === 'avatar_url' && value) {
-      try {
-        const url = new URL(value);
-        if (!value.startsWith('https://') || url.protocol !== 'https:') throw new Error();
-      } catch { throw new HttpError(400, 'A foto precisa de uma URL https válida.'); }
+    if (key === 'avatar_url' && value && !isBlobUrl(value)) {
+      throw new HttpError(400, 'Escolha uma foto enviada pelo aplicativo.');
     }
     values.push(value || null);
     fields.push(`${key} = $${values.length}`);

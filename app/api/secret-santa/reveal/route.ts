@@ -1,6 +1,6 @@
 import { HttpError, ok, requireUser, route } from '@/app/lib/api';
-import { query } from '@/app/lib/db';
-import { Receiver } from '../shared';
+import { transaction } from '@/app/lib/db';
+import { canReveal, mapConfig, Receiver } from '../shared';
 
 // POST /api/secret-santa/reveal
 // Marca o sorteio de quem está logado (revealed_at na primeira vez) e devolve o receiver.
@@ -20,34 +20,37 @@ export const POST = route(async () => {
     throw new HttpError(400, 'Sua conta ainda não está na lista da família.');
   }
 
-  const { rows } = await query<RevealRow>(
-    `WITH active AS (
-       SELECT id FROM secret_santa_config
-        WHERE is_active IS TRUE
-        ORDER BY created_at DESC, id DESC
-        LIMIT 1
-     ),
-     upd AS (
-       UPDATE secret_santa_draws d
-          SET revealed = true,
-              revealed_at = COALESCE(d.revealed_at, NOW())
-        WHERE d.config_id = (SELECT id FROM active)
-          AND d.giver_id = $1
-        RETURNING d.receiver_id
-     )
-     SELECT r.id AS participant_id, r.name, u.avatar_url
-       FROM upd
-       JOIN participants r ON r.id = upd.receiver_id
-       LEFT JOIN family_users u ON u.id = r.user_id`,
-    [me.participant_id],
-  );
-
-  const row = rows[0];
-  if (!row) {
-    const active = await query('SELECT 1 FROM secret_santa_config WHERE is_active IS TRUE LIMIT 1');
-    if (!active.rows.length) throw new HttpError(404, 'Não há sorteio ativo.');
-    throw new HttpError(404, 'Você não está neste sorteio.');
-  }
+  const row = await transaction(async (q) => {
+    await q('SELECT pg_advisory_xact_lock(714203)');
+    const active = await q<{
+      id: number; min_gift_value: unknown; max_gift_value: unknown; reveal_date: string | null;
+    }>(
+      `SELECT id, min_gift_value, max_gift_value,
+              to_char(reveal_date, 'YYYY-MM-DD') AS reveal_date
+         FROM secret_santa_config WHERE is_active IS TRUE
+        ORDER BY created_at DESC, id DESC LIMIT 1`,
+    );
+    if (!active.rows[0]) throw new HttpError(404, 'Não há sorteio ativo.');
+    const config = mapConfig(active.rows[0]);
+    if (!canReveal(config)) {
+      const [, month, day] = config.reveal_date!.split('-');
+      throw new HttpError(403, `A revelação abre em ${day}/${month}.`);
+    }
+    const { rows } = await q<RevealRow>(
+      `WITH upd AS (
+         UPDATE secret_santa_draws
+            SET revealed = true, revealed_at = COALESCE(revealed_at, NOW())
+          WHERE config_id = $1 AND giver_id = $2
+          RETURNING receiver_id
+       )
+       SELECT r.id AS participant_id, r.name, u.avatar_url
+         FROM upd JOIN participants r ON r.id = upd.receiver_id
+         LEFT JOIN family_users u ON u.id = r.user_id`,
+      [config.id, me.participant_id],
+    );
+    if (!rows[0]) throw new HttpError(404, 'Você não está neste sorteio.');
+    return rows[0];
+  });
 
   const receiver: Receiver = {
     participant_id: row.participant_id,

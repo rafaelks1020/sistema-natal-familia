@@ -70,7 +70,7 @@ export default function Organize({ onChanged }: { onChanged: () => void }) {
   const [p1, setP1] = useState(0);
   const [p2, setP2] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [ask, setAsk] = useState<'draw' | 'cancel' | null>(null);
+  const [ask, setAsk] = useState<'draw' | 'force' | 'cancel' | null>(null);
 
   useEffect(() => {
     if (!open || data) return;
@@ -124,13 +124,14 @@ export default function Organize({ onChanged }: { onChanged: () => void }) {
   const maxN = parseBrMoney(max);
   const ready = picked.length >= 3 && minN != null && maxN != null && minN <= maxN;
 
-  async function draw() {
+  async function draw(force = false) {
     setBusy(true);
     try {
       await api<{ config: SantaConfig }>('/api/secret-santa/admin', {
         method: 'POST',
         json: {
           action: 'draw',
+          force,
           participant_ids: picked,
           min_gift_value: minN,
           max_gift_value: maxN,
@@ -144,8 +145,13 @@ export default function Organize({ onChanged }: { onChanged: () => void }) {
       setRules([]);
       onChanged();
     } catch (err) {
-      toast((err as Error).message, 'erro');
-      setAsk(null);
+      const message = (err as Error).message;
+      if (message === 'Já tem gente que viu quem tirou. Para refazer mesmo assim, confirme.') {
+        setAsk('force');
+      } else {
+        toast(message, 'erro');
+        setAsk(null);
+      }
     } finally {
       setBusy(false);
     }
@@ -317,10 +323,20 @@ export default function Organize({ onChanged }: { onChanged: () => void }) {
       {ask === 'draw' && (
         <Confirm
           title="Fazer o sorteio?"
-          body={`Entram ${picked.length} pessoas. Presentes de ${faixa(minN, maxN) ?? 'valor combinado'}. Se já existe um sorteio, ele deixa de valer. Cada um só descobre o próprio nome, e você também. A lista de desejos deste sorteio começa vazia.`}
+          body={`Entram ${picked.length} pessoas. Presentes de ${faixa(minN, maxN) ?? 'valor combinado'}. Se já existe um sorteio, ele deixa de valer. Cada um só descobre o próprio nome, e você também. Os desejos de quem continuar no sorteio serão mantidos, sem compras marcadas.`}
           confirmLabel="Sortear agora"
           busy={busy}
-          onConfirm={() => void draw()}
+          onConfirm={() => { if (opened > 0) setAsk('force'); else void draw(); }}
+          onClose={() => { if (!busy) setAsk(null); }}
+        />
+      )}
+      {ask === 'force' && (
+        <Confirm
+          title="Refazer mesmo assim?"
+          body="Já tem gente que viu quem tirou. Para refazer mesmo assim, confirme. Os pares anteriores deixam de valer e todos precisarão revelar novamente."
+          confirmLabel="Confirmo: refazer mesmo assim"
+          busy={busy}
+          onConfirm={() => void draw(true)}
           onClose={() => { if (!busy) setAsk(null); }}
         />
       )}

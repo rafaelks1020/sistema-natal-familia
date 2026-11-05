@@ -5,16 +5,11 @@ import { Check, ExternalLink, Eye, EyeOff } from 'lucide-react';
 import Avatar from '@/app/ui/Avatar';
 import { api } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
-import { faixa } from './format';
+import { faixa, storeLink } from './format';
 import Stars from './Stars';
 import type { Receiver, SantaConfig, WishItem, WishResponse } from './types';
 
 const HIDE_KEY = 'nf-ocultar-nome';
-
-function safeUrl(url: string | null): string | null {
-  if (!url || !url.startsWith('https://')) return null;
-  return url;
-}
 
 export default function Result({
   config,
@@ -141,7 +136,7 @@ export default function Result({
       ) : (
         <ul>
           {items.map((item) => {
-            const href = safeUrl(item.item_url);
+            const link = storeLink(item.item_url);
             const bought = item.purchased === true;
             return (
               <li key={item.id} className={`flex items-start gap-3 border-t border-linha py-4 ${bought ? 'opacity-60' : ''}`}>
@@ -151,14 +146,14 @@ export default function Result({
                   {item.item_description && (
                     <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-marfim-2">{item.item_description}</p>
                   )}
-                  {href && (
+                  {link && (
                     <a
-                      href={href}
+                      href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-sm text-marfim underline decoration-cereja underline-offset-4"
+                      className="mt-1 inline-flex min-h-11 max-w-full break-all items-center gap-1.5 text-sm text-marfim underline decoration-cereja underline-offset-4"
                     >
-                      <ExternalLink size={15} strokeWidth={1.5} /> Ver na loja
+                      <ExternalLink size={15} strokeWidth={1.5} /> {link.domain}
                     </a>
                   )}
                 </div>

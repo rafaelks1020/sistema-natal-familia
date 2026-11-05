@@ -189,6 +189,19 @@ export const POST = route(async (req) => {
     if (still.rows.length !== ids.length) {
       throw new HttpError(400, 'Alguma pessoa saiu da lista. Tente de novo.');
     }
+    const previous = await q<{ id: number }>(
+      'SELECT id FROM secret_santa_config ORDER BY created_at DESC, id DESC LIMIT 1',
+    );
+    const previousId = previous.rows[0]?.id ?? null;
+    if (previousId && body.force !== true) {
+      const opened = await q(
+        'SELECT 1 FROM secret_santa_draws WHERE config_id = $1 AND revealed IS TRUE LIMIT 1',
+        [previousId],
+      );
+      if (opened.rows.length) {
+        throw new HttpError(409, 'Já tem gente que viu quem tirou. Para refazer mesmo assim, confirme.');
+      }
+    }
     await q('UPDATE secret_santa_config SET is_active = false WHERE is_active IS TRUE');
     const created = await q<{
       id: number;
@@ -214,6 +227,25 @@ export const POST = route(async (req) => {
         [row.id, draw.giver_id, draw.receiver_id, token],
       );
     }
+    if (previousId) {
+      // Uma nova distribuição de pares começa sem compras marcadas.
+      await q(
+        `INSERT INTO wish_list (participant_id, config_id, item_name, item_description, item_url, priority, purchased, created_at)
+         SELECT DISTINCT w.participant_id, $1, w.item_name, w.item_description, w.item_url, w.priority, false, w.created_at
+           FROM wish_list w
+          WHERE w.config_id = $2 AND w.participant_id = ANY($3::int[])
+            AND NOT EXISTS (
+              SELECT 1 FROM wish_list copied
+               WHERE copied.config_id = $1 AND copied.participant_id = w.participant_id
+                 AND copied.item_name = w.item_name
+                 AND copied.item_description IS NOT DISTINCT FROM w.item_description
+                 AND copied.item_url IS NOT DISTINCT FROM w.item_url
+                 AND copied.priority IS NOT DISTINCT FROM w.priority
+                 AND copied.created_at IS NOT DISTINCT FROM w.created_at
+            )`,
+        [row.id, previousId, ids],
+      );
+    }
     return mapConfig(row);
   });
 
@@ -222,6 +254,9 @@ export const POST = route(async (req) => {
 
 export const DELETE = route(async () => {
   await requireAdmin();
-  await query('UPDATE secret_santa_config SET is_active = false WHERE is_active IS TRUE');
+  await transaction(async (q) => {
+    await q('SELECT pg_advisory_xact_lock(714203)');
+    await q('UPDATE secret_santa_config SET is_active = false WHERE is_active IS TRUE');
+  });
   return ok({ ok: true });
 });

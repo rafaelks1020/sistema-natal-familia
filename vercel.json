@@ -1,5 +1,11 @@
 {
   "framework": "nextjs",
   "regions": ["gru1"],
-  "crons": [{ "path": "/api/cron/conciliar", "schedule": "0 12 * * *" }]
+  "crons": [{ "path": "/api/cron/conciliar", "schedule": "0 12 * * *" }],
+  "headers": [
+    {
+      "source": "/media/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800, stale-while-revalidate=2592000" }]
+    }
+  ]
 }

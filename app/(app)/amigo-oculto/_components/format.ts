@@ -27,3 +27,14 @@ export function parseBrMoney(value: string): number | null {
   if (!Number.isFinite(n) || n < 0) return null;
   return Math.round(n * 100) / 100;
 }
+
+export function storeLink(value: string | null): { href: string; domain: string } | null {
+  if (!value || value.length > 500) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:') return null;
+    return { href: url.href, domain: url.hostname };
+  } catch {
+    return null;
+  }
+}

@@ -24,10 +24,39 @@ export async function api<T = any>(path: string, init?: RequestInit & { json?: u
   return data as T;
 }
 
-/** Envia uma foto para /api/upload e devolve a URL pública. */
+/**
+ * Reduz a foto no próprio celular antes de enviar (lado maior 1600 px, JPEG 0,82).
+ * Foto de 8 MB vira ~300 KB: sobe rápido no 4G e o mural abre leve para todo mundo.
+ * Se o navegador não conseguir abrir o formato (ex.: HEIC fora do Safari), manda o original.
+ */
+async function comprimir(file: File, lado = 1600, qualidade = 0.82): Promise<File> {
+  if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const escala = Math.min(1, lado / Math.max(bmp.width, bmp.height));
+    if (escala === 1 && file.size < 900_000) {
+      bmp.close();
+      return file;
+    }
+    const w = Math.round(bmp.width * escala);
+    const h = Math.round(bmp.height * escala);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext('2d')?.drawImage(bmp, 0, 0, w, h);
+    bmp.close();
+    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', qualidade));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}
+
+/** Envia uma foto para /api/upload (já comprimida) e devolve a URL pública. */
 export async function uploadImage(file: File): Promise<string> {
   const form = new FormData();
-  form.append('file', file);
+  form.append('file', await comprimir(file));
   const { url } = await api<{ url: string }>('/api/upload', { method: 'POST', body: form });
   return url;
 }

@@ -6,7 +6,7 @@ export const GET = route<Context>(async (_req, { params }) => {
   const me = await requireUser();
   const id = toInt((await params).id);
   const { rows } = await query(`
-    SELECT u.id, u.name, u.avatar_url, u.bio, u.is_admin, p.id AS participant_id,
+    SELECT u.id, u.name${me.is_admin || id === me.id ? ", u.username" : ""}, u.avatar_url, u.bio, u.is_admin, p.id AS participant_id,
       (SELECT COUNT(*)::int FROM family_posts f WHERE f.user_id = u.id) AS posts_count,
       (SELECT COUNT(*)::int FROM family_post_reactions r JOIN family_posts f ON f.id = r.post_id
         WHERE f.user_id = u.id) AS reactions_received,

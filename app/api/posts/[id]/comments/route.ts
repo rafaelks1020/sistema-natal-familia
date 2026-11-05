@@ -5,6 +5,25 @@ import { HttpError, cleanText, ok, readJson, requireUser, route, toInt } from '@
 
 type ParamsCtx = { params: Promise<{ id: string }> };
 
+export const GET = route<ParamsCtx>(async (_req, { params }) => {
+  const me = await requireUser();
+  const postId = toInt((await params).id, 'id');
+  const post = await query('SELECT id FROM family_posts WHERE id = $1', [postId]);
+  if (!post.rows.length) throw new HttpError(404, 'Publicação não encontrada.');
+  const { rows } = await query(
+    `SELECT cm.id, cm.user_id, cu.name AS user_name, cu.avatar_url,
+            cm.content, cm.created_at,
+            (SELECT COUNT(*)::int FROM family_comment_likes WHERE comment_id = cm.id) AS likes,
+            EXISTS(SELECT 1 FROM family_comment_likes WHERE comment_id = cm.id AND user_id = $2) AS liked_by_me
+       FROM family_post_comments cm
+       JOIN family_users cu ON cu.id = cm.user_id
+      WHERE cm.post_id = $1
+      ORDER BY cm.created_at ASC, cm.id ASC`,
+    [postId, me.id],
+  );
+  return ok(rows);
+});
+
 export const POST = route<ParamsCtx>(async (req, { params }) => {
   const me = await requireUser();
   const { id } = await params;

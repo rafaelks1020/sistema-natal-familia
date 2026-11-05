@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import LoopMedia from '@/app/ui/LoopMedia';
 import { api } from '@/app/ui/client';
@@ -51,6 +51,32 @@ export default function EntrarPage() {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Convite por link: /entrar?convite=<token> abre direto no cadastro, sem código da família.
+  const [convite, setConvite] = useState<{ token: string; label: string; participant_name: string | null } | null>(null);
+  const [aviso, setAviso] = useState('');
+
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('convite');
+    if (!token) return;
+    let vivo = true;
+    api<{ valid: boolean; label?: string; participant_name?: string | null; reason?: string }>(
+      `/api/invites/check?t=${encodeURIComponent(token)}`,
+    )
+      .then((r) => {
+        if (!vivo) return;
+        if (r.valid) {
+          setConvite({ token, label: r.label ?? '', participant_name: r.participant_name ?? null });
+          setMode('register');
+          if (r.participant_name) setForm((f) => ({ ...f, name: r.participant_name ?? '' }));
+        } else {
+          setAviso(`${r.reason ?? 'Convite inválido.'} Peça um novo para quem organiza.`);
+        }
+      })
+      .catch(() => vivo && setAviso('Não deu para conferir o convite agora.'));
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -60,7 +86,7 @@ export default function EntrarPage() {
     setBusy(true);
     setError('');
     try {
-      await api('/api/auth', { method: 'POST', json: { action: mode, ...form } });
+      await api('/api/auth', { method: 'POST', json: { action: mode, ...form, invite: convite?.token } });
       window.location.href = '/';
     } catch (err) {
       setError((err as Error).message);
@@ -89,6 +115,16 @@ export default function EntrarPage() {
           </h1>
           <div className="mx-auto mt-5 h-px w-16 bg-cereja" />
         </div>
+
+        {convite && (
+          <div className="rise surface mb-4 px-4 py-3 text-center">
+            <p className="kicker mb-1">Você foi convidado</p>
+            <p className="text-sm text-marfim-2">
+              Convite <span className="text-marfim">{convite.label}</span>. Crie seu usuário e senha para entrar.
+            </p>
+          </div>
+        )}
+        {aviso && <p role="alert" className="rise mb-4 text-center text-sm text-[#ff8a8d]">{aviso}</p>}
 
         <form onSubmit={submit} className="rise space-y-3" style={{ animationDelay: '0.16s' }}>
           {mode === 'register' && (
@@ -131,7 +167,7 @@ export default function EntrarPage() {
               {show ? <EyeOff size={18} strokeWidth={1.5} /> : <Eye size={18} strokeWidth={1.5} />}
             </button>
           </div>
-          {mode === 'register' && (
+          {mode === 'register' && !convite && (
             <input
               className="field"
               placeholder="Código da família"

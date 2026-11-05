@@ -71,7 +71,9 @@ export function parseItemUrl(value: unknown): string | null {
     throw new HttpError(400, 'O link precisa começar com https://');
   }
   if (url.protocol !== 'https:') throw new HttpError(400, 'O link precisa começar com https://');
-  return url.toString();
+  const normalized = url.toString();
+  if (normalized.length > 500) throw new HttpError(400, 'O link passou de 500 caracteres.');
+  return normalized;
 }
 
 export function parseItemName(value: unknown): string {

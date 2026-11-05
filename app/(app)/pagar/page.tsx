@@ -33,8 +33,10 @@ interface Situacao {
   };
 }
 
-const ABERTO = (p: Payment | null) => !!p && !['PAID', 'CANCELED', 'CANCELLED', 'EXPIRED'].includes(p.status);
-const vencido = (p: Payment | null) => !!p?.due_date && p.due_date < new Date().toISOString().slice(0, 10);
+const ABERTO = (p: Payment | null) => !!p && !['PAID', 'CANCELED', 'CANCELLED', 'EXPIRED', 'SUBSTITUIDO'].includes(p.status);
+// Dia de hoje em Brasília (o vencimento do C6 é por dia de São Paulo, não UTC).
+const hojeSP = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+const vencido = (p: Payment | null) => !!p?.due_date && p.due_date < hojeSP();
 
 function fmtCpf(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 11);
@@ -48,6 +50,7 @@ export default function PagarPage() {
   const toast = useToast();
   const [s, setS] = useState<Situacao | null>(null);
   const [erro, setErro] = useState('');
+  const [trocando, setTrocando] = useState(false);
 
   const carregar = useCallback(async () => {
     try {
@@ -105,8 +108,11 @@ export default function PagarPage() {
       {s && (
         s.participant_paid ? <Pago s={s} /> :
         !s.enabled ? <Desligado valor={s.amount} /> :
-        aberto && !vencido(s.payment) ? <PixAberto p={s.payment!} onConferir={() => { pagoAgora.current = true; return carregar(); }} /> :
-        <Formulario s={s} onGerado={(p) => { pagoAgora.current = true; setS({ ...s, payment: p }); }} />
+        aberto && !vencido(s.payment) && !trocando ? (
+          <PixAberto p={s.payment!} onConferir={() => { pagoAgora.current = true; return carregar(); }} onTrocar={() => setTrocando(true)} />
+        ) : (
+          <Formulario s={s} onGerado={(p) => { pagoAgora.current = true; setTrocando(false); setS({ ...s, payment: p }); }} />
+        )
       )}
     </>
   );
@@ -161,7 +167,7 @@ function Pago({ s }: { s: Situacao }) {
   );
 }
 
-function PixAberto({ p, onConferir }: { p: Payment; onConferir: () => Promise<void> }) {
+function PixAberto({ p, onConferir, onTrocar }: { p: Payment; onConferir: () => Promise<void>; onTrocar: () => void }) {
   const toast = useToast();
   const [qr, setQr] = useState('');
   const [copiado, setCopiado] = useState(false);
@@ -241,6 +247,9 @@ function PixAberto({ p, onConferir }: { p: Payment; onConferir: () => Promise<vo
         <a href="/api/pagamento/pdf" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 underline decoration-linha-forte underline-offset-4">
           <FileText size={14} strokeWidth={1.5} /> Boleto em PDF
         </a>
+        <button onClick={onTrocar} className="underline decoration-linha-forte underline-offset-4">
+          Trocar o valor
+        </button>
       </div>
     </section>
   );
@@ -258,6 +267,9 @@ function Formulario({ s, onGerado }: { s: Situacao; onGerado: (p: Payment) => vo
     cidade: a.cidade ?? '',
     uf: a.uf ?? '',
   });
+  const sugestoes = [s.amount, s.amount * 2, s.amount * 3];
+  const [valor, setValor] = useState<number>(s.payment && s.payment.amount >= s.amount ? s.payment.amount : s.amount);
+  const [outro, setOutro] = useState('');
   const [busy, setBusy] = useState(false);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const numeroRef = useRef<HTMLInputElement>(null);
@@ -283,7 +295,8 @@ function Formulario({ s, onGerado }: { s: Situacao; onGerado: (p: Payment) => vo
     e.preventDefault();
     setBusy(true);
     try {
-      const r = await api<{ payment: Payment }>('/api/pagamento', { method: 'POST', json: f });
+      const r = await api<{ payment: Payment }>('/api/pagamento', { method: 'POST', json: { ...f, valor } });
+      setBusy(false);
       onGerado(r.payment);
     } catch (err) {
       toast((err as Error).message, 'erro');
@@ -298,8 +311,41 @@ function Formulario({ s, onGerado }: { s: Situacao; onGerado: (p: Payment) => vo
           <p className="kicker mb-1">Sua parte</p>
           <p className="text-sm text-marfim-2">Pix com confirmação automática</p>
         </div>
-        <p className="numeral text-4xl">{brl(s.amount)}</p>
+        <p className="numeral text-4xl">{brl(valor)}</p>
       </div>
+
+      <fieldset className="mb-6">
+        <legend className="mb-3 text-sm text-marfim-2">
+          Quanto você quer dar? <span className="text-marfim-3">(mínimo {brl(s.amount)})</span>
+        </legend>
+        <div className="grid grid-cols-4 gap-2">
+          {sugestoes.map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => { setValor(v); setOutro(''); }}
+              aria-pressed={valor === v && !outro}
+              className={`btn px-2 text-sm ${valor === v && !outro ? 'btn-primary' : 'btn-ghost'}`}
+            >
+              {brl(v).replace(',00', '')}
+            </button>
+          ))}
+          <input
+            className={`field px-3 text-center text-sm ${outro ? 'border-champagne' : ''}`}
+            inputMode="decimal"
+            placeholder="Outro"
+            aria-label="Outro valor"
+            value={outro}
+            onChange={(e) => {
+              const t = e.target.value.replace(/[^\d,]/g, '').slice(0, 8);
+              setOutro(t);
+              const n = Number(t.replace(',', '.'));
+              if (Number.isFinite(n) && n > 0) setValor(Math.round(n * 100) / 100);
+            }}
+          />
+        </div>
+        {valor < s.amount && <p className="mt-2 text-xs text-[#ff8a8d]">O mínimo é {brl(s.amount)}.</p>}
+      </fieldset>
 
       {vencido(s.payment) && <p className="mb-4 text-sm text-marfim-2">O Pix anterior venceu. Gere um novo abaixo.</p>}
 
@@ -333,8 +379,8 @@ function Formulario({ s, onGerado }: { s: Situacao; onGerado: (p: Payment) => vo
           <input className="field" placeholder="Cidade" value={f.cidade} onChange={set('cidade')} required />
           <input className="field uppercase" placeholder="UF" maxLength={2} value={f.uf} onChange={set('uf', (v) => v.toUpperCase().replace(/[^A-Z]/g, ''))} required />
         </div>
-        <button type="submit" disabled={busy} className="btn btn-primary mt-2 w-full">
-          {busy ? 'Gerando o Pix…' : `Gerar Pix de ${brl(s.amount)}`}
+        <button type="submit" disabled={busy || valor < s.amount} className="btn btn-primary mt-2 w-full">
+          {busy ? 'Gerando o Pix…' : `Gerar Pix de ${brl(valor)}`}
         </button>
         <p className="flex items-center justify-center gap-1.5 pt-1 text-xs text-marfim-3">
           <Lock size={12} strokeWidth={1.5} /> Pagamento pelo C6 Bank, confirmado direto com o banco

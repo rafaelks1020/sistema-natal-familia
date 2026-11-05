@@ -1,5 +1,5 @@
 import { query } from '@/app/lib/db';
-import { cleanText, HttpError, ok, readJson, requireAdmin, route, toInt } from '@/app/lib/api';
+import { cleanText, HttpError, isBlobUrl, ok, readJson, requireAdmin, route, toInt } from '@/app/lib/api';
 import { ALLOWED_CATEGORIES, parseImages, PurchaseCategory, roundMoney } from '../_helpers';
 
 function parseMoneyValue(raw: unknown): number {
@@ -38,8 +38,8 @@ function validateImages(raw: unknown): string[] {
       throw new HttpError(400, 'Endereço de foto inválido.');
     }
     const url = item.trim();
-    if (!url.startsWith('https://') || url.length > 600) {
-      throw new HttpError(400, 'As fotos precisam ter endereço https válido.');
+    if (!isBlobUrl(url)) {
+      throw new HttpError(400, 'As fotos precisam ser enviadas pelo aplicativo.');
     }
     urls.push(url);
   }

@@ -26,8 +26,9 @@ async function marcarPago(ref: string, valorPago: number | null): Promise<boolea
     const { rows } = await q<PaymentRow>('SELECT * FROM payments WHERE reference = $1 FOR UPDATE', [ref]);
     const p = rows[0];
     if (!p || p.status === 'PAID') return false;
-    if (valorPago != null && Math.abs(valorPago - Number(p.amount)) > 0.01) {
-      console.error(`[pagamentos] ${ref}: valor pago diverge do cobrado`);
+    // Só baixa com o valor confirmado pelo banco e igual ao cobrado.
+    if (valorPago == null || Math.abs(valorPago - Number(p.amount)) > 0.01) {
+      console.error(`[pagamentos] ${ref}: valor pago ausente ou diferente do cobrado`);
       return false;
     }
     await q(`UPDATE payments SET status = 'PAID', paid_at = NOW(), checked_at = NOW() WHERE id = $1`, [p.id]);
@@ -43,7 +44,13 @@ export async function atualizarPagamento(p: PaymentRow): Promise<PaymentRow> {
   if (boleto.status === 'PAID') {
     await marcarPago(p.reference, boleto.valor);
   } else {
-    await query('UPDATE payments SET status = $2, checked_at = NOW() WHERE id = $1', [p.id, boleto.status]);
+    // Nunca rebaixa um PAID (outra aba ou o cron podem ter baixado no meio).
+    // SUBSTITUIDO (a pessoa trocou o valor) continua sendo conferido, mas não volta a "aberto".
+    await query(
+      `UPDATE payments SET status = CASE WHEN status = 'SUBSTITUIDO' THEN status ELSE $2 END, checked_at = NOW()
+        WHERE id = $1 AND status <> 'PAID'`,
+      [p.id, boleto.status],
+    );
   }
   const { rows } = await query<PaymentRow>('SELECT * FROM payments WHERE id = $1', [p.id]);
   return rows[0];

@@ -24,6 +24,7 @@ export interface PostItem {
   reactions: Record<string, number>;
   my_reactions: string[];
   comments: CommentItem[];
+  comments_count: number;
 }
 
 export interface PollItem {

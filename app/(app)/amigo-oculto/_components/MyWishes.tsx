@@ -5,6 +5,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { api } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
 import Stars from './Stars';
+import { storeLink } from './format';
 import { sortWishes, type WishItem } from './types';
 
 const PRIORITY_LABEL = ['Seria legal', 'Quero', 'Quero muito'];
@@ -60,7 +61,7 @@ function Sheet({
       return;
     }
     const link = form.item_url.trim();
-    if (link && !link.startsWith('https://')) {
+    if (link && !storeLink(link)) {
       setError('O link precisa começar com https://');
       return;
     }
@@ -250,13 +251,20 @@ export default function MyWishes({
 
       {items.length > 0 && (
         <ul>
-          {items.map((item) => (
+          {items.map((item) => {
+            const link = storeLink(item.item_url);
+            return (
             <li key={item.id} className="flex items-start gap-2 border-t border-linha py-3">
               <span className="pt-1"><Stars n={item.priority} /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-marfim">{item.item_name}</p>
                 {item.item_description && (
                   <p className="mt-1 whitespace-pre-wrap text-sm text-marfim-2">{item.item_description}</p>
+                )}
+                {link && (
+                  <a href={link.href} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-11 max-w-full items-center break-all text-sm text-marfim underline decoration-cereja underline-offset-4">
+                    {link.domain}
+                  </a>
                 )}
               </div>
               {confirmId === item.id ? (
@@ -291,7 +299,8 @@ export default function MyWishes({
                 </div>
               )}
             </li>
-          ))}
+          );
+          })}
         </ul>
       )}
 

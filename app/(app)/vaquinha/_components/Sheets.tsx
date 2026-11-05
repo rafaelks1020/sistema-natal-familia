@@ -230,6 +230,7 @@ export function ParticipantActionSheet({
   if (!participant) return null;
 
   const nextPaid = !participant.paid;
+  const pixTravado = participant.pix && participant.paid;
 
   async function handleTogglePaid() {
     if (!participant) return;
@@ -285,6 +286,11 @@ export function ParticipantActionSheet({
             <div className="min-w-0">
               <p className="kicker">Cota {brl(contributionValue)}</p>
               <h2 className="display truncate text-2xl text-marfim">{participant.name}</h2>
+              {participant.pix && (
+                <span className="mt-1 inline-flex rounded-full border border-champagne/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-champagne">
+                  Pix
+                </span>
+              )}
             </div>
           </div>
           <button
@@ -297,32 +303,38 @@ export function ParticipantActionSheet({
           </button>
         </div>
 
-        <div className="mt-5 rounded-[16px] border border-linha bg-carvao p-4">
-          <p className="text-sm text-marfim-2">
-            {nextPaid
-              ? `Confirmar que ${participant.name} pagou a cota de ${brl(contributionValue)}?`
-              : `Marcar a contribuição de ${participant.name} como pendente?`}
-          </p>
-          <div className="mt-4 flex gap-2.5">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={busy}
-              className="btn btn-ghost flex-1"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={handleTogglePaid}
-              disabled={busy}
-              className="btn btn-primary flex-1"
-            >
-              <Check size={17} strokeWidth={1.5} />
-              {busy ? 'Salvando...' : nextPaid ? 'Confirmar pago' : 'Voltar pendente'}
-            </button>
+        {pixTravado ? (
+          <div className="mt-5 rounded-[16px] border border-linha bg-carvao p-4">
+            <p className="text-sm text-marfim-2">Pago pelo Pix: não dá para desmarcar.</p>
           </div>
-        </div>
+        ) : (
+          <div className="mt-5 rounded-[16px] border border-linha bg-carvao p-4">
+            <p className="text-sm text-marfim-2">
+              {nextPaid
+                ? `Confirmar que ${participant.name} pagou a cota de ${brl(contributionValue)}?`
+                : `Marcar a contribuição de ${participant.name} como pendente?`}
+            </p>
+            <div className="mt-4 flex gap-2.5">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={busy}
+                className="btn btn-ghost flex-1"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleTogglePaid}
+                disabled={busy}
+                className="btn btn-primary flex-1"
+              >
+                <Check size={17} strokeWidth={1.5} />
+                {busy ? 'Salvando...' : nextPaid ? 'Confirmar pago' : 'Voltar pendente'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {participant.user_id === null ? (
           <div className="mt-4 border-t border-linha pt-4">

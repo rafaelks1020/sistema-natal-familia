@@ -58,6 +58,20 @@ export function toInt(value: unknown, field = 'id'): number {
   return n;
 }
 
+/**
+ * Foto aceita só se veio do nosso upload (Vercel Blob). Link de outro site serviria de
+ * "pixel" para rastrear o IP de quem abre o mural.
+ */
+export function isBlobUrl(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 2048) return false;
+  try {
+    const u = new URL(value);
+    return u.protocol === 'https:' && u.hostname.endsWith('.public.blob.vercel-storage.com');
+  } catch {
+    return false;
+  }
+}
+
 export function cleanText(value: unknown, field: string, max = 2000, required = true): string {
   const s = typeof value === 'string' ? value.trim() : '';
   if (required && !s) throw new HttpError(400, `Preencha ${field}.`);
