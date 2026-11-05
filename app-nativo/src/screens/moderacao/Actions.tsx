@@ -5,12 +5,13 @@ import { api, sessionStore } from '../../api';
 import { Button } from '../../ui/Button';
 import { useToast } from '../../ui/Toast';
 
-export function ModerationActions({ userId, name, postId, commentId, onDone }: { userId: number; name: string; postId?: number; commentId?: number; onDone?: () => void }) {
+// alvoTipo/alvoId: conteúdos novos (receita, dica, carona...), tipos em app/lib/denuncias.ts do site.
+export function ModerationActions({ userId, name, postId, commentId, alvoTipo, alvoId, onDone }: { userId: number; name: string; postId?: number; commentId?: number; alvoTipo?: string; alvoId?: number; onDone?: () => void }) {
   const toast = useToast();
   const [reporting, setReporting] = useState(false);
   const mutation = useMutation({
     mutationFn: async (motivo: string | null) => {
-      await api(motivo === null ? '/api/blocks' : '/api/reports', { method: 'POST', json: motivo === null ? { user_id: userId } : { post_id: postId, comment_id: commentId, motivo } });
+      await api(motivo === null ? '/api/blocks' : '/api/reports', { method: 'POST', json: motivo === null ? { user_id: userId } : alvoTipo ? { alvo_tipo: alvoTipo, alvo_id: alvoId, motivo } : { post_id: postId, comment_id: commentId, motivo } });
       return { blocked: motivo === null, generation: sessionStore.getGeneration() };
     },
     onSuccess: async ({ blocked, generation }) => {

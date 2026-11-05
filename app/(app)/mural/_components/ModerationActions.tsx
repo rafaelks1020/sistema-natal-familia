@@ -4,7 +4,8 @@ import { api } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
 import { Sheet } from '../../familia/_components/shared';
 
-export default function ModerationActions({ userId, name, postId, commentId }: { userId: number; name: string; postId?: number; commentId?: number }) {
+// alvoTipo/alvoId: conteúdos novos (receita, dica, carona...), tipos em app/lib/denuncias.ts.
+export default function ModerationActions({ userId, name, postId, commentId, alvoTipo, alvoId }: { userId: number; name: string; postId?: number; commentId?: number; alvoTipo?: string; alvoId?: number }) {
   const toast = useToast();
   const [sheet, setSheet] = useState<'report' | 'block' | null>(null);
   const [motivo, setMotivo] = useState('');
@@ -14,7 +15,7 @@ export default function ModerationActions({ userId, name, postId, commentId }: {
     setBusy(true);
     try {
       if (sheet === 'report') {
-        await api('/api/reports', { method: 'POST', json: { post_id: postId, comment_id: commentId, motivo } });
+        await api('/api/reports', { method: 'POST', json: alvoTipo ? { alvo_tipo: alvoTipo, alvo_id: alvoId, motivo } : { post_id: postId, comment_id: commentId, motivo } });
         toast('Denúncia enviada. Analisaremos em até 24 horas.');
         setSheet(null);
       } else {

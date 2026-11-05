@@ -1,8 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
 import { QueryClient } from '@tanstack/react-query';
 
-// Reserva ativa durante a propagação. Altere somente esta constante quando o domínio estiver pronto.
-export const API_BASE_URL = 'https://sistema-natal-familia.vercel.app';
+// Domínio próprio no ar desde 05/11/2026.
+export const API_BASE_URL = 'https://natalemfamilia.com.br';
 export const PRIMARY_API_URL = 'https://natalemfamilia.com.br';
 const TOKEN_KEY = 'natal.session.v1';
 const BIO_TOKEN_KEY = 'natal.session.biometric.v1';
