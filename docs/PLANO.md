@@ -20,10 +20,9 @@ Atualizado: 05/11/2026 15:10
 14. [x] Cadastro que não funcionava (código e usuário tolerantes)
 15. [x] Admin dos convites com link de convite (`/convites`)
 16. [x] Valor da contribuição escolhido pela pessoa, a partir de R$ 50
-17. [~] Revisão geral: bugs (A), velocidade (B), celular (C), retenção (D), build iPhone e Android (E)
-18. [~] Domínio **natalemfamilia.com.br** no Registro.br: já no projeto Vercel; zona bloqueada pelo Registro.br
-       ("em transição", ~2 h a partir de 02:35). Nova tentativa automática às 04:45
-19. [~] **App NATIVO** de altíssima qualidade no Android e no iPhone (não PWA, não site em casca) (seção E)
+17. [x] Revisão geral: bugs (A), velocidade (B), celular (C), retenção (D), build iPhone e Android (E)
+18. [x] Domínio **natalemfamilia.com.br** no Registro.br, no ar com HTTPS
+19. [x] **App NATIVO** de altíssima qualidade no Android e no iPhone (não PWA, não site em casca) (seção E)
 
 ## A. Bugs e segurança (auditoria)
 - [x] Toda rota exige login; identidade sempre pela sessão; cookie assinado
@@ -34,7 +33,7 @@ Atualizado: 05/11/2026 15:10
 - [x] Vaquinha soma o pago de verdade; não desmarca Pix pago; não apaga quem está no sorteio
 - [x] Amigo oculto: lista de desejos sobrevive a novo sorteio; data de revelação vale; refazer pede confirmação
 - [x] Mural e álbum: sem loop em falha; álbum não perde foto; feed leve (3 comentários); notificação sem duplicar
-- [ ] Segunda auditoria completa depois de tudo (outro modelo) antes de fechar
+- [x] Segunda auditoria completa (outro modelo) e correções (commit a122c3b)
 
 ## B. Velocidade
 - [x] Fotos comprimidas no celular antes do envio (8 MB vira ~300 KB)
@@ -44,7 +43,7 @@ Atualizado: 05/11/2026 15:10
 - [x] Lighthouse mobile: acessibilidade 100 em todas; Início 65 para 78, Álbum 57 para 81 (trava de 3 s para 0,4 s), entrada 85
 - [x] Primeira carga do Início, Mural e Álbum vem pronta do servidor (sem tela vazia esperando)
 - [x] Grão de filme por textura (o filtro SVG custava ~1 s de pintura); capa pré-carregada; pôsteres 384 para 187 KB
-- [ ] Conferir EXPLAIN do feed e do álbum com dados reais
+- [ ] Conferir EXPLAIN do feed e do álbum quando a família tiver postado (hoje o banco está quase vazio)
 
 ## C. Celular
 - [x] Layout 390 px sem rolagem lateral, alvos de toque de 44 px
@@ -68,19 +67,21 @@ Atualizado: 05/11/2026 15:10
 Decisão: **React Native com Expo** (componentes nativos de verdade, uma base, mesma API do site). Pasta `app-nativo/`.
 - [x] API: login por token para o app (além do cookie do site)
 - [x] Fase 1: fundação, login, cadastro, convite por link, Face ID/digital, abas nativas, Início completo (exporta para Android)
-- [~] Fase 2 em execução (5 executores): Mural, Amigo oculto, Vaquinha/Pix, Álbum, Família/Perfil/Convites/Organizar/Excluir conta
-- [ ] App: abas nativas, todas as telas no visual Meia-Noite, animações nativas, câmera e galeria, push, Face ID/biometria
-- [ ] Pix no app (copiar código, abrir app do banco)
-- [~] Ícone, frente adaptativa, tela de abertura e capa da Play pedidos ao ChatGPT web
-- [ ] Android: AAB assinado (build fora da VPS2)
-- [ ] iOS: build no Mac VPS (`~/bin/build-ios`), conta Apple do Rafael
+- [x] Fase 2: Mural, Amigo oculto, Vaquinha/Pix, Álbum, Família/Perfil/Convites/Organizar/Excluir conta
+- [x] App: abas nativas, todas as telas no visual Meia-Noite, animações nativas, câmera e galeria, push, Face ID/biometria
+- [x] Pix no app (copiar código, abrir app do banco)
+- [x] Ícone, frente adaptativa, tela de abertura e capa da Play pedidos ao ChatGPT web
+- [x] Android: AAB assinado (build fora da VPS2)
+- [x] iOS: build no Mac VPS e no Codemagic
 - [x] Política de privacidade (/privacidade) e exclusão de conta (/conta/excluir) no site
-- [ ] As mesmas duas no app
-- [ ] (R) Criar os apps nas lojas pelo site e o 1º envio da Play com o Conteúdo do app
+- [x] As mesmas duas no app
+- [x] (R) Criar os apps nas lojas pelo site e o 1º envio da Play com o Conteúdo do app
 
 ## Pendências do Rafael
-- (R) Decidir se apaga o Blob antigo "fotinhas-natal-familia" (o token dele vazou no GitHub; some com as fotos de 2025)
-- (R) Criar os apps nas lojas
+- [x] Blob antigo "fotinhas-natal-familia" apagado (o token vazado morreu junto)
+- [x] Apps criados nas lojas
+- [ ] (R) Status de comerciante (DSA) na Play até 01/02/2027
+- [ ] (R) Escolher quais ideias de retenção (seção D) implementar
 
 
 ## Fechamento 05/11/2026
