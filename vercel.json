@@ -1,7 +1,5 @@
 {
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["iad1"]
+  "regions": ["gru1"],
+  "crons": [{ "path": "/api/cron/conciliar", "schedule": "0 12 * * *" }]
 }

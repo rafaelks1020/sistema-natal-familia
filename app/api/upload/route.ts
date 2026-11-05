@@ -1,49 +1,35 @@
 import { put } from '@vercel/blob';
-import { NextRequest, NextResponse } from 'next/server';
+import { HttpError, ok, requireUser, route } from '@/app/lib/api';
 
-export async function POST(request: NextRequest) {
-  try {
-    console.log('🔵 Iniciando upload...');
-    
-    // Verificar token
-    const token = process.env.BLOB_READ_WRITE_TOKEN;
-    if (!token) {
-      console.error('❌ BLOB_READ_WRITE_TOKEN não configurado!');
-      return NextResponse.json({ 
-        error: 'Token de upload não configurado. Configure BLOB_READ_WRITE_TOKEN no .env.local' 
-      }, { status: 500 });
-    }
-    console.log('✅ Token encontrado');
-    
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-    
-    if (!file) {
-      console.error('❌ Nenhum arquivo no FormData');
-      return NextResponse.json({ error: 'Nenhum arquivo enviado' }, { status: 400 });
-    }
-    
-    console.log('📁 Arquivo recebido:', file.name, 'Tamanho:', file.size, 'bytes');
+// POST /api/upload (multipart, campo "file") -> { url }. Só logado, só imagem, até 8 MB.
 
-    // Upload para Vercel Blob com nome único
-    const timestamp = Date.now();
-    const randomStr = Math.random().toString(36).substring(7);
-    const fileName = `${timestamp}-${randomStr}-${file.name}`;
-    
-    const blob = await put(fileName, file, {
-      access: 'public',
-      token: token,
-    });
+const MAX_BYTES = 8 * 1024 * 1024;
+const TYPES: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
+  'image/gif': 'gif',
+};
 
-    console.log('✅ Upload concluído! URL:', blob.url);
-    return NextResponse.json({ url: blob.url });
-  } catch (error: any) {
-    console.error('❌ Erro detalhado no upload:', error);
-    console.error('Mensagem:', error.message);
-    console.error('Stack:', error.stack);
-    return NextResponse.json({ 
-      error: 'Erro ao fazer upload',
-      details: error.message 
-    }, { status: 500 });
-  }
-}
+export const POST = route(async (req) => {
+  const user = await requireUser();
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) throw new HttpError(503, 'Envio de fotos ainda não configurado.');
+
+  const form = await req.formData().catch(() => null);
+  const file = form?.get('file');
+  if (!(file instanceof File)) throw new HttpError(400, 'Nenhuma foto enviada.');
+  const ext = TYPES[file.type];
+  if (!ext) throw new HttpError(400, 'Envie uma foto (JPG, PNG, WEBP ou HEIC).');
+  if (file.size > MAX_BYTES) throw new HttpError(400, 'A foto passou de 8 MB.');
+
+  const blob = await put(`natal/${user.id}/${Date.now()}.${ext}`, file, {
+    access: 'public',
+    token,
+    addRandomSuffix: true,
+    contentType: file.type,
+  });
+  return ok({ url: blob.url });
+});

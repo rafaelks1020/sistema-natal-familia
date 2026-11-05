@@ -1,0 +1,150 @@
+import { query } from '@/app/lib/db';
+import { HttpError, ok, readJson, requireUser, route } from '@/app/lib/api';
+import { parsePostImages, validateImagesInput } from './_utils';
+
+// GET  /api/posts?limit=20&before=<id>&user_id=<id>
+// POST /api/posts { content, images?: string[] }
+
+export const GET = route(async (req) => {
+  const me = await requireUser();
+  const { searchParams } = new URL(req.url);
+
+  const limitParam = Number(searchParams.get('limit') || '20');
+  const limit = Number.isInteger(limitParam) ? Math.min(Math.max(limitParam, 1), 50) : 20;
+
+  const beforeParam = searchParams.get('before');
+  const before = beforeParam ? Number(beforeParam) : null;
+  if (before !== null && (!Number.isInteger(before) || before <= 0)) {
+    throw new HttpError(400, 'Parâmetro before inválido.');
+  }
+
+  const userIdParam = searchParams.get('user_id');
+  const filterUserId = userIdParam ? Number(userIdParam) : null;
+  if (filterUserId !== null && (!Number.isInteger(filterUserId) || filterUserId <= 0)) {
+    throw new HttpError(400, 'Parâmetro user_id inválido.');
+  }
+
+  const { rows } = await query(
+    `SELECT
+       p.id,
+       p.user_id,
+       u.name AS user_name,
+       u.avatar_url,
+       p.content,
+       p.image_url,
+       p.image_urls,
+       COALESCE(p.pinned, false) AS pinned,
+       p.created_at,
+       p.updated_at,
+       COALESCE(r.reactions, '{}'::jsonb) AS reactions,
+       COALESCE(mr.my_reactions, '[]'::jsonb) AS my_reactions,
+       COALESCE(c.comments, '[]'::jsonb) AS comments
+     FROM family_posts p
+     JOIN family_users u ON u.id = p.user_id
+     LEFT JOIN LATERAL (
+       SELECT jsonb_object_agg(reaction_type, cnt) AS reactions
+       FROM (
+         SELECT reaction_type, COUNT(*)::int AS cnt
+         FROM family_post_reactions
+         WHERE post_id = p.id
+         GROUP BY reaction_type
+       ) rx
+     ) r ON TRUE
+     LEFT JOIN LATERAL (
+       SELECT jsonb_agg(reaction_type ORDER BY id ASC) AS my_reactions
+       FROM family_post_reactions
+       WHERE post_id = p.id AND user_id = $1
+     ) mr ON TRUE
+     LEFT JOIN LATERAL (
+       SELECT jsonb_agg(
+         jsonb_build_object(
+           'id', cm.id,
+           'user_id', cm.user_id,
+           'user_name', cu.name,
+           'avatar_url', cu.avatar_url,
+           'content', cm.content,
+           'created_at', cm.created_at,
+           'likes', COALESCE(cl.likes_count, 0),
+           'liked_by_me', COALESCE(cl.liked_by_me, false)
+         )
+         ORDER BY cm.created_at ASC, cm.id ASC
+       ) AS comments
+       FROM family_post_comments cm
+       JOIN family_users cu ON cu.id = cm.user_id
+       LEFT JOIN LATERAL (
+         SELECT
+           COUNT(*)::int AS likes_count,
+           BOOL_OR(user_id = $1) AS liked_by_me
+         FROM family_comment_likes
+         WHERE comment_id = cm.id
+       ) cl ON TRUE
+       WHERE cm.post_id = p.id
+     ) c ON TRUE
+     WHERE ($2::int IS NULL OR p.user_id = $2)
+       AND ($3::int IS NULL OR (NOT COALESCE(p.pinned, false) AND p.id < $3))
+     ORDER BY COALESCE(p.pinned, false) DESC, p.id DESC
+     LIMIT $4`,
+    [me.id, filterUserId, before, limit],
+  );
+
+  const posts = rows.map((row) => ({
+    id: Number(row.id),
+    user_id: Number(row.user_id),
+    user_name: String(row.user_name),
+    avatar_url: row.avatar_url ?? null,
+    content: String(row.content ?? ''),
+    images: parsePostImages(row.image_urls, row.image_url),
+    pinned: Boolean(row.pinned),
+    created_at: row.created_at,
+    updated_at: row.updated_at ?? null,
+    reactions: (row.reactions ?? {}) as Record<string, number>,
+    my_reactions: Array.isArray(row.my_reactions) ? (row.my_reactions as string[]) : [],
+    comments: Array.isArray(row.comments) ? row.comments : [],
+  }));
+
+  return ok(posts);
+});
+
+export const POST = route(async (req) => {
+  const me = await requireUser();
+  const body = await readJson<Record<string, unknown>>(req);
+
+  const images = validateImagesInput(body.images);
+  const rawContent = typeof body.content === 'string' ? body.content.trim() : '';
+
+  if (!rawContent && images.length === 0) {
+    throw new HttpError(400, 'Escreva uma mensagem ou escolha pelo menos uma foto.');
+  }
+  if (rawContent.length > 2000) {
+    throw new HttpError(400, 'O texto passou de 2000 caracteres.');
+  }
+
+  const imageUrl = images[0] ?? null;
+  const imageUrlsJson = images.length > 0 ? JSON.stringify(images) : null;
+
+  const { rows } = await query(
+    `INSERT INTO family_posts (user_id, content, image_url, image_urls, pinned)
+     VALUES ($1, $2, $3, $4, false)
+     RETURNING id, user_id, content, image_url, image_urls, pinned, created_at, updated_at`,
+    [me.id, rawContent, imageUrl, imageUrlsJson],
+  );
+
+  const row = rows[0];
+  return ok(
+    {
+      id: Number(row.id),
+      user_id: me.id,
+      user_name: me.name,
+      avatar_url: me.avatar_url,
+      content: String(row.content ?? ''),
+      images: parsePostImages(row.image_urls, row.image_url),
+      pinned: Boolean(row.pinned),
+      created_at: row.created_at,
+      updated_at: row.updated_at ?? null,
+      reactions: {},
+      my_reactions: [],
+      comments: [],
+    },
+    201,
+  );
+});

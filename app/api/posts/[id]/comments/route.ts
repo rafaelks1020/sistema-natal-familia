@@ -1,0 +1,56 @@
+import { query } from '@/app/lib/db';
+import { HttpError, cleanText, ok, readJson, requireUser, route, toInt } from '@/app/lib/api';
+
+// POST /api/posts/[id]/comments { content } -> cria comentário e notifica autor
+
+type ParamsCtx = { params: Promise<{ id: string }> };
+
+export const POST = route<ParamsCtx>(async (req, { params }) => {
+  const me = await requireUser();
+  const { id } = await params;
+  const postId = toInt(id, 'id');
+
+  const body = await readJson<Record<string, unknown>>(req);
+  const content = cleanText(body.content, 'o comentário', 600);
+
+  const postRes = await query<{ id: number; user_id: number }>(
+    'SELECT id, user_id FROM family_posts WHERE id = $1',
+    [postId],
+  );
+  const post = postRes.rows[0];
+  if (!post) {
+    throw new HttpError(404, 'Publicação não encontrada.');
+  }
+
+  const inserted = await query<{ id: number; created_at: string }>(
+    `INSERT INTO family_post_comments (post_id, user_id, content)
+     VALUES ($1, $2, $3)
+     RETURNING id, created_at`,
+    [postId, me.id, content],
+  );
+
+  const comment = inserted.rows[0];
+  const ownerId = Number(post.user_id);
+
+  if (ownerId !== me.id) {
+    await query(
+      `INSERT INTO family_notifications (user_id, actor_id, type, post_id, comment_id)
+       VALUES ($1, $2, 'post_comment', $3, $4)`,
+      [ownerId, me.id, postId, comment.id],
+    );
+  }
+
+  return ok(
+    {
+      id: Number(comment.id),
+      user_id: me.id,
+      user_name: me.name,
+      avatar_url: me.avatar_url,
+      content,
+      created_at: comment.created_at,
+      likes: 0,
+      liked_by_me: false,
+    },
+    201,
+  );
+});

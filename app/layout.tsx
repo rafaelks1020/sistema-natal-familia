@@ -1,35 +1,37 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata, Viewport } from 'next';
+import { Bodoni_Moda, Manrope } from 'next/font/google';
+import './globals.css';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const bodoni = Bodoni_Moda({
+  variable: '--font-bodoni',
+  subsets: ['latin'],
+  style: ['normal', 'italic'],
+  display: 'swap',
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const manrope = Manrope({
+  variable: '--font-manrope',
+  subsets: ['latin'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "Natal em Família 2025",
-  description:
-    "Organize o Natal em família: participantes, contribuições, compras, amigo oculto, mural, enquetes e presença.",
+  title: 'Natal em Família',
+  description: 'O Natal da nossa família: mural, amigo oculto, vaquinha, álbum e a ceia.',
+  appleWebApp: { capable: true, title: 'Natal em Família', statusBarStyle: 'black-translucent' },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  themeColor: '#171b18',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+    <html lang="pt-BR" className={`${bodoni.variable} ${manrope.variable}`}>
+      <body>{children}</body>
     </html>
   );
 }
