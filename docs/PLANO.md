@@ -1,7 +1,7 @@
 # Natal em Família: checklist de TUDO que o Rafael pediu
 
 Status: [x] feito e no ar · [~] em andamento · [ ] a fazer · (R) depende do Rafael
-Atualizado: 05/11/2026 03:20
+Atualizado: 05/11/2026 03:40
 
 ## Pedidos, na ordem em que vieram
 1. [x] Montar o sistema do repositório e repaginar tudo
@@ -41,13 +41,15 @@ Atualizado: 05/11/2026 03:20
 - [x] Animações em vídeo leve (GIF de 10 MB virou 250 KB), só carregam quando aparecem, cache de 7 dias
 - [x] Região gru1 (São Paulo)
 - [x] Miniaturas das fotos (otimizador da Vercel, AVIF/WebP no tamanho da tela) no mural, álbum, vaquinha, início e avatares
-- [ ] Medir com Lighthouse mobile e atacar o que pesar
+- [x] Lighthouse mobile: acessibilidade 100 em todas; Início 65 para 78, Álbum 57 para 81 (trava de 3 s para 0,4 s), entrada 85
+- [x] Primeira carga do Início, Mural e Álbum vem pronta do servidor (sem tela vazia esperando)
+- [x] Grão de filme por textura (o filtro SVG custava ~1 s de pintura); capa pré-carregada; pôsteres 384 para 187 KB
 - [ ] Conferir EXPLAIN do feed e do álbum com dados reais
 
 ## C. Celular
 - [x] Layout 390 px sem rolagem lateral, alvos de toque de 44 px
-- [ ] Campos não ficarem atrás do teclado nas folhas inferiores
-- [ ] Fonte maior opcional para os mais velhos
+- [x] Teclado não cobre os campos (Android encolhe a tela; iOS rola até o campo)
+- [x] Letra maior opcional (Perfil > Letra maior)
 - (PWA descartado: o Rafael quer app nativo)
 
 ## D. Ideias para reter a família
@@ -65,8 +67,8 @@ Atualizado: 05/11/2026 03:20
 ## E. App nativo iPhone e Android
 Decisão: **React Native com Expo** (componentes nativos de verdade, uma base, mesma API do site). Pasta `app-nativo/`.
 - [x] API: login por token para o app (além do cookie do site)
-- [~] Fase 1 (fundação, login, biometria, abas nativas, Início) em execução
-- [ ] Fase 2: Mural, Amigo oculto, Vaquinha/Pix, Álbum, Família/Perfil/Convites
+- [x] Fase 1: fundação, login, cadastro, convite por link, Face ID/digital, abas nativas, Início completo (exporta para Android)
+- [~] Fase 2 em execução (5 executores): Mural, Amigo oculto, Vaquinha/Pix, Álbum, Família/Perfil/Convites/Organizar/Excluir conta
 - [ ] App: abas nativas, todas as telas no visual Meia-Noite, animações nativas, câmera e galeria, push, Face ID/biometria
 - [ ] Pix no app (copiar código, abrir app do banco)
 - [~] Ícone, frente adaptativa, tela de abertura e capa da Play pedidos ao ChatGPT web

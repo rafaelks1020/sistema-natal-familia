@@ -1,0 +1,122 @@
+{
+  "expo": {
+    "name": "Natal em Família",
+    "slug": "natal-em-familia",
+    "scheme": "natalemfamilia",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#171B18",
+    "ios": {
+      "bundleIdentifier": "br.com.natalemfamilia.app",
+      "supportsTablet": true,
+      "associatedDomains": [
+        "applinks:natalemfamilia.com.br"
+      ],
+      "infoPlist": {
+        "NSCameraUsageDescription": "Permita usar a câmera para compartilhar fotos com a família.",
+        "NSPhotoLibraryUsageDescription": "Permita escolher fotos para compartilhar com a família.",
+        "NSFaceIDUsageDescription": "Use o Face ID para desbloquear seu acesso à família.",
+        "NSUserNotificationUsageDescription": "Receba avisos da ceia e novidades da família.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "br.com.natalemfamilia.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#171B18",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "natalemfamilia.com.br",
+              "pathPrefix": "/entrar"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "predictiveBackGestureEnabled": true,
+      "googleServicesFile": "./google-services.json"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-image",
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": false,
+          "supportsPictureInPicture": false
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true,
+          "faceIDPermission": "Use o Face ID para desbloquear seu acesso à família."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Permita usar a câmera para compartilhar fotos com a família.",
+          "photosPermission": "Permita escolher fotos para compartilhar com a família.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Use o Face ID para desbloquear seu acesso à família."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#C5292D",
+          "defaultChannel": "familia",
+          "enableRemoteNotifications": true
+        }
+      ],
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#171B18",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160
+        }
+      ],
+      "expo-sharing",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "O Natal em Família salva no seu aparelho as fotos da família que você escolher.",
+          "savePhotosPermission": "O Natal em Família salva no seu aparelho as fotos da família que você escolher.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": [
+            "photo"
+          ]
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

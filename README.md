@@ -50,3 +50,30 @@ Gera `public/media/<nome>.webm|.mp4|.jpg` e atualiza `app/ui/media-manifest.ts`.
 `C6_CLIENT_ID`, `C6_CLIENT_SECRET`, `C6_CERT_B64`, `C6_KEY_B64`, `C6_PIX_CHAVE`.
 
 Regras de visual e de código para quem for mexer: `docs/CONTRATO.md`.
+
+## Notificações push
+Aplique `migrations/010-push.sql` após as migrations anteriores. O app registra o token nativo
+(APNs no iOS, FCM no Android), autenticado, em `POST /api/push` com `{ platform, token }`;
+`DELETE /api/push` com `{ token }` remove apenas o aparelho do usuário atual. O registro
+reativa tokens desativados e transfere a propriedade para o login atual. Remova o token ao sair.
+
+Sem credenciais, o registro funciona e o envio fica desligado por plataforma. Android usa
+`FCM_SERVICE_ACCOUNT_B64` (JSON da conta de serviço em base64), com a API FCM HTTP v1 habilitada.
+iOS usa `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_KEY_P8_B64` (arquivo .p8 em base64),
+`APNS_BUNDLE_ID` (padrão `br.com.natalemfamilia.app`) e `APNS_PRODUCTION=true` para produção
+ou `false` para sandbox. Configure o ambiente que corresponde ao provisionamento do app.
+Consulte os protocolos oficiais de [FCM](https://firebase.google.com/docs/cloud-messaging/send/v1-api)
+e [APNs](https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns).
+
+Reações, comentários, curtidas de comentários, sorteio e confirmação de Pix enviam alertas
+com rota de destino. O envio usa `after()` do Next após a resposta, sem bloquear a operação,
+com timeout por requisição, cache de autenticação e concorrência limitada. Falhas são logadas
+sem tokens ou credenciais; aparelhos inválidos recebem `disabled_at`. Não há fila ou retentativa persistente.
+
+Para testar com chaves: registre aparelhos físicos iOS/Android e, com outro login, reaja e
+comente no mural, curta um comentário, crie um sorteio e confirme um Pix de teste pelo fluxo
+existente. Confira o alerta e a rota aberta (`/mural`, `/amigo-oculto`, `/vaquinha`). Remova
+um token pelo DELETE e confirme a ausência de novos alertas; registre novamente para reativar.
+Confira também que um login não remove o token de outro e que registrar o mesmo token em
+outro login transfere o destinatário. Respostas UNREGISTERED/NOT_FOUND do FCM e 410/BadDeviceToken
+do APNs devem preencher `disabled_at` sem afetar a operação original.

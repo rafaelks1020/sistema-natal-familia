@@ -9,7 +9,7 @@ export const POST = route<Context>(async (_req, { params }) => {
   const id = toInt((await params).id);
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
   const password = Array.from({ length: 8 }, () => alphabet[randomInt(alphabet.length)]).join('');
-  const result = await query(`UPDATE family_users SET password_hash = $1 WHERE id = $2
+  const result = await query(`UPDATE family_users SET password_hash = $1, session_version = session_version + 1 WHERE id = $2
     AND EXISTS (SELECT 1 FROM family_users WHERE id = $3 AND is_admin = true) RETURNING id`, [await hashPassword(password), id, me.id]);
   if (!result.rowCount) throw new HttpError(404, 'Pessoa não encontrada ou acesso de organizador removido.');
   const response = ok({ password });

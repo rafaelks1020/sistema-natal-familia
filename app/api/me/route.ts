@@ -1,3 +1,5 @@
+import { del } from '@vercel/blob';
+import { parsePostImages } from '@/app/api/posts/_utils';
 import { NextResponse } from 'next/server';
 import { cleanText, HttpError, isBlobUrl, ok, readJson, requireUser, route } from '@/app/lib/api';
 import { query, transaction } from '@/app/lib/db';
@@ -33,7 +35,7 @@ export const PUT = route(async (req) => {
 
 // DELETE /api/me { password } -> exclui a conta (exigência da App Store e da Play).
 // Apaga login, posts, comentários, reações, enquetes, notificações e o CPF/endereço guardados.
-// O participante fica sem login (o histórico da vaquinha e do sorteio não some para os outros).
+// O participante fica anônimo e sem login (o histórico da vaquinha e do sorteio não some para os outros).
 export const DELETE = route(async (req) => {
   const me = await requireUser();
   const body = await readJson<Record<string, unknown>>(req);
@@ -53,7 +55,28 @@ export const DELETE = route(async (req) => {
       throw new HttpError(409, 'Você é o único organizador. Torne outra pessoa organizadora antes de excluir sua conta.');
     }
   }
-  await query('DELETE FROM family_users WHERE id = $1', [me.id]);
+  const urls = await transaction(async (q) => {
+    const { rows: users } = await q('SELECT avatar_url FROM family_users WHERE id = $1 FOR UPDATE', [me.id]);
+    const { rows: posts } = await q('SELECT image_url, image_urls FROM family_posts WHERE user_id = $1', [me.id]);
+    const images = posts.flatMap((post) => parsePostImages(post.image_urls, post.image_url));
+    if (isBlobUrl(users[0]?.avatar_url)) images.push(users[0].avatar_url);
+    const { rows: participants } = await q<{ id: number }>(
+      "UPDATE participants SET name = 'Ex-participante', user_id = NULL WHERE user_id = $1 RETURNING id", [me.id],
+    );
+    const ids = participants.map((p) => p.id);
+    await q('DELETE FROM wish_list WHERE participant_id = ANY($1::int[])', [ids]);
+    await q('DELETE FROM family_attendance WHERE participant_id = ANY($1::int[])', [ids]);
+    await q('DELETE FROM push_devices WHERE user_id = $1', [me.id]);
+    await q('DELETE FROM family_users WHERE id = $1', [me.id]);
+    return [...new Set(images)].filter(isBlobUrl);
+  });
+  if (urls.length) {
+    try {
+      await del(urls, { token: process.env.BLOB_READ_WRITE_TOKEN });
+    } catch (error) {
+      console.error('[conta] Falha ao apagar fotos do Blob:', error instanceof Error ? error.name : 'Erro desconhecido');
+    }
+  }
   const res = NextResponse.json({ ok: true });
   clearSessionCookie(res);
   return res;

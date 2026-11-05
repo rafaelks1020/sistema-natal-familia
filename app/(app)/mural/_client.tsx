@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { BarChart3, Camera, Sparkles } from 'lucide-react';
 import Avatar from '@/app/ui/Avatar';
 import LoopMedia from '@/app/ui/LoopMedia';
@@ -56,6 +57,24 @@ type FeedEntry =
 export default function MuralClient({ initial }: { initial: PostItem[] }) {
   const me = useMe();
   const toast = useToast();
+  const searchParams = useSearchParams();
+  const targetPost = searchParams.get('post');
+  const handledPostRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!targetPost) {
+      handledPostRef.current = null;
+      return;
+    }
+    if (handledPostRef.current === targetPost || !/^[1-9]\d*$/.test(targetPost)) return;
+    handledPostRef.current = targetPost;
+    const el = document.getElementById(`post-${targetPost}`);
+    if (el) {
+      el.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    } else {
+      toast('Esse post é mais antigo, role para ver');
+    }
+  }, [targetPost, toast]);
 
   const [posts, setPosts] = useState<PostItem[]>(initial);
   const [polls, setPolls] = useState<PollItem[]>([]);

@@ -1,3 +1,4 @@
+import { enviarPush } from '@/app/lib/push';
 import { query } from '@/app/lib/db';
 import { HttpError, cleanText, ok, readJson, requireUser, route, toInt } from '@/app/lib/api';
 
@@ -57,6 +58,12 @@ export const POST = route<ParamsCtx>(async (req, { params }) => {
        VALUES ($1, $2, 'post_comment', $3, $4)`,
       [ownerId, me.id, postId, comment.id],
     );
+  }
+
+  if (ownerId !== me.id) {
+    void enviarPush([ownerId], {
+      titulo: 'Novo comentário', corpo: `${me.name} comentou na sua publicação.`, rota: '/mural',
+    });
   }
 
   return ok(

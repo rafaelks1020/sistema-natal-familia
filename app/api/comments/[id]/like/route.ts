@@ -1,3 +1,4 @@
+import { enviarPush } from '@/app/lib/push';
 import { transaction } from '@/app/lib/db';
 import { HttpError, ok, requireUser, route, toInt } from '@/app/lib/api';
 
@@ -10,7 +11,8 @@ export const POST = route<ParamsCtx>(async (_req, { params }) => {
   const { id } = await params;
   const commentId = toInt(id, 'id');
 
-  return transaction(async (query) => {
+  let notifyUserId: number | null = null;
+  const response = await transaction(async (query) => {
     const existingComment = await query<{ id: number; user_id: number; post_id: number }>(
       'SELECT id, user_id, post_id FROM family_post_comments WHERE id = $1 FOR UPDATE',
       [commentId],
@@ -26,9 +28,6 @@ export const POST = route<ParamsCtx>(async (_req, { params }) => {
     );
 
     if (removed.rowCount && removed.rowCount > 0) {
-      await query(`DELETE FROM family_notifications WHERE user_id = $1 AND actor_id = $2
-           AND type = 'comment_reaction' AND post_id = $3 AND comment_id = $4
-           AND reaction_type IS NULL AND read_at IS NULL`, [Number(comment.user_id), me.id, comment.post_id, commentId]);
       return ok({ status: 'removed', liked: false });
     }
 
@@ -41,18 +40,25 @@ export const POST = route<ParamsCtx>(async (_req, { params }) => {
 
     const ownerId = Number(comment.user_id);
     if (ownerId !== me.id) {
-      await query(
+      const notification = await query(
         `INSERT INTO family_notifications (user_id, actor_id, type, post_id, comment_id)
          SELECT $1, $2, 'comment_reaction', $3, $4
          WHERE NOT EXISTS (
            SELECT 1 FROM family_notifications WHERE user_id = $1 AND actor_id = $2
              AND type = 'comment_reaction' AND post_id = $3 AND comment_id = $4
-             AND reaction_type IS NULL AND read_at IS NULL
+             AND reaction_type IS NULL
          )`,
         [ownerId, me.id, comment.post_id, commentId],
       );
+      if (notification.rowCount) notifyUserId = ownerId;
     }
 
     return ok({ status: 'added', liked: true });
   });
+  if (notifyUserId !== null) {
+    void enviarPush([notifyUserId], {
+      titulo: 'Nova curtida', corpo: `${me.name} curtiu seu comentário.`, rota: '/mural',
+    });
+  }
+  return response;
 });

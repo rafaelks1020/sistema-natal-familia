@@ -1,4 +1,6 @@
-import { HttpError, ok, readJson, requireUser, route } from '@/app/lib/api';
+import { NextResponse } from 'next/server';
+import { createSessionToken, setSessionCookie } from '@/app/lib/session';
+import { HttpError, readJson, requireUser, route } from '@/app/lib/api';
 import { query } from '@/app/lib/db';
 import { hashPassword, verifyPassword } from '@/app/lib/password';
 
@@ -11,8 +13,12 @@ export const POST = route(async (req) => {
   }
   const { rows } = await query<{ password_hash: string }>('SELECT password_hash FROM family_users WHERE id = $1', [me.id]);
   if (!rows[0] || !(await verifyPassword(body.current, rows[0].password_hash))) throw new HttpError(400, 'A senha atual não confere.');
-  const result = await query('UPDATE family_users SET password_hash = $1 WHERE id = $2 AND password_hash = $3',
+  const result = await query('UPDATE family_users SET password_hash = $1, session_version = session_version + 1 WHERE id = $2 AND password_hash = $3 RETURNING session_version',
     [await hashPassword(body.next), me.id, rows[0].password_hash]);
   if (!result.rowCount) throw new HttpError(409, 'A senha mudou durante a operação. Tente novamente.');
-  return ok({ ok: true });
+  const version = result.rows[0].session_version;
+  const res = NextResponse.json(body.client === 'app'
+    ? { ok: true, token: createSessionToken(me.id, version) } : { ok: true });
+  setSessionCookie(res, me.id, version);
+  return res;
 });

@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
@@ -30,14 +31,14 @@ function sign(payload: string): string {
   return createHmac('sha256', secret()).update(payload).digest('base64url');
 }
 
-export function createSessionToken(userId: number): string {
+export function createSessionToken(userId: number, sessionVersion: number): string {
   const payload = Buffer.from(
-    JSON.stringify({ uid: userId, exp: Math.floor(Date.now() / 1000) + MAX_AGE_SECONDS }),
+    JSON.stringify({ uid: userId, v: sessionVersion, exp: Math.floor(Date.now() / 1000) + MAX_AGE_SECONDS }),
   ).toString('base64url');
   return `${payload}.${sign(payload)}`;
 }
 
-function readSessionToken(token: string | undefined): number | null {
+function readSessionToken(token: string | undefined): { uid: number; v: number } | null {
   if (!token) return null;
   const [payload, sig] = token.split('.');
   if (!payload || !sig) return null;
@@ -48,14 +49,16 @@ function readSessionToken(token: string | undefined): number | null {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     if (typeof data.uid !== 'number' || typeof data.exp !== 'number') return null;
     if (data.exp < Math.floor(Date.now() / 1000)) return null;
-    return data.uid;
+    const v = data.v === undefined ? 1 : data.v;
+    if (!Number.isInteger(v) || v < 1) return null;
+    return { uid: data.uid, v };
   } catch {
     return null;
   }
 }
 
-export function setSessionCookie(res: NextResponse, userId: number): void {
-  res.cookies.set(SESSION_COOKIE, createSessionToken(userId), {
+export function setSessionCookie(res: NextResponse, userId: number, sessionVersion: number): void {
+  res.cookies.set(SESSION_COOKIE, createSessionToken(userId, sessionVersion), {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -69,21 +72,21 @@ export function clearSessionCookie(res: NextResponse): void {
 }
 
 /**
- * Usuário logado (lido do banco a cada chamada, para is_admin valer na hora) ou null.
+ * Usuário logado (uma leitura do banco por renderização, para is_admin valer na hora) ou null.
  * Site: cookie httpOnly. App nativo: "Authorization: Bearer <token>" (mesmo token assinado).
  */
-export async function getSessionUser(): Promise<SessionUser | null> {
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const store = await cookies();
   const auth = (await headers()).get('authorization') ?? '';
   const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : undefined;
-  const uid = readSessionToken(bearer || store.get(SESSION_COOKIE)?.value);
-  if (!uid) return null;
+  const session = readSessionToken(bearer || store.get(SESSION_COOKIE)?.value);
+  if (!session) return null;
   const { rows } = await query<SessionUser>(
     `SELECT u.id, u.name, u.username, u.is_admin, u.avatar_url, p.id AS participant_id
        FROM family_users u
        LEFT JOIN participants p ON p.user_id = u.id
-      WHERE u.id = $1`,
-    [uid],
+      WHERE u.id = $1 AND u.session_version = $2`,
+    [session.uid, session.v],
   );
   return rows[0] ?? null;
-}
+});

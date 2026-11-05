@@ -1,3 +1,4 @@
+import { enviarPush } from '@/app/lib/push';
 import { randomBytes } from 'crypto';
 import { HttpError, ok, readJson, requireAdmin, route, toInt } from '@/app/lib/api';
 import { query, transaction } from '@/app/lib/db';
@@ -179,11 +180,11 @@ export const POST = route(async (req) => {
   }
   assertDraw(draws, new Set(people.map((p) => p.id)), rules);
 
-  const createdConfig = await transaction(async (q) => {
+  const { createdConfig, userIds } = await transaction(async (q) => {
     // Trava a transação (qualquer usuário do banco pode), para dois sorteios não ficarem ativos juntos.
     await q('SELECT pg_advisory_xact_lock(714203)');
-    const still = await q<{ id: number }>(
-      'SELECT id FROM participants WHERE id = ANY($1::int[])',
+    const still = await q<{ id: number; user_id: number | null }>(
+      'SELECT id, user_id FROM participants WHERE id = ANY($1::int[])',
       [ids],
     );
     if (still.rows.length !== ids.length) {
@@ -246,9 +247,15 @@ export const POST = route(async (req) => {
         [row.id, previousId, ids],
       );
     }
-    return mapConfig(row);
+    return {
+      createdConfig: mapConfig(row),
+      userIds: still.rows.flatMap((p) => p.user_id === null ? [] : [p.user_id]),
+    };
   });
 
+  void enviarPush(userIds, {
+    titulo: 'Amigo oculto', corpo: 'O sorteio saiu! Toque para descobrir quem você tirou.', rota: '/amigo-oculto',
+  });
   return ok({ ok: true, config: createdConfig });
 });
 

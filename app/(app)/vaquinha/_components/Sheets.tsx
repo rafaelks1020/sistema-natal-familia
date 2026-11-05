@@ -629,6 +629,7 @@ export function AdminCreateSheet({
                 <input
                   type="text"
                   inputMode="decimal"
+                  aria-label="Valor do gasto em reais"
                   className="field numeral"
                   placeholder="120,50"
                   value={value}
@@ -642,6 +643,7 @@ export function AdminCreateSheet({
                   Categoria
                 </label>
                 <select
+                  aria-label="Categoria do gasto"
                   className="field"
                   value={category}
                   onChange={(e) => setCategory(e.target.value as PurchaseCategory)}
@@ -675,6 +677,7 @@ export function AdminCreateSheet({
                 </label>
                 <input
                   type="number"
+                  aria-label="Quantidade"
                   min={1}
                   max={9999}
                   className="field"

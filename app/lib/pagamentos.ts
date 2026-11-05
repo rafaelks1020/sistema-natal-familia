@@ -1,3 +1,4 @@
+import { enviarPush } from './push';
 import { query, transaction } from './db';
 import { consultarBoleto, diaSP, listarPagos } from './c6';
 
@@ -22,19 +23,34 @@ export interface PaymentRow {
 export const FINAIS = new Set(['PAID', 'CANCELED', 'CANCELLED', 'EXPIRED']);
 
 async function marcarPago(ref: string, valorPago: number | null): Promise<boolean> {
-  return transaction(async (q) => {
+  let notifyUserId: number | null = null;
+  const paid = await transaction(async (q) => {
     const { rows } = await q<PaymentRow>('SELECT * FROM payments WHERE reference = $1 FOR UPDATE', [ref]);
     const p = rows[0];
-    if (!p || p.status === 'PAID') return false;
+    if (!p) {
+      console.error(`[pagamentos] ${ref}: referência não encontrada`);
+      return false;
+    }
+    if (p.status === 'PAID') return false;
     // Só baixa com o valor confirmado pelo banco e igual ao cobrado.
     if (valorPago == null || Math.abs(valorPago - Number(p.amount)) > 0.01) {
       console.error(`[pagamentos] ${ref}: valor pago ausente ou diferente do cobrado`);
       return false;
     }
     await q(`UPDATE payments SET status = 'PAID', paid_at = NOW(), checked_at = NOW() WHERE id = $1`, [p.id]);
-    await q(`UPDATE participants SET paid = true, paid_date = COALESCE(paid_date, NOW()) WHERE id = $1`, [p.participant_id]);
+    const participant = await q<{ user_id: number | null }>(
+      `UPDATE participants SET paid = true, paid_date = COALESCE(paid_date, NOW()) WHERE id = $1 RETURNING user_id`,
+      [p.participant_id],
+    );
+    notifyUserId = participant.rows[0]?.user_id ?? null;
     return true;
   });
+  if (paid && notifyUserId !== null) {
+    void enviarPush([notifyUserId], {
+      titulo: 'Pagamento confirmado', corpo: 'Pix confirmado. Obrigado pela contribuição!', rota: '/vaquinha',
+    });
+  }
+  return paid;
 }
 
 /** Consulta o C6 e atualiza um pagamento em aberto. Devolve a linha atualizada. */
@@ -47,7 +63,7 @@ export async function atualizarPagamento(p: PaymentRow): Promise<PaymentRow> {
     // Nunca rebaixa um PAID (outra aba ou o cron podem ter baixado no meio).
     // SUBSTITUIDO (a pessoa trocou o valor) continua sendo conferido, mas não volta a "aberto".
     await query(
-      `UPDATE payments SET status = CASE WHEN status = 'SUBSTITUIDO' THEN status ELSE $2 END, checked_at = NOW()
+      `UPDATE payments SET status = CASE WHEN status = 'SUBSTITUIDO' AND $2 NOT IN ('PAID','CANCELED','CANCELLED','EXPIRED') THEN status ELSE $2 END, checked_at = NOW()
         WHERE id = $1 AND status <> 'PAID'`,
       [p.id, boleto.status],
     );

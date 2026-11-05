@@ -43,7 +43,7 @@ const SECOES: { titulo: string; texto: string[] }[] = [
   {
     titulo: 'Seus direitos (LGPD)',
     texto: [
-      'Você pode editar seu perfil a qualquer momento e excluir sua conta em Perfil > Excluir minha conta. A exclusão apaga login, publicações, comentários, curtidas e os dados de pagamento guardados. O registro de que uma contribuição foi paga continua na vaquinha, sem seus dados pessoais.',
+      'Você pode editar seu perfil a qualquer momento e excluir sua conta em Perfil > Excluir minha conta. A exclusão apaga login, publicações, comentários, curtidas, lista de desejos, presença, identificadores de aparelhos e o CPF e endereço guardados. Após excluir a conta, solicitamos a remoção das fotos do perfil e das publicações do armazenamento. Falhas nessa remoção são registradas para correção. O registro de que uma contribuição foi paga continua na vaquinha, com o nome Ex-participante e sem seus dados pessoais.',
       'Para qualquer pedido sobre seus dados, fale com quem organiza o Natal da sua família ou escreva para pagamentos@speedupti.com.br.',
     ],
   },

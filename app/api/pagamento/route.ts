@@ -39,7 +39,7 @@ export const GET = route(async () => {
   const me = await requireUser();
   if (!me.participant_id) throw new HttpError(400, 'Seu acesso ainda não está ligado a um participante.');
 
-  const [{ rows: part }, { rows: pays }, { rows: billing }, valor] = await Promise.all([
+  const [{ rows: part }, { rows: pays }, { rows: billing }, valor, { rows: substituidos }] = await Promise.all([
     query('SELECT paid, paid_date FROM participants WHERE id = $1', [me.participant_id]),
     query<PaymentRow & { recente: boolean }>(
       `SELECT *, COALESCE(checked_at > NOW() - make_interval(secs => $2), false) AS recente
@@ -48,6 +48,12 @@ export const GET = route(async () => {
     ),
     query('SELECT billing_cpf, billing_address FROM family_users WHERE id = $1', [me.id]),
     valorContribuicao(),
+    query<PaymentRow>(
+      `SELECT * FROM payments WHERE participant_id = $1 AND status = 'SUBSTITUIDO'
+        AND created_at >= NOW() - INTERVAL '5 days'
+        AND (checked_at IS NULL OR checked_at <= NOW() - INTERVAL '60 seconds')`,
+      [me.participant_id],
+    ),
   ]);
 
   let pay: PaymentRow | undefined = pays[0];
@@ -58,10 +64,23 @@ export const GET = route(async () => {
     });
   }
 
+  let substituidoPago = false;
+  if (c6Configurado()) {
+    for (const antigo of substituidos) {
+      if (antigo.id === pay?.id) continue;
+      const atualizado = await atualizarPagamento(antigo).catch((e) => {
+        console.error('[pagamento] consulta C6 substituído:', (e as Error).message);
+        return antigo;
+      });
+      if (atualizado.status === 'PAID') substituidoPago = true;
+      if (pay?.id === atualizado.id) pay = atualizado;
+    }
+  }
+
   return ok({
     enabled: c6Configurado(),
     amount: valor,
-    participant_paid: pay?.status === 'PAID' ? true : Boolean(part[0]?.paid),
+    participant_paid: substituidoPago || pay?.status === 'PAID' || Boolean(part[0]?.paid),
     paid_date: part[0]?.paid_date ?? null,
     payment: publico(pay),
     billing: {

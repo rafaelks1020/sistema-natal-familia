@@ -69,7 +69,7 @@ export const POST = route(async (req) => {
 
   if (action === 'login') {
     const { rows } = await query(
-      'SELECT id, password_hash FROM family_users WHERE username = $1',
+      'SELECT id, password_hash, session_version FROM family_users WHERE username = $1',
       [username],
     );
     const user = rows[0];
@@ -77,8 +77,8 @@ export const POST = route(async (req) => {
       await registrarFalha(ip, username);
       throw new HttpError(401, 'Usuário ou senha não conferem.');
     }
-    const res = NextResponse.json(body.client === 'app' ? { ok: true, token: createSessionToken(user.id) } : { ok: true });
-    setSessionCookie(res, user.id);
+    const res = NextResponse.json(body.client === 'app' ? { ok: true, token: createSessionToken(user.id, user.session_version) } : { ok: true });
+    setSessionCookie(res, user.id, user.session_version);
     return res;
   }
 
@@ -152,17 +152,28 @@ export const POST = route(async (req) => {
     });
 
     const res = NextResponse.json(
-      body.client === 'app' ? { ok: true, token: createSessionToken(userId) } : { ok: true },
+      body.client === 'app' ? { ok: true, token: createSessionToken(userId, 1) } : { ok: true },
       { status: 201 },
     );
-    setSessionCookie(res, userId);
+    setSessionCookie(res, userId, 1);
     return res;
   }
 
   throw new HttpError(400, 'Ação inválida.');
 });
 
-export const DELETE = route(async () => {
+export const DELETE = route(async (req) => {
+  const text = await req.text();
+  let body: unknown;
+  if (text.trim()) {
+    try { body = JSON.parse(text); }
+    catch { throw new HttpError(400, 'Dados inválidos.'); }
+  }
+  const token = body && typeof body === 'object' && 'push_token' in body ? body.push_token : null;
+  const me = await getSessionUser();
+  if (me && typeof token === 'string' && token) {
+    await query('DELETE FROM push_devices WHERE user_id = $1 AND token = $2', [me.id, token]);
+  }
   const res = NextResponse.json({ ok: true });
   clearSessionCookie(res);
   return res;
