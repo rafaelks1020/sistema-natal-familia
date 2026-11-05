@@ -24,7 +24,7 @@ for gif in "$ORIGEM"/*.gif "$ORIGEM"/*.mp4 "$ORIGEM"/*.webm; do
   ffmpeg -v error -y -i "$gif" -vf "$FILTRO" -an \
     -c:v libx264 -preset slow -crf 26 -profile:v high -movflags +faststart \
     "$DESTINO/$nome.mp4"
-  ffmpeg -v error -y -i "$gif" -vf "scale='min($LARG,iw)':-2" -frames:v 1 -q:v 4 \
+  ffmpeg -v error -y -i "$gif" -vf "scale='min(540,iw)':-2" -frames:v 1 -q:v 7 \
     "$DESTINO/$nome.jpg"
   printf '   gif %6s KB  webm %5s KB  mp4 %5s KB  jpg %4s KB\n' \
     "$(( $(stat -c%s "$gif") / 1024 ))" \

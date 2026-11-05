@@ -40,6 +40,11 @@
   --ease-cine: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Letra maior para quem prefere (Perfil > Letra maior): tudo em rem cresce junto. */
+html.letra-grande {
+  font-size: 115%;
+}
+
 html {
   background: var(--carvao);
   color-scheme: dark;

@@ -26,11 +26,21 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  // Android: a tela encolhe quando o teclado abre (campos das folhas não ficam escondidos).
+  interactiveWidget: 'resizes-content',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR" className={`${bodoni.variable} ${manrope.variable}`}>
+    <html lang="pt-BR" className={`${bodoni.variable} ${manrope.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Letra maior (opção do perfil), aplicada antes de pintar para não piscar. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "try{if(localStorage.getItem('nf_letra')==='grande')document.documentElement.classList.add('letra-grande')}catch(e){}",
+          }}
+        />
+      </head>
       <body>{children}</body>
     </html>
   );
