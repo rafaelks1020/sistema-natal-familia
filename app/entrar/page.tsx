@@ -7,6 +7,20 @@ import { api } from '@/app/ui/client';
 
 type Mode = 'login' | 'register';
 
+// Igual ao servidor (app/api/auth/route.ts): mostra como o usuário vai ficar.
+function normalizarUsuario(valor: string): string {
+  return valor
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '.')
+    .replace(/[^a-z0-9._-]/g, '')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^[.]+|[.]+$/g, '')
+    .slice(0, 40);
+}
+
 // Fundo de reserva enquanto o vídeo mn-login não existe: bokeh dourado desenhado em CSS.
 function Bokeh() {
   const dots = [
@@ -86,15 +100,23 @@ export default function EntrarPage() {
             autoComplete="username"
             autoCapitalize="none"
             autoCorrect="off"
+            spellCheck={false}
             value={form.username}
             onChange={set('username')}
             required
           />
+          {form.username.trim() && normalizarUsuario(form.username) !== form.username.trim() && (
+            <p className="-mt-1 px-1 text-xs text-marfim-3">
+              {mode === 'register' ? 'Seu usuário vai ficar: ' : 'Entrando como: '}
+              <span className="text-champagne">{normalizarUsuario(form.username) || '...'}</span>
+            </p>
+          )}
           <div className="relative">
             <input
               className="field pr-12"
               type={show ? 'text' : 'password'}
-              placeholder="Senha"
+              placeholder={mode === 'register' ? 'Senha (mínimo 6)' : 'Senha'}
+              minLength={mode === 'register' ? 6 : undefined}
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               value={form.password}
               onChange={set('password')}
@@ -114,6 +136,8 @@ export default function EntrarPage() {
               className="field"
               placeholder="Código da família"
               autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               value={form.code}
               onChange={set('code')}
               required

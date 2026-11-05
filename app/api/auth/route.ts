@@ -9,6 +9,19 @@ import { clearSessionCookie, getSessionUser, setSessionCookie } from '@/app/lib/
 // POST   /api/auth            -> { action: 'login' | 'register', username, password, name?, code? }
 // DELETE /api/auth            -> sair
 
+function normalizarUsuario(valor: string): string {
+  return valor
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '.')
+    .replace(/[^a-z0-9._-]/g, '')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^[.]+|[.]+$/g, '')
+    .slice(0, 40);
+}
+
 function sameText(a: string, b: string): boolean {
   const x = Buffer.from(a);
   const y = Buffer.from(b);
@@ -22,11 +35,12 @@ export const GET = route(async () => {
 export const POST = route(async (req) => {
   const body = await readJson<Record<string, unknown>>(req);
   const action = body.action;
-  const username = cleanText(body.username, 'o usuário', 40).toLowerCase();
+  // Tolerante ao celular: sem acento, minúsculo, espaço vira ponto, resto inválido sai.
+  const username = normalizarUsuario(cleanText(body.username, 'o usuário', 60));
   const password = typeof body.password === 'string' ? body.password : '';
 
   if (!/^[a-z0-9._-]{3,40}$/.test(username)) {
-    throw new HttpError(400, 'Usuário: de 3 a 40 letras, números, ponto, hífen ou sublinhado.');
+    throw new HttpError(400, 'O usuário precisa ter pelo menos 3 letras ou números.');
   }
 
   if (action === 'login') {

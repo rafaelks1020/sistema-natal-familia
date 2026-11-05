@@ -217,10 +217,17 @@ export default function PostCard({
           />
           {heartBurst && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <Heart
-                size={76}
-                strokeWidth={1.2}
-                className="pop fill-cereja text-cereja drop-shadow-[0_4px_24px_rgba(197,41,45,0.85)]"
+              <LoopMedia
+                name="mn-coracao"
+                once
+                className="h-44 w-44 mix-blend-screen"
+                fallback={
+                  <Heart
+                    size={76}
+                    strokeWidth={1.2}
+                    className="pop fill-cereja text-cereja drop-shadow-[0_4px_24px_rgba(197,41,45,0.85)]"
+                  />
+                }
               />
             </div>
           )}
@@ -270,10 +277,17 @@ export default function PostCard({
 
           {heartBurst && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <Heart
-                size={76}
-                strokeWidth={1.2}
-                className="pop fill-cereja text-cereja drop-shadow-[0_4px_24px_rgba(197,41,45,0.85)]"
+              <LoopMedia
+                name="mn-coracao"
+                once
+                className="h-44 w-44 mix-blend-screen"
+                fallback={
+                  <Heart
+                    size={76}
+                    strokeWidth={1.2}
+                    className="pop fill-cereja text-cereja drop-shadow-[0_4px_24px_rgba(197,41,45,0.85)]"
+                  />
+                }
               />
             </div>
           )}
