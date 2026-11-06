@@ -151,3 +151,19 @@ Cada fase sai no site na hora e no app numa versão nova das lojas (Android vers
 - [ ] (R) Meta e destino da vaquinha (Vaquinha > meta)
 - [ ] App 1.1.0 (versionCode 2, build iOS novo) nas lojas depois da aprovação da 1.0
 - Áudio: até uns 15 minutos por gravação (limite de 4,5 MB por envio da Vercel)
+
+## G. Rodada 2 (05/11/2026, aprovada pelo Rafael)
+- [ ] 1. Telão super top para deixar tocando, com integração tipo Alexa (ANOTADO, próxima rodada; /api/spotify/tocando já fica pronto)
+- [~] 2. Votar nas músicas (ordem da playlist segue os votos)
+- [~] 3. Playlist por momento (jantar, festa, amigo oculto)
+- [~] 4. Retrospectiva musical
+- [~] 5. Resumo semanal no celular (domingos)
+- [~] 6. Ficha de lembrete: quem não confirmou presença ou não pagou a vaquinha (push só para essas pessoas)
+- [~] 7. Vídeo-convite da ceia (cenas do ChatGPT web + montagem com texto)
+- [~] 8. Cartão de Natal personalizado com a foto da pessoa
+- [~] 9. Widget de contagem regressiva no Android e no iPhone
+- [~] 10. Painel admin com gráficos
+- [~] 11. Relatório da ceia em PDF
+- [~] 12. Aviso agendado
+- [x] Painel admin no site (39 recursos) e playlist do Spotify com prévia
+- [~] Painel admin no app (próxima versão das lojas)
