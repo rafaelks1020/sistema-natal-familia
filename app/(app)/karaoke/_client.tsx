@@ -1,12 +1,12 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Captions, Mic2, SkipForward, Star, Trash2, Video } from 'lucide-react';
+import { ArrowDown, ArrowUp, Captions, Mic2, Music4, SkipForward, Star, Trash2, Video } from 'lucide-react';
 import PageHeader from '@/app/ui/PageHeader';
 import { api } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
 import { useMe } from '@/app/ui/user';
-import { formatarDuracao, quemCanta, type EstadoKaraoke, type ItemFila, type MusicaLrclib, type VideoKaraoke } from '@/app/telao/karaoke/tipos';
+import { formatarDuracao, quemCanta, ROTULO_PREPARO, slugDaMusica, type EstadoKaraoke, type ItemFila, type MusicaCatalogo, type MusicaLrclib, type VideoKaraoke } from '@/app/telao/karaoke/tipos';
 
 function Estrelas({ n }: { n: number }) {
   return <span className="inline-flex items-center gap-0.5 text-champagne" aria-label={`${n} de 5 estrelas`}>{[1, 2, 3, 4, 5].map((i) => <Star key={i} size={13} strokeWidth={1.6} fill={i <= n ? 'currentColor' : 'none'} className={i <= n ? '' : 'opacity-40'} />)}</span>;
@@ -14,6 +14,20 @@ function Estrelas({ n }: { n: number }) {
 
 /** Como a música vai aparecer no telão. */
 function SeloModo({ f }: { f: ItemFila }) {
+  if (f.modo === 'estudio') return <span className="mt-1 inline-flex items-center gap-1 text-xs text-champagne"><Music4 size={13} strokeWidth={1.6} aria-hidden="true" />Versão estúdio</span>;
+  if (f.catalogo_id !== null && f.catalogo_status && f.catalogo_status !== 'pronta') {
+    return <span className="mt-1 flex flex-col text-xs text-marfim-3">
+      <SeloBase f={f} />
+      <span className="inline-flex items-center gap-1 text-champagne"><Music4 size={13} strokeWidth={1.6} aria-hidden="true" />Versão estúdio: {ROTULO_PREPARO[f.catalogo_status]}{f.catalogo_status === 'falhou' ? ' (segue com a letra)' : ''}</span>
+    </span>;
+  }
+  if (f.catalogo_id !== null && f.catalogo_status === 'pronta') {
+    return <span className="mt-1 flex flex-col text-xs text-marfim-3"><SeloBase f={f} /><span className="inline-flex items-center gap-1 text-champagne"><Music4 size={13} strokeWidth={1.6} aria-hidden="true" />Versão estúdio pronta: vai tocar assim</span></span>;
+  }
+  return <SeloBase f={f} />;
+}
+
+function SeloBase({ f }: { f: ItemFila }) {
   const letra = f.modo === 'letra';
   return <span className={`mt-1 inline-flex items-center gap-1 text-xs ${letra ? 'text-champagne' : 'text-marfim-3'}`}>
     {letra ? <Captions size={13} strokeWidth={1.6} aria-hidden="true" /> : <Video size={13} strokeWidth={1.6} aria-hidden="true" />}{letra ? 'Letra na tela' : 'Vídeo karaokê'}
@@ -36,6 +50,9 @@ export default function KaraokeClient() {
   const [buscando, setBuscando] = useState(false);
   const [dueto, setDueto] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const [catalogo, setCatalogo] = useState<MusicaCatalogo[]>([]);
+  const [buscaCat, setBuscaCat] = useState('');
+  const [catalogoErro, setCatalogoErro] = useState('');
   const trava = useRef(false);
   const controle = useRef<AbortController | null>(null);
 
@@ -50,6 +67,20 @@ export default function KaraokeClient() {
     return () => window.clearInterval(t);
   }, [carregar]);
   useEffect(() => () => controle.current?.abort(), []);
+
+  const carregarCatalogo = useCallback(async (q: string) => {
+    try { setCatalogo((await api<{ musicas: MusicaCatalogo[] }>(`/api/karaoke/catalogo?q=${encodeURIComponent(q.trim())}`)).musicas); setCatalogoErro(''); }
+    catch (e) { setCatalogoErro((e as Error).message); }
+  }, []);
+  useEffect(() => {
+    const t = window.setTimeout(() => void carregarCatalogo(buscaCat), buscaCat ? 350 : 0);
+    const r = window.setInterval(() => { if (!document.hidden) void carregarCatalogo(buscaCat); }, 10000);
+    return () => { window.clearTimeout(t); window.clearInterval(r); };
+  }, [buscaCat, carregarCatalogo]);
+  const prontas = catalogo.filter((m) => m.status === 'pronta');
+  const emPreparo = catalogo.filter((m) => m.status !== 'pronta');
+  /** Música do catálogo que corresponde a um resultado do LRCLIB (pelo id ou pelo nome). */
+  const doCatalogo = (m: MusicaLrclib) => catalogo.find((c) => c.lrclib_id === m.id) ?? catalogo.find((c) => c.slug === slugDaMusica(m.artista, m.faixa));
 
   async function buscar(event: React.FormEvent) {
     event.preventDefault();
@@ -82,8 +113,31 @@ export default function KaraokeClient() {
     () => api<EstadoKaraoke>('/api/karaoke/fila', { method: 'POST', json: { video_id: v.video_id, titulo: v.titulo, canal: v.canal, duracao_s: v.duracao_s, candidatos: resultados.filter((r) => r.video_id !== v.video_id).slice(0, 8), dueto_user_id: dueto ? Number(dueto) : null } }),
     'Você entrou na fila!',
   );
+  const cantarEstudio = (c: MusicaCatalogo) => executar(
+    async () => {
+      const novo = await api<EstadoKaraoke>('/api/karaoke/fila', { method: 'POST', json: { catalogo_id: c.id, dueto_user_id: dueto ? Number(dueto) : null } });
+      void carregarCatalogo(buscaCat);
+      return novo;
+    },
+    'Você entrou na fila na versão estúdio!',
+  );
+  /** Entra na fila como hoje (letra ou vídeo) e, se a música não está no catálogo, pede também a versão estúdio. */
   const cantarMusica = (m: MusicaLrclib) => executar(
-    () => api<EstadoKaraoke>('/api/karaoke/fila', { method: 'POST', json: { lrclib_id: m.id, dueto_user_id: dueto ? Number(dueto) : null } }),
+    async () => {
+      let cat = doCatalogo(m);
+      let aviso = '';
+      if (!cat) {
+        try {
+          cat = await api<MusicaCatalogo>('/api/karaoke/catalogo', { method: 'POST', json: { lrclib_id: m.id, artista: m.artista, faixa: m.faixa, duracao_s: m.duracao_s } });
+          aviso = 'Preparando versão estúdio (fica pronta em uns 15 min).';
+        } catch (e) { aviso = `Versão estúdio não pedida: ${(e as Error).message}`; }
+      }
+      const comEstudio = cat && cat.status !== 'falhou';
+      const novo = await api<EstadoKaraoke>('/api/karaoke/fila', { method: 'POST', json: { lrclib_id: m.id, ...(comEstudio ? { catalogo_id: cat!.id } : {}), dueto_user_id: dueto ? Number(dueto) : null } });
+      if (aviso) toast(aviso);
+      void carregarCatalogo(buscaCat);
+      return novo;
+    },
     'Você entrou na fila!',
   );
   const admin = (id: number, acao: 'subir' | 'descer' | 'pular' | 'remover') => executar(() => api<EstadoKaraoke>('/api/karaoke/fila', { method: 'PATCH', json: { id, acao } }));
@@ -107,6 +161,25 @@ export default function KaraokeClient() {
         <div className="min-w-0"><p className="break-words font-medium">{f.titulo}</p><p className="text-sm text-marfim-2">{pos === 1 ? 'Você é o próximo! Fique perto da TV.' : `${pos - 1} ${pos === 2 ? 'pessoa' : 'pessoas'} na sua frente`}</p></div>
       </div>)}
     </section> : null}
+
+    <section className="surface space-y-3 border border-champagne p-5" aria-label="Versão estúdio">
+      <h2 className="display text-2xl">Versão estúdio</h2>
+      <p className="inline-flex items-center gap-1 text-xs text-champagne"><Music4 size={14} strokeWidth={1.6} aria-hidden="true" />Estúdio: letra palavra a palavra e nota de verdade</p>
+      <label className="block text-sm">Buscar no catálogo
+        <input className="field mt-2" value={buscaCat} onChange={(e) => setBuscaCat(e.target.value)} maxLength={120} placeholder="Artista ou música" />
+      </label>
+      {catalogoErro ? <p className="text-sm text-marfim-2">{catalogoErro}</p> : null}
+      {!catalogoErro && !prontas.length ? <p className="text-sm text-marfim-2">{buscaCat.trim() ? 'Nada pronto com esse nome.' : 'Ainda não há músicas prontas. Peça uma na busca abaixo.'}</p> : <ul className="divide-y divide-linha">
+        {prontas.map((c) => <li key={c.id} className="flex items-center gap-3 py-3">
+          {c.capa_url ? <img src={c.capa_url} alt="" width={48} height={48} loading="lazy" className="h-12 w-12 shrink-0 rounded-lg object-cover" /> : null}
+          <div className="min-w-0 flex-1"><p className="break-words font-medium">{c.faixa}</p><p className="break-words text-sm text-marfim-2">{c.artista}</p></div>
+          <button type="button" className="btn btn-primary min-h-11 shrink-0 gap-1" disabled={ocupado || (estado?.minhasPendentes ?? 0) >= (estado?.maxPendentes ?? 2)} onClick={() => void cantarEstudio(c)}><Mic2 size={18} strokeWidth={1.6} aria-hidden="true" />Cantar</button>
+        </li>)}
+      </ul>}
+      {emPreparo.length ? <div className="space-y-1 pt-1"><p className="text-xs text-marfim-3">Em preparo</p>
+        {emPreparo.slice(0, 6).map((c) => <p key={c.id} className="break-words text-sm text-marfim-2">{c.faixa} · {c.artista}: {ROTULO_PREPARO[c.status]}</p>)}
+      </div> : null}
+    </section>
 
     <form onSubmit={buscar} className="space-y-3">
       <h2 className="display text-2xl">Quero cantar</h2>
@@ -136,7 +209,19 @@ export default function KaraokeClient() {
               ? <span className="mt-1 inline-flex items-center gap-1 text-xs text-champagne"><Captions size={13} strokeWidth={1.6} aria-hidden="true" />Letra sincronizada</span>
               : <span className="mt-1 inline-flex items-center gap-1 text-xs text-marfim-3"><Video size={13} strokeWidth={1.6} aria-hidden="true" />Sem letra sincronizada: toca o vídeo de karaokê</span>}
           </div>
-          <button type="button" className="btn btn-primary w-full gap-2" disabled={ocupado || (estado?.minhasPendentes ?? 0) >= (estado?.maxPendentes ?? 2)} onClick={() => void cantarMusica(m)}><Mic2 size={18} strokeWidth={1.6} aria-hidden="true" />{ocupado ? 'Preparando...' : 'Quero cantar'}</button>
+          {(() => {
+            const c = doCatalogo(m);
+            const cheio = ocupado || (estado?.minhasPendentes ?? 0) >= (estado?.maxPendentes ?? 2);
+            if (c?.status === 'pronta') return <>
+              <span className="inline-flex items-center gap-1 text-xs text-champagne"><Music4 size={13} strokeWidth={1.6} aria-hidden="true" />Estúdio: letra palavra a palavra e nota de verdade</span>
+              <button type="button" className="btn btn-primary w-full gap-2" disabled={cheio} onClick={() => void cantarEstudio(c)}><Mic2 size={18} strokeWidth={1.6} aria-hidden="true" />{ocupado ? 'Preparando...' : 'Quero cantar'}</button>
+            </>;
+            return <>
+              {c && c.status !== 'falhou' ? <span className="block text-xs text-champagne">Preparando versão estúdio ({ROTULO_PREPARO[c.status]}; fica pronta em uns 15 min)</span> : null}
+              <button type="button" className="btn btn-primary w-full gap-2" disabled={cheio} onClick={() => void cantarMusica(m)}><Mic2 size={18} strokeWidth={1.6} aria-hidden="true" />{ocupado ? 'Preparando...' : 'Quero cantar'}</button>
+              {!c ? <span className="block text-xs text-marfim-3">Também preparamos a versão estúdio (fica pronta em uns 15 min).</span> : null}
+            </>;
+          })()}
         </li>)}
       </ul>}
     </section> : null}

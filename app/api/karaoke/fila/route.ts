@@ -2,6 +2,7 @@ import { route, ok, readJson, cleanText, toInt, HttpError, requireUser, requireA
 import { query, transaction } from '@/app/lib/db';
 import { edicaoAtual } from '@/app/lib/edicao';
 import { dentroDoLimite } from '@/app/lib/limite';
+import type { DadosEstudio, StatusCatalogo } from '@/app/telao/karaoke/tipos';
 import { lerFaixa, parseLrc, type LinhaLetra } from '../_lrclib';
 import { buscarTermo, juntarVideos, melhorKaraoke, ordenarPorDuracao, type VideoKaraoke } from '../_youtube';
 import { candidatosValidos, listarBloqueados, MAX_CANDIDATOS, trocarVideo } from '../_trocar';
@@ -30,7 +31,13 @@ interface LinhaFila {
   lrclib_id: number | string | null;
   letra: LinhaLetra[] | null;
   offset_ms: number;
-  modo: 'letra' | 'video';
+  modo: 'estudio' | 'letra' | 'video';
+  catalogo_id: number | string | null;
+  catalogo_status: StatusCatalogo | null;
+  capa_url: string | null;
+  est_audio: string | null;
+  est_palavras: DadosEstudio['palavras'] | null;
+  est_notas: DadosEstudio['notas'] | null;
 }
 
 const MAX_OFFSET_MS = 30_000;
@@ -50,6 +57,7 @@ function comMigracao(h: (req: Request) => Promise<Response>) {
       const codigo = codigoPg(err);
       const msg = err instanceof Error ? err.message : '';
       if (codigo === '42703' || codigo === '42P01') {
+        if (/catalogo/.test(msg)) throw new HttpError(503, 'Rode a migração 040');
         if (/candidatos|videos_falhos|karaoke_videos_bloqueados/.test(msg)) throw new HttpError(503, 'Rode a migração 039');
         if (codigo === '42703' || /karaoke_ajustes/.test(msg)) throw new HttpError(503, 'Rode a migração 038');
         throw new HttpError(503, 'Rode a migração 036');
@@ -60,7 +68,12 @@ function comMigracao(h: (req: Request) => Promise<Response>) {
 }
 
 function item(l: LinhaFila) {
-  return { ...l, id: Number(l.id), lrclib_id: l.lrclib_id == null ? null : Number(l.lrclib_id) };
+  const { est_audio, est_palavras, est_notas, ...resto } = l;
+  const estudio = est_audio && est_palavras && est_notas ? { audio_url: est_audio, palavras: est_palavras, notas: est_notas } : null;
+  return {
+    ...resto, id: Number(l.id), lrclib_id: l.lrclib_id == null ? null : Number(l.lrclib_id),
+    catalogo_id: l.catalogo_id == null ? null : Number(l.catalogo_id), estudio,
+  };
 }
 
 /** Estado completo do karaokê do ano: música atual, fila, últimas feitas e ranking da noite. */
@@ -70,8 +83,13 @@ async function estado(q: Q, ano: number, meuId: number, comLetra = false) {
       `SELECT f.id, f.user_id, u.name AS nome, f.dueto_user_id, d.name AS dueto_nome, f.video_id, f.titulo, f.canal,
               f.duracao_s, f.miniatura, f.status, f.posicao, n.nota, n.estrelas,
               f.faixa, f.artista, f.lrclib_id, f.offset_ms, f.modo,
-              CASE WHEN $2::boolean AND f.status = 'cantando' THEN f.letra END AS letra
+              f.catalogo_id, c.status AS catalogo_status, c.capa_url,
+              CASE WHEN $2::boolean AND f.status = 'cantando' THEN f.letra END AS letra,
+              CASE WHEN $2::boolean AND f.status = 'cantando' AND f.modo = 'estudio' AND c.status = 'pronta' THEN c.audio_url END AS est_audio,
+              CASE WHEN $2::boolean AND f.status = 'cantando' AND f.modo = 'estudio' AND c.status = 'pronta' THEN c.palavras END AS est_palavras,
+              CASE WHEN $2::boolean AND f.status = 'cantando' AND f.modo = 'estudio' AND c.status = 'pronta' THEN c.notas END AS est_notas
          FROM karaoke_fila f
+         LEFT JOIN karaoke_catalogo c ON c.id = f.catalogo_id
          JOIN family_users u ON u.id = f.user_id
          LEFT JOIN family_users d ON d.id = f.dueto_user_id
          LEFT JOIN karaoke_notas n ON n.fila_id = f.id
@@ -137,12 +155,28 @@ interface Escolha {
   artista: string | null;
   lrclibId: number | null;
   letra: LinhaLetra[] | null;
-  modo: 'letra' | 'video';
+  modo: 'estudio' | 'letra' | 'video';
   /** Vídeos para trocar se o escolhido não tocar embutido (o primeiro é o escolhido). */
   candidatos: VideoKaraoke[];
 }
 
 const MIN_LINHAS_COM_TEXTO = 3;
+
+/** Música do catálogo já pronta: entra na fila em modo estúdio, sem buscar vídeo no YouTube. */
+function escolhaDeEstudio(c: { id: number | string; artista: string; faixa: string; duracao_ms: number | null; lrclib_id: number | string | null; capa_url: string | null }): Escolha {
+  return {
+    videoId: `estudio-${Number(c.id)}`,
+    titulo: `${c.faixa} - ${c.artista}`.slice(0, 200),
+    canal: 'Estúdio',
+    duracao: c.duracao_ms ? Math.round(c.duracao_ms / 1000) : null,
+    faixa: c.faixa,
+    artista: c.artista,
+    lrclibId: c.lrclib_id == null ? null : Number(c.lrclib_id),
+    letra: null,
+    modo: 'estudio',
+    candidatos: [],
+  };
+}
 
 /**
  * Pelo id do LRCLIB: lê a letra e procura o vídeo instrumental no YouTube com a duração da música (até 4 s de diferença).
@@ -192,12 +226,27 @@ async function escolherPorMusica(lrclibId: number, bloqueados: Set<string>): Pro
 export const POST = route(comMigracao(async (req) => {
   const me = await requireUser();
   const ano = edicaoAtual();
-  const body = await readJson<{ lrclib_id?: unknown; candidatos?: unknown; video_id?: unknown; titulo?: unknown; canal?: unknown; duracao_s?: unknown; dueto_user_id?: unknown }>(req);
+  const body = await readJson<{ catalogo_id?: unknown; lrclib_id?: unknown; candidatos?: unknown; video_id?: unknown; titulo?: unknown; canal?: unknown; duracao_s?: unknown; dueto_user_id?: unknown }>(req);
   const dueto = body.dueto_user_id == null || body.dueto_user_id === '' ? null : toInt(body.dueto_user_id, 'dueto_user_id');
   if (dueto === me.id) throw new HttpError(400, 'Escolha outra pessoa para o dueto.');
 
-  let escolha: Escolha;
-  if (body.lrclib_id != null && body.lrclib_id !== '') {
+  let catalogoId: number | null = null;
+  let capaCatalogo: string | null = null;
+  let escolha: Escolha | null = null;
+  if (body.catalogo_id != null && body.catalogo_id !== '') {
+    catalogoId = toInt(body.catalogo_id, 'catalogo_id');
+    const { rows } = await query<{ id: number | string; artista: string; faixa: string; duracao_ms: number | null; lrclib_id: number | string | null; capa_url: string | null; status: StatusCatalogo }>(
+      'SELECT id, artista, faixa, duracao_ms, lrclib_id, capa_url, status FROM karaoke_catalogo WHERE id = $1', [catalogoId]);
+    const cat = rows[0];
+    if (!cat) throw new HttpError(404, 'Música do estúdio não encontrada.');
+    capaCatalogo = cat.capa_url;
+    if (cat.status === 'pronta') escolha = escolhaDeEstudio(cat);
+    else if (body.lrclib_id == null || body.lrclib_id === '') throw new HttpError(409, 'A versão estúdio dessa música ainda não está pronta.');
+  }
+  if (escolha) {
+    const { rows: ja } = await query(`SELECT 1 FROM karaoke_fila WHERE ano = $1 AND user_id = $2 AND status IN ('fila', 'cantando')`, [ano, me.id]);
+    if (ja.length >= MAX_PENDENTES) throw new HttpError(400, `Você já tem ${MAX_PENDENTES} músicas esperando. Espere uma delas para pedir outra.`);
+  } else if (body.lrclib_id != null && body.lrclib_id !== '') {
     const lrclibId = toInt(body.lrclib_id, 'lrclib_id');
     if (!dentroDoLimite('karaoke-escolher', me.id, 6)) throw new HttpError(429, 'Muitos pedidos seguidos. Espere um minutinho e tente de novo.');
     // Confere o limite de músicas antes de gastar buscas na rede (a conferência valendo é a da transação, abaixo).
@@ -224,7 +273,8 @@ export const POST = route(comMigracao(async (req) => {
       faixa: null, artista: null, lrclibId: null, letra: null, modo: 'video', candidatos: lista.slice(0, MAX_CANDIDATOS),
     };
   }
-  const miniatura = `https://i.ytimg.com/vi/${escolha.videoId}/mqdefault.jpg`;
+  const escolhaFinal: Escolha = escolha;
+  const miniatura = escolhaFinal.modo === 'estudio' ? capaCatalogo : `https://i.ytimg.com/vi/${escolhaFinal.videoId}/mqdefault.jpg`;
 
   await transaction(async (q) => {
     await q('SELECT pg_advisory_xact_lock(hashtext($1))', [`karaoke:${ano}`]);
@@ -232,19 +282,19 @@ export const POST = route(comMigracao(async (req) => {
       const { rows } = await q('SELECT 1 FROM family_users WHERE id = $1', [dueto]);
       if (!rows.length) throw new HttpError(400, 'Essa pessoa não está na família.');
     }
-    const { rows: pend } = await q<{ video_id: string }>(
-      `SELECT video_id FROM karaoke_fila WHERE ano = $1 AND user_id = $2 AND status IN ('fila', 'cantando')`,
+    const { rows: pend } = await q<{ video_id: string; catalogo_id: number | string | null }>(
+      `SELECT video_id, catalogo_id FROM karaoke_fila WHERE ano = $1 AND user_id = $2 AND status IN ('fila', 'cantando')`,
       [ano, me.id],
     );
     if (pend.length >= MAX_PENDENTES) throw new HttpError(400, `Você já tem ${MAX_PENDENTES} músicas esperando. Espere uma delas para pedir outra.`);
-    if (pend.some((p) => p.video_id === escolha.videoId)) throw new HttpError(400, 'Você já pediu essa música.');
+    if (pend.some((p) => p.video_id === escolhaFinal.videoId || (catalogoId !== null && Number(p.catalogo_id) === catalogoId))) throw new HttpError(400, 'Você já pediu essa música.');
     // Ajuste de tempo lembrado desse vídeo (feito pelo organizador em apresentações anteriores).
-    const { rows: aj } = await q<{ offset_ms: number }>('SELECT offset_ms FROM karaoke_ajustes WHERE video_id = $1', [escolha.videoId]);
-    const offset = escolha.modo === 'letra' ? (aj[0]?.offset_ms ?? 0) : 0;
+    const { rows: aj } = await q<{ offset_ms: number }>('SELECT offset_ms FROM karaoke_ajustes WHERE video_id = $1', [escolhaFinal.videoId]);
+    const offset = escolhaFinal.modo === 'letra' ? (aj[0]?.offset_ms ?? 0) : 0;
     await q(
-      `INSERT INTO karaoke_fila (ano, user_id, dueto_user_id, video_id, titulo, canal, duracao_s, miniatura, status, posicao, faixa, artista, lrclib_id, letra, offset_ms, modo, candidatos)
-       SELECT $1, $2, $3, $4, $5, $6, $7, $8, 'fila', COALESCE(MAX(posicao), 0) + 1, $9, $10, $11, $12::jsonb, $13, $14, $15::jsonb FROM karaoke_fila WHERE ano = $1`,
-      [ano, me.id, dueto, escolha.videoId, escolha.titulo, escolha.canal, escolha.duracao, miniatura, escolha.faixa, escolha.artista, escolha.lrclibId, escolha.letra ? JSON.stringify(escolha.letra) : null, offset, escolha.modo, JSON.stringify(escolha.candidatos)],
+      `INSERT INTO karaoke_fila (ano, user_id, dueto_user_id, video_id, titulo, canal, duracao_s, miniatura, status, posicao, faixa, artista, lrclib_id, letra, offset_ms, modo, candidatos, catalogo_id)
+       SELECT $1, $2, $3, $4, $5, $6, $7, $8, 'fila', COALESCE(MAX(posicao), 0) + 1, $9, $10, $11, $12::jsonb, $13, $14, $15::jsonb, $16::bigint FROM karaoke_fila WHERE ano = $1`,
+      [ano, me.id, dueto, escolhaFinal.videoId, escolhaFinal.titulo, escolhaFinal.canal, escolhaFinal.duracao, miniatura, escolhaFinal.faixa, escolhaFinal.artista, escolhaFinal.lrclibId, escolhaFinal.letra ? JSON.stringify(escolhaFinal.letra) : null, offset, escolhaFinal.modo, JSON.stringify(escolhaFinal.candidatos), catalogoId],
     );
   });
   return ok(await estado(query, ano, me.id), 201);
@@ -320,6 +370,12 @@ export const PATCH = route(comMigracao(async (req) => {
       if (rows[0].status !== 'fila') throw new HttpError(400, 'Essa música já passou.');
       await q(`UPDATE karaoke_fila SET status = 'pulada', terminado_em = NOW() WHERE ano = $1 AND status = 'cantando'`, [ano]);
       await q(`UPDATE karaoke_fila SET status = 'cantando', iniciado_em = NOW() WHERE id = $1`, [alvo]);
+      // Versão estúdio ficou pronta enquanto esperava na fila: vira modo estúdio na hora de começar (o ajuste de tempo do vídeo não vale).
+      await q(
+        `UPDATE karaoke_fila SET modo = 'estudio', offset_ms = 0
+          WHERE id = $1 AND modo <> 'estudio' AND catalogo_id IN (SELECT id FROM karaoke_catalogo WHERE status = 'pronta' AND audio_url IS NOT NULL AND palavras IS NOT NULL AND notas IS NOT NULL)`,
+        [alvo],
+      );
       return;
     }
 

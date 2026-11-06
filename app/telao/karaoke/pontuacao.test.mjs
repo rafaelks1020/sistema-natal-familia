@@ -10,7 +10,7 @@ const file = path.join(path.dirname(fileURLToPath(import.meta.url)), 'pontuacao.
 const js = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const mod = { exports: {} };
 new Function('module', 'exports', js)(mod, mod.exports);
-const { hzParaMidi, nomeDaNota, desvioCents, medirRuido, limiarDeVoz, cantando, estrelasDaNota, pontuar } = mod.exports;
+const { hzParaMidi, nomeDaNota, desvioCents, medirRuido, limiarDeVoz, cantando, estrelasDaNota, pontuar, pontuarEstudio, erroEmSemitons, fatorDeAcerto, notaEm, estrelasEstudio } = mod.exports;
 
 const PASSO = 33;
 const hz = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
@@ -219,4 +219,140 @@ test('letra: janelas inválidas ou vazias são ignoradas', () => {
   const a = pontuar(quadros, 20000, inicio);
   assert.equal(pontuar(quadros, 20000, inicio, []).nota, a.nota);
   assert.equal(pontuar(quadros, 20000, inicio, [{ de: 5, ate: 5 }, { de: NaN, ate: 10 }]).nota, a.nota);
+});
+
+// ---------- modo estúdio ----------
+
+// 8 notas de 2 s (a 1ª linha tem 4, a 2ª tem 4), com pausa de 500 ms entre elas.
+function melodia({ golden = [] } = {}) {
+  const notas = [];
+  for (let i = 0; i < 8; i++) notas.push({ inicio_ms: 1000 + i * 2500, dur_ms: 2000, midi: 60 + (i % 4) * 2, golden: golden.includes(i), linha: i < 4 ? 0 : 1 });
+  return notas;
+}
+// Voz seguindo a melodia: cada quadro traz m (posição do áudio) = tempo da nota + latência.
+function vozEstudio(notas, { desvio = 0, oitava = 0, latencia = 80, clareza = 0.95, quando = () => true } = {}) {
+  const quadros = [];
+  for (let t = 0; t < 2000; t += PASSO) quadros.push({ t, hz: 0, clareza: 0.2, rms: 0.003, m: t });
+  const fim = 22000;
+  for (let m = 0; m < fim; m += PASSO) {
+    const tn = m - latencia;
+    const idx = notas.findIndex((n) => tn >= n.inicio_ms && tn < n.inicio_ms + n.dur_ms);
+    if (idx >= 0 && quando(idx)) quadros.push({ t: 2000 + m, hz: hz(notas[idx].midi + desvio + oitava * 12), clareza, rms: 0.08, m });
+    else quadros.push({ t: 2000 + m, hz: 0, clareza: 0.2, rms: 0.003, m });
+  }
+  return quadros;
+}
+
+test('estúdio: erro em semitons ignora a oitava', () => {
+  assert.equal(erroEmSemitons(60, 60), 0);
+  assert.ok(Math.abs(erroEmSemitons(72.3, 60) - 0.3) < 1e-9);
+  assert.ok(Math.abs(erroEmSemitons(48.6, 60) - 0.6) < 1e-9);
+  assert.equal(erroEmSemitons(66, 60), 6);
+  assert.ok(Math.abs(erroEmSemitons(59.2, 60) - 0.8) < 1e-9);
+});
+
+test('estúdio: fator de acerto vale 1 até 0,5 semitom, cai até 0 em 1,5', () => {
+  assert.equal(fatorDeAcerto(0), 1);
+  assert.equal(fatorDeAcerto(0.5), 1);
+  assert.ok(Math.abs(fatorDeAcerto(1) - 0.5) < 1e-9);
+  assert.equal(fatorDeAcerto(1.5), 0);
+  assert.equal(fatorDeAcerto(4), 0);
+});
+
+test('estúdio: notaEm acha a nota que cobre o instante', () => {
+  const notas = melodia();
+  assert.equal(notaEm(notas, 500), -1);
+  assert.equal(notaEm(notas, 1000), 0);
+  assert.equal(notaEm(notas, 2999), 0);
+  assert.equal(notaEm(notas, 3200), -1);
+  assert.equal(notaEm(notas, 3500), 1);
+});
+
+test('estúdio: cantar cravado na melodia dá nota máxima', () => {
+  const notas = melodia();
+  const r = pontuarEstudio(vozEstudio(notas), notas, 80);
+  assert.ok(r.nota >= 97, `nota ${r.nota}`);
+  assert.equal(r.estrelas, 5);
+  assert.equal(r.detalhes.modo, 'estudio');
+  assert.equal(r.linhas.length, 2);
+  assert.ok(r.linhas.every((p) => p > 0.95));
+});
+
+test('estúdio: silêncio dá zero', () => {
+  const notas = melodia();
+  const r = pontuarEstudio(vozEstudio(notas, { quando: () => false }), notas, 80);
+  assert.equal(r.nota, 0);
+  assert.equal(r.estrelas, 1);
+  assert.equal(r.total, 0);
+});
+
+test('estúdio: sem notas não quebra', () => {
+  const r = pontuarEstudio(vozEstudio(melodia()), [], 80);
+  assert.equal(r.nota, 0);
+  assert.deepEqual(r.linhas, []);
+});
+
+test('estúdio: oitava abaixo ou acima conta igual', () => {
+  const notas = melodia();
+  const a = pontuarEstudio(vozEstudio(notas), notas, 80).nota;
+  assert.equal(pontuarEstudio(vozEstudio(notas, { oitava: -1 }), notas, 80).nota, a);
+  assert.equal(pontuarEstudio(vozEstudio(notas, { oitava: 1 }), notas, 80).nota, a);
+});
+
+test('estúdio: desafinar 3 semitons zera os pontos; meio semitom ainda é cheio', () => {
+  const notas = melodia();
+  assert.ok(pontuarEstudio(vozEstudio(notas, { desvio: 3 }), notas, 80).nota <= 2);
+  assert.ok(pontuarEstudio(vozEstudio(notas, { desvio: 0.45 }), notas, 80).nota >= 97);
+  const meio = pontuarEstudio(vozEstudio(notas, { desvio: 1 }), notas, 80).nota;
+  assert.ok(meio > 40 && meio < 60, `nota ${meio}`);
+});
+
+test('estúdio: a latência do microfone é descontada', () => {
+  const notas = melodia();
+  const atrasada = vozEstudio(notas, { latencia: 200 });
+  const certa = pontuarEstudio(atrasada, notas, 200).nota;
+  const errada = pontuarEstudio(atrasada, notas, 0).nota;
+  assert.ok(certa >= 97, `nota ${certa}`);
+  assert.ok(errada < certa);
+});
+
+test('estúdio: o ajuste de sincronia desloca as notas', () => {
+  const notas = melodia();
+  const q = vozEstudio(notas, { latencia: 80 + 250 });
+  assert.ok(pontuarEstudio(q, notas, 80, 250).nota >= 97);
+  assert.ok(pontuarEstudio(q, notas, 80, 0).nota < 97);
+});
+
+test('estúdio: quadros sem clareza ou abaixo do ruído não contam', () => {
+  const notas = melodia();
+  assert.equal(pontuarEstudio(vozEstudio(notas, { clareza: 0.7 }), notas, 80).nota, 0);
+  const baixo = vozEstudio(notas).map((q) => (q.t >= 2000 ? { ...q, rms: q.hz ? 0.001 : q.rms } : q));
+  assert.equal(pontuarEstudio(baixo, notas, 80).nota, 0);
+});
+
+test('estúdio: nota golden vale o dobro', () => {
+  const notas = melodia({ golden: [0] });
+  // Acerta só a nota 0 (golden, peso 2 x 2000) ou só a nota 1 (normal, 2000): a golden rende o dobro.
+  const soGolden = pontuarEstudio(vozEstudio(notas, { quando: (i) => i === 0 }), notas, 80);
+  const soNormal = pontuarEstudio(vozEstudio(notas, { quando: (i) => i === 1 }), notas, 80);
+  assert.ok(soGolden.total > soNormal.total * 1.8, `${soGolden.total} x ${soNormal.total}`);
+});
+
+test('estúdio: bônus de linha premia linha perfeita', () => {
+  const notas = melodia();
+  const umaLinha = pontuarEstudio(vozEstudio(notas, { quando: (i) => i < 4 }), notas, 80);
+  assert.ok(umaLinha.linhas[0] > 0.95);
+  assert.equal(umaLinha.linhas[1], 0);
+  assert.ok(umaLinha.detalhes.bonus > 450 && umaLinha.detalhes.bonus < 520, `bônus ${umaLinha.detalhes.bonus}`);
+  assert.ok(umaLinha.nota >= 45 && umaLinha.nota <= 52, `nota ${umaLinha.nota}`);
+});
+
+test('estúdio: estrelas por faixas', () => {
+  assert.deepEqual([0, 34, 35, 54, 55, 69, 70, 84, 85, 100].map(estrelasEstudio), [1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
+});
+
+test('estúdio: quadros sem posição (m) não contam', () => {
+  const notas = melodia();
+  const sem = vozEstudio(notas).map((q) => ({ t: q.t, hz: q.hz, clareza: q.clareza, rms: q.rms }));
+  assert.equal(pontuarEstudio(sem, notas, 80).nota, 0);
 });
