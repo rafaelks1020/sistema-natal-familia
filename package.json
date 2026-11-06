@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "1.2.2",
     "@vercel/blob": "^2.0.0",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.552.0",

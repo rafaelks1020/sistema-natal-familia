@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PitchDetector } from 'pitchy';
-import { cantando, hzParaMidi, limiarDeVoz, medirRuido, type Quadro } from './pontuacao';
+import { CLAREZA_ESTUDIO, CLAREZA_MINIMA, HZ_MAX, HZ_MIN, hzParaMidi, limiarDeVoz, limiarDeVozEstudio, medirRuido, type Quadro } from './pontuacao';
 
 // Microfone do telão: abre o dispositivo escolhido, mede a altura da voz com pitchy e (opcional) devolve a voz na TV com reverb.
 // A parte de contas (nota, estrelas) fica em pontuacao.ts, que é pura e testada.
@@ -44,9 +44,11 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
   /** Últimos segundos de altura, para o medidor desenhar a linha rolando. */
   const historico = useRef<PontoAltura[]>([]);
   const audio = useRef<{ ctx?: AudioContext; stream?: MediaStream; timer?: number; vozGain?: GainNode; token: number }>({ token: 0 });
-  const gravacao = useRef<{ ativa: boolean; pausada: boolean; t0: number; quadros: Quadro[]; limiar: number; posicao?: () => number }>({ ativa: false, pausada: false, t0: 0, quadros: [], limiar: 0 });
+  const gravacao = useRef<{ ativa: boolean; pausada: boolean; t0: number; quadros: Quadro[]; limiar: number; ruido: number; posicao?: () => number }>({ ativa: false, pausada: false, t0: 0, quadros: [], limiar: 0, ruido: 0 });
   /** Quem recebe cada quadro gravado (pontuação ao vivo e plateia). limiar: o de voz valendo nesse instante. */
-  const ouvinte = useRef<((q: Quadro, limiar: number) => void) | null>(null);
+  const ouvinte = useRef<((q: Quadro, limiar: number, ruido: number) => void) | null>(null);
+  /** Modo estúdio: clareza mínima e limiar de voz próprios (a voz cantada real tem clareza menor e a música da TV vaza para o microfone). */
+  const estudio = useRef(false);
   const voz = useRef({ ligada: vozNaTv, volume: volumeVoz });
   const idPedido = useRef(deviceId);
 
@@ -123,12 +125,11 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
         if (g.ativa && !g.pausada) {
           const quadro: Quadro = g.posicao ? { t: agora - g.t0, hz, clareza, rms, m: g.posicao() } : { t: agora - g.t0, hz, clareza, rms };
           g.quadros.push(quadro);
-          if (!g.limiar && agora - g.t0 >= 2000) g.limiar = limiarDeVoz(medirRuido(g.quadros));
-          ouvinte.current?.(quadro, g.limiar || limiarDeVoz(0));
+          if (!g.limiar && agora - g.t0 >= 2000) { g.ruido = medirRuido(g.quadros); g.limiar = limiarDeVoz(g.ruido); }
+          ouvinte.current?.(quadro, g.limiar || limiarDeVoz(0), g.ruido);
         }
-        const limiar = g.limiar || limiarDeVoz(0);
-        const q: Quadro = { t: agora, hz, clareza, rms };
-        const valido = cantando(q, limiar);
+        const limiar = estudio.current ? limiarDeVozEstudio(g.ruido) : g.limiar || limiarDeVoz(0);
+        const valido = clareza >= (estudio.current ? CLAREZA_ESTUDIO : CLAREZA_MINIMA) && rms > limiar && hz >= HZ_MIN && hz <= HZ_MAX;
         let midi: number | null = null;
         if (valido) {
           recentes.push(hzParaMidi(hz));
@@ -182,16 +183,17 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
 
   /** Começa a guardar os quadros (chamar quando a música começa a tocar). posicao: ms atuais do vídeo, para casar a voz com a letra. */
   const iniciarGravacao = useCallback((posicao?: () => number) => {
-    gravacao.current = { ativa: true, pausada: false, t0: performance.now(), quadros: [], limiar: 0, posicao };
+    gravacao.current = { ativa: true, pausada: false, t0: performance.now(), quadros: [], limiar: 0, ruido: 0, posicao };
   }, []);
   const pausarGravacao = useCallback((pausada: boolean) => { gravacao.current.pausada = pausada; }, []);
   const pararGravacao = useCallback((): Quadro[] => {
     const q = gravacao.current.quadros;
-    gravacao.current = { ativa: false, pausada: false, t0: 0, quadros: [], limiar: 0 };
+    gravacao.current = { ativa: false, pausada: false, t0: 0, quadros: [], limiar: 0, ruido: 0 };
     return q;
   }, []);
 
-  const definirOuvinte = useCallback((fn: ((q: Quadro, limiar: number) => void) | null) => { ouvinte.current = fn; }, []);
+  const definirOuvinte = useCallback((fn: ((q: Quadro, limiar: number, ruido: number) => void) | null) => { ouvinte.current = fn; }, []);
+  const definirModoEstudio = useCallback((ligado: boolean) => { estudio.current = ligado; }, []);
 
-  return { definirOuvinte, status, erro, dispositivos, ativoId, vivo, historico, ligar, desligar, retomar, listar, iniciarGravacao, pausarGravacao, pararGravacao };
+  return { definirOuvinte, definirModoEstudio, status, erro, dispositivos, ativoId, vivo, historico, ligar, desligar, retomar, listar, iniciarGravacao, pausarGravacao, pararGravacao };
 }

@@ -10,7 +10,7 @@ import { FundoLetra, LetraPalco } from './_letra';
 import { FundoEstudio, PalcoEstudio } from './_estudio';
 import { MedidorPlateia } from './_plateia';
 import { janelasDaLetra, prepararLetra, type LinhaCantada } from './letra';
-import { CLAREZA_MINIMA, HZ_MAX, HZ_MIN, LATENCIA_MAX_MS, LATENCIA_PADRAO_MS, PlateiaEnergia, PontuacaoAoVivo, forcaEstudio, forcaLetra, hzParaMidi, pontuar, pontuarEstudio, prepararNotas, useAfinacao, type EventoAoVivo, type Quadro, type Resultado, type ResultadoEstudio } from './_pitch';
+import { CLAREZA_MINIMA, HZ_MAX, HZ_MIN, LATENCIA_MAX_MS, LATENCIA_PADRAO_MS, PlateiaEnergia, PontuacaoAoVivo, forcaEstudio, forcaLetra, hzParaMidi, limiarDeVozEstudio, pontuar, pontuarEstudio, prepararNotas, useAfinacao, type EventoAoVivo, type Quadro, type Resultado, type ResultadoEstudio } from './_pitch';
 import { quemCanta, type DadosEstudio, type EstadoKaraoke, type ItemFila } from './tipos';
 import styles from './karaoke.module.css';
 
@@ -157,7 +157,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const [latenciaMs, setLatenciaMs] = useState(latenciaSalva);
 
   const pitch = useAfinacao(deviceId, { vozNaTv, volumeVoz });
-  const { iniciarGravacao, pausarGravacao, pararGravacao, retomar, ligar } = pitch;
+  const { iniciarGravacao, pausarGravacao, pararGravacao, retomar, ligar, definirOuvinte, definirModoEstudio } = pitch;
 
   const caixaRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
@@ -186,6 +186,8 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const timerAviso = useRef<number | undefined>(undefined);
   const tratadores = useRef<{ finalizar: () => void; erroVideo: (codigo?: number) => void }>({ finalizar: () => undefined, erroVideo: () => undefined });
   const nivelRef = useRef<HTMLDivElement>(null);
+  const configRef = useRef<HTMLDivElement>(null);
+  const botaoMicRef = useRef<HTMLButtonElement>(null);
   /** Ajuste da letra (ms) da música em andamento; vale na hora e é gravado depois de uma pequena espera. */
   const offsetRef = useRef(0);
   const timerOffset = useRef<number | undefined>(undefined);
@@ -195,7 +197,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   useEffect(() => { autoRef.current = auto; micRef.current = pitch.status === 'ativo'; latenciaRef.current = latenciaMs; });
 
   const definirEmCurso = useCallback((i: ItemFila | null) => { emCursoRef.current = i; setEmCurso(i); }, []);
-  const mudarFase = useCallback((f: Fase) => { faseRef.current = f; setFase(f); }, []);
+  const mudarFase = useCallback((f: Fase) => { faseRef.current = f; setFase(f); if (f !== 'ocioso') setConfig(false); }, []);
   const avisar = useCallback((texto: string) => {
     setAviso(texto);
     window.clearTimeout(timerAviso.current);
@@ -271,6 +273,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     setOffsetMs(offsetRef.current);
     // Placar e plateia da música que vai começar.
     eventosRef.current = []; ultimoQuadroRef.current = -1; plateiaRef.current.reiniciar();
+    definirModoEstudio(usaEstudio(item));
     motorRef.current = usaEstudio(item) ? new PontuacaoAoVivo(prepararNotas(item.estudio.notas), { latenciaMs: latenciaRef.current, offsetMs: offsetRef.current }) : null;
     linhasLetraRef.current = item.modo === 'letra' ? prepararLetra(item.letra) : [];
     relogioRef.current = { v: 0, w: 0, saida: 0 };
@@ -281,7 +284,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
       n -= 1;
       if (n <= 0) { window.clearInterval(timerContagem.current); tocar(item); } else setContagem(n);
     }, 1000);
-  }, [limparTimers, definirEmCurso, mudarFase, tocar]);
+  }, [limparTimers, definirEmCurso, mudarFase, tocar, definirModoEstudio]);
 
   const aplicar = useCallback((novo: EstadoKaraoke) => {
     estadoRef.current = novo;
@@ -478,9 +481,8 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   }, [admin, iniciarGravacao, pausarGravacao, msVideo]);
 
   // Cada quadro do microfone alimenta a pontuação ao vivo (estúdio) e a plateia (estúdio e letra).
-  const { definirOuvinte } = pitch;
   useEffect(() => {
-    definirOuvinte((q: Quadro, limiar: number) => {
+    definirOuvinte((q: Quadro, limiar: number, ruido: number) => {
       const atualEm = emCursoRef.current;
       if (!atualEm || faseRef.current !== 'cantando') return;
       const dt = ultimoQuadroRef.current >= 0 ? Math.min(100, Math.max(0, q.t - ultimoQuadroRef.current)) : 33;
@@ -489,7 +491,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
       if (usaEstudio(atualEm)) {
         const motor = motorRef.current;
         if (!motor || typeof q.m !== 'number') return;
-        motor.definirLimiar(limiar);
+        motor.definirLimiar(limiarDeVozEstudio(ruido));
         motor.definirAjuste(latenciaRef.current, offsetRef.current);
         const ev = motor.adicionarQuadro(q.m, emFaixa ? hzParaMidi(q.hz) : null, q.clareza, q.rms, dt);
         if (ev.length) {
@@ -546,6 +548,18 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     return () => { window.removeEventListener('pointerdown', destravar); window.removeEventListener('keydown', destravar); };
   }, [admin, ligar, retomar]);
 
+  // O painel do microfone fecha ao clicar fora dele (para não cobrir a letra).
+  useEffect(() => {
+    if (!config) return;
+    const fora = (e: PointerEvent) => {
+      const alvo = e.target as Node | null;
+      if (alvo && (configRef.current?.contains(alvo) || botaoMicRef.current?.contains(alvo))) return;
+      setConfig(false);
+    };
+    document.addEventListener('pointerdown', fora);
+    return () => document.removeEventListener('pointerdown', fora);
+  }, [config]);
+
   // Nível do microfone no painel de configuração.
   useEffect(() => {
     if (!config) return;
@@ -561,7 +575,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
 
   const alternarMic = () => {
     if (pitch.status === 'ativo') { pitch.desligar(); gravarLS(LS_LIGADO, '0'); }
-    else { void pitch.ligar(); gravarLS(LS_LIGADO, '1'); }
+    else { void pitch.ligar().then(() => setConfig(false)); gravarLS(LS_LIGADO, '1'); }
   };
   const escolherDispositivo = (id: string) => { setDeviceId(id || null); gravarLS(LS_DISPOSITIVO, id || null); };
   const mudarVolume = (v: number) => { setVolumeVoz(v); gravarLS(LS_VOLUME, String(v)); };
@@ -677,15 +691,15 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
         <button type="button" className={styles.botao} onClick={() => ajustarLetra(-PASSO_OFFSET_MS)} title="A letra aparece depois da voz: adianta a letra em 0,25 s"><FastForward size={18} aria-hidden="true" />Letra atrasada</button>
       </div> : null}
       <div className={styles.faixa}>
-        {fase === 'ocioso' && (proximo || atual) ? <button type="button" className={`${styles.botao} ${styles.botaoPrincipal}`} onClick={() => void iniciar(atual ? undefined : proximo?.id)}><Play size={18} aria-hidden="true" />Começar</button> : null}
+        {fase === 'ocioso' && (proximo || atual) ? <button type="button" className={`${styles.botao} ${styles.botaoPrincipal}`} onClick={() => { setConfig(false); void iniciar(atual ? undefined : proximo?.id); }}><Play size={18} aria-hidden="true" />Começar</button> : null}
         {fase === 'cantando' ? <button type="button" className={`${styles.botao} ${styles.botaoPrincipal}`} onClick={() => finalizar(true)}><Star size={18} aria-hidden="true" />Encerrar e ver a nota</button> : null}
         {fase === 'cantando' ? <button type="button" className={styles.botao} onClick={alternarPausa}>{tocando ? <><Pause size={18} aria-hidden="true" />Pausar</> : <><Play size={18} aria-hidden="true" />Continuar</>}</button> : null}
         <button type="button" className={styles.botao} disabled={!atual && !proximo} onClick={() => void pular()}><SkipForward size={18} aria-hidden="true" />Pular</button>
-        <button type="button" className={`${styles.botao} ${pitch.status === 'ativo' ? styles.botaoLigado : ''}`} onClick={() => setConfig((c) => !c)} aria-expanded={config}>{pitch.status === 'ativo' ? <Mic size={18} aria-hidden="true" /> : <MicOff size={18} aria-hidden="true" />}Microfone</button>
+        <button ref={botaoMicRef} type="button" className={`${styles.botao} ${pitch.status === 'ativo' ? styles.botaoLigado : ''}`} onClick={() => setConfig((c) => !c)} aria-expanded={config}>{pitch.status === 'ativo' ? <Mic size={18} aria-hidden="true" /> : <MicOff size={18} aria-hidden="true" />}Microfone</button>
         <button type="button" className={`${styles.botao} ${vozNaTv ? styles.botaoLigado : ''}`} onClick={() => { if (!vozNaTv) avisar(AVISO_MICROFONIA); setVozNaTv((v) => !v); if (pitch.status !== 'ativo') void pitch.ligar(); }} aria-pressed={vozNaTv}>{vozNaTv ? <Volume2 size={18} aria-hidden="true" /> : <VolumeX size={18} aria-hidden="true" />}Voz na TV</button>
         <button type="button" className={`${styles.botao} ${auto ? styles.botaoLigado : ''}`} onClick={() => setAuto((a) => !a)} aria-pressed={auto}><Repeat size={18} aria-hidden="true" />Passar sozinho</button>
       </div>
-      {config ? <div className={styles.config} role="dialog" aria-label="Configurar microfone">
+      {config ? <div ref={configRef} className={styles.config} role="dialog" aria-label="Configurar microfone">
         <h3>Microfone</h3>
         <label>Dispositivo
           <select value={pitch.ativoId ?? deviceId ?? ''} onChange={(e) => escolherDispositivo(e.target.value)} onFocus={() => void pitch.listar()}>

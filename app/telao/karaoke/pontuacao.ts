@@ -208,8 +208,8 @@ export function erroEmSemitons(p: number, n: number): number {
 }
 
 /** Fração do ponto (0 a 1) para um erro em semitons. */
-export function fatorDeAcerto(erro: number): number {
-  return limitar((ERRO_ZERO - erro) / (ERRO_ZERO - ERRO_CHEIO));
+export function fatorDeAcerto(erro: number, cheio: number = ERRO_CHEIO, zero: number = ERRO_ZERO): number {
+  return limitar((zero - erro) / (zero - cheio));
 }
 
 /** Índice da nota que cobre o instante t (notas ordenadas por início), ou -1. */
@@ -251,6 +251,32 @@ export const RAZAO_ESTRELA = 0.8;
 /** Bônus máximo da sequência: 15% dos 10000 pontos possíveis. */
 export const BONUS_SEQUENCIA_MAX = 1500;
 export const PONTOS_MAX = 10000;
+/**
+ * Clareza mínima do tom no modo estúdio. Voz cantada real fica quase toda entre 0,5 e 0,95 no pitchy (p10 = 0,65 na voz original separada);
+ * com 0,8 só ~65% dos quadros dentro das notas valiam. A conferência de altura (erro em semitons) é que separa voz de ruído.
+ */
+export const CLAREZA_ESTUDIO = 0.5;
+/**
+ * Fração de cada nota que a voz original separada cobre com tom certo: as notas vêm de palavras alinhadas (palavra inteira), e consoantes,
+ * respiração, bordas e vibrato largo ficam sem altura ou fora do semitom (medido em 3 músicas: 69 a 77% dos quadros dentro das notas têm tom
+ * válido e 58 a 67% deles ficam a 0,5 semitom ou menos). O acerto da nota é medido contra essa fração:
+ * acumulado / (peso * COBERTURA_ESPERADA), limitado a 1.
+ */
+export const COBERTURA_ESPERADA = 0.5;
+/** Tolerância de tempo: a voz vale numa nota até esta folga antes e depois dela (as notas vêm de palavras alinhadas, com erro de ~100 ms). */
+export const GRACA_ESTUDIO_MS = 100;
+/** Anti tom fixo: nos últimos DRONE_QUADROS quadros com voz, se a altura cantada quase não mexeu e a melodia mexeu, o acerto vale pouco. */
+const DRONE_QUADROS = 30;
+const DRONE_VOZ_MAX = 0.7;
+const DRONE_MELODIA_MIN = 1.5;
+const DRONE_FATOR = 0.1;
+const dobrar12 = (x: number) => ((((x + 6) % 12) + 12) % 12) - 6;
+/** Notas mais curtas que isso (sílabas rápidas) valem pontos, mas não aumentam nem quebram a sequência. */
+export const NOTA_MIN_SEQUENCIA_MS = 150;
+/** Ruído do ambiente no estúdio: limiar = 2 x ruído, entre 0,008 e 0,03 (a música da própria TV vaza para o microfone e não pode calar a voz). */
+export function limiarDeVozEstudio(ruido: number): number {
+  return limitar(ruido * 2, 0.008, 0.03);
+}
 
 /** Multiplicador da sequência: x1, x2 (5 notas seguidas), x3 (10) e x4 (20). */
 export function multiplicadorDeCombo(sequencia: number): number {
@@ -282,6 +308,8 @@ export type EstadoAoVivo = {
   quadrosValidos: number;
 };
 
+export type OpcoesMotor = { latenciaMs?: number; offsetMs?: number; limiar?: number; clarezaMinima?: number; cobertura?: number; erroCheio?: number; erroZero?: number; gracaMs?: number };
+
 const SEM_EVENTOS: readonly EventoAoVivo[] = Object.freeze([]);
 
 /**
@@ -309,6 +337,15 @@ export class PontuacaoAoVivo {
   private latenciaMs: number;
   private offsetMs: number;
   private limiar: number;
+  private readonly clarezaMinima: number;
+  private readonly cobertura: number;
+  private readonly erroCheio: number;
+  private readonly erroZero: number;
+  private readonly gracaMs: number;
+  private readonly droneVoz = new Float64Array(DRONE_QUADROS);
+  private readonly droneRef = new Float64Array(DRONE_QUADROS);
+  private droneN = 0;
+  private droneI = 0;
   private proximo = 0;
   private somaGanho = 0;
   private pontosLinhas = 0;
@@ -318,6 +355,7 @@ export class PontuacaoAoVivo {
   private maiorCombo = 1;
   private perfeitas = 0;
   private fechadas = 0;
+  private fechadasLongas = 0;
   private ultimoMs: number | null = null;
   private pontosNoCorte = 0;
   private tempoValido = 0;
@@ -326,11 +364,16 @@ export class PontuacaoAoVivo {
   /** O que o último quadro encontrou: nota sob o tom (ou -1), fator de acerto, se tinha voz válida e o ms. */
   ultimoQuadro = { indice: -1, fator: 0, valido: false, ms: 0 };
 
-  constructor(notas: readonly NotaEstudio[], opcoes: { latenciaMs?: number; offsetMs?: number; limiar?: number } = {}) {
+  constructor(notas: readonly NotaEstudio[], opcoes: OpcoesMotor = {}) {
     this.notas = prepararNotas(notas);
     this.latenciaMs = opcoes.latenciaMs ?? LATENCIA_PADRAO_MS;
     this.offsetMs = opcoes.offsetMs ?? 0;
-    this.limiar = opcoes.limiar ?? limiarDeVoz(0);
+    this.limiar = opcoes.limiar ?? limiarDeVozEstudio(0);
+    this.clarezaMinima = opcoes.clarezaMinima ?? CLAREZA_ESTUDIO;
+    this.cobertura = limitar(opcoes.cobertura ?? COBERTURA_ESPERADA, 0.1, 1);
+    this.erroCheio = opcoes.erroCheio ?? ERRO_CHEIO;
+    this.erroZero = opcoes.erroZero ?? ERRO_ZERO;
+    this.gracaMs = opcoes.gracaMs ?? GRACA_ESTUDIO_MS;
     this.peso = this.notas.map((n) => multiplicadorDaNota(n) * n.dur_ms);
     this.maximo = this.peso.reduce((a, b) => a + b, 0);
     this.ganho = this.notas.map(() => 0);
@@ -346,8 +389,10 @@ export class PontuacaoAoVivo {
   definirLimiar(limiar: number) { this.limiar = limiar; }
   definirAjuste(latenciaMs: number, offsetMs: number) { this.latenciaMs = latenciaMs; this.offsetMs = offsetMs; }
   get notasPreparadas(): readonly NotaEstudio[] { return this.notas; }
+  /** Pontos já ganhos pela nota i, com a cobertura esperada (uma voz perfeita enche a nota com 70% do tempo em tom). */
+  private efetivo(i: number): number { return Math.min(this.peso[i], this.ganho[i] / this.cobertura); }
   /** Fração de acerto (0 a 1) da nota i até agora. */
-  razaoDaNota(i: number): number { return this.peso[i] > 0 ? limitar(this.ganho[i] / this.peso[i]) : 0; }
+  razaoDaNota(i: number): number { return this.peso[i] > 0 ? limitar(this.efetivo(i) / this.peso[i]) : 0; }
 
   adicionarQuadro(ms: number, midi: number | null, clareza: number, volume: number, dtMs?: number): readonly EventoAoVivo[] {
     if (!Number.isFinite(ms)) return SEM_EVENTOS;
@@ -355,24 +400,54 @@ export class PontuacaoAoVivo {
     const dt = dtMs ?? (this.ultimoMs === null ? 33 : limitar(ms - this.ultimoMs, 0, DT_MAX_MS));
     this.ultimoMs = ms;
     const tn = ms - this.offsetMs - this.latenciaMs;
-    while (this.proximo < this.notas.length && this.notas[this.proximo].inicio_ms + this.notas[this.proximo].dur_ms <= tn) this.fechar(this.proximo++, eventos);
-    const valido = midi !== null && Number.isFinite(midi) && clareza >= CLAREZA_MINIMA && volume > this.limiar;
-    let indice = notaEm(this.notas, tn);
-    if (indice >= 0 && this.fechada[indice]) indice = -1;
+    while (this.proximo < this.notas.length && this.notas[this.proximo].inicio_ms + this.notas[this.proximo].dur_ms + this.gracaMs <= tn) this.fechar(this.proximo++, eventos);
+    const valido = midi !== null && Number.isFinite(midi) && clareza >= this.clarezaMinima && volume > this.limiar;
+    // Nota sob o tom: a que cobre tn; com tolerância de tempo (graça), entre as vizinhas vale a de altura mais próxima.
+    let indice = -1;
     let fator = 0;
-    if (valido && indice >= 0) {
+    let melhor = -1;
+    for (let j = this.proximo; j < this.notas.length; j++) {
+      const n = this.notas[j];
+      if (n.inicio_ms - this.gracaMs > tn) break;
+      if (this.fechada[j] || tn >= n.inicio_ms + n.dur_ms + this.gracaMs) continue;
+      const dentro = tn >= n.inicio_ms && tn < n.inicio_ms + n.dur_ms;
+      const fj = valido ? fatorDeAcerto(erroEmSemitons(midi as number, n.midi), this.erroCheio, this.erroZero) : 0;
+      // prefere maior acerto; empate: a que contém tn
+      if (indice < 0 || fj > melhor || (fj === melhor && dentro && !(tn >= this.notas[indice].inicio_ms && tn < this.notas[indice].inicio_ms + this.notas[indice].dur_ms))) { indice = j; melhor = fj; fator = fj; }
+    }
+    if (valido && indice >= 0 && fator > 0 && this.ehTomFixo(midi as number, this.notas[indice].midi)) fator *= DRONE_FATOR;
+    if (valido && indice >= 0 && fator > 0) {
       const n = this.notas[indice];
-      fator = fatorDeAcerto(erroEmSemitons(midi as number, n.midi));
-      const antes = this.ganho[indice];
-      this.ganho[indice] = Math.min(this.peso[indice], antes + multiplicadorDaNota(n) * fator * dt);
-      this.somaGanho += this.ganho[indice] - antes;
+      const antes = this.efetivo(indice);
+      this.ganho[indice] = Math.min(this.peso[indice], this.ganho[indice] + multiplicadorDaNota(n) * fator * dt);
+      this.somaGanho += this.efetivo(indice) - antes;
       this.tempoValido += dt;
       this.somaFator += fator * dt;
       this.validos++;
-      if (!this.estrelada[indice] && this.ganho[indice] >= RAZAO_ESTRELA * this.peso[indice]) { this.estrelada[indice] = true; eventos.push({ tipo: 'estrela', indice }); }
+      if (!this.estrelada[indice] && this.razaoDaNota(indice) >= RAZAO_ESTRELA) { this.estrelada[indice] = true; eventos.push({ tipo: 'estrela', indice }); }
+    } else if (valido && indice >= 0) {
+      this.tempoValido += dt;
+      this.validos++;
     }
     this.ultimoQuadro = { indice, fator, valido, ms };
     return eventos.length ? eventos : SEM_EVENTOS;
+  }
+
+  /** Registra o quadro e diz se a voz está parada num tom enquanto a melodia anda (tom fixo, assobio ou tecla presa). */
+  private ehTomFixo(voz: number, ref: number): boolean {
+    this.droneVoz[this.droneI] = voz;
+    this.droneRef[this.droneI] = ref;
+    this.droneI = (this.droneI + 1) % DRONE_QUADROS;
+    this.droneN = Math.min(DRONE_QUADROS, this.droneN + 1);
+    if (this.droneN < DRONE_QUADROS) return false;
+    let vMin = 0; let vMax = 0; let rMin = 0; let rMax = 0;
+    for (let k = 0; k < DRONE_QUADROS; k++) {
+      const dv = dobrar12(this.droneVoz[k] - voz);
+      const dr = dobrar12(this.droneRef[k] - ref);
+      if (dv < vMin) vMin = dv; if (dv > vMax) vMax = dv;
+      if (dr < rMin) rMin = dr; if (dr > rMax) rMax = dr;
+    }
+    return vMax - vMin < DRONE_VOZ_MAX && rMax - rMin > DRONE_MELODIA_MIN;
   }
 
   private fechar(i: number, eventos: EventoAoVivo[]) {
@@ -380,18 +455,22 @@ export class PontuacaoAoVivo {
     const razao = this.razaoDaNota(i);
     this.fechada[i] = true;
     this.fechadas++;
+    if (n.dur_ms >= NOTA_MIN_SEQUENCIA_MS) this.fechadasLongas++;
     const comboAntes = multiplicadorDeCombo(this.sequencia);
     const acertou = razao >= RAZAO_ACERTO;
-    if (acertou) {
+    const curta = n.dur_ms < NOTA_MIN_SEQUENCIA_MS;
+    if (curta) {
+      // sílaba rápida: vale pontos, mas não mexe na sequência
+    } else if (acertou) {
       this.sequencia++;
       this.maiorSequencia = Math.max(this.maiorSequencia, this.sequencia);
       const m = multiplicadorDeCombo(this.sequencia);
       this.maiorCombo = Math.max(this.maiorCombo, m);
       if (this.maximo > 0) this.pontosSequencia += BONUS_SEQUENCIA_MAX * (this.peso[i] / this.maximo) * ((m - 1) / 3) * razao;
     } else this.sequencia = 0;
-    if (razao >= RAZAO_PERFEITA) this.perfeitas++;
-    eventos.push({ tipo: 'nota', indice: i, razao, golden: n.golden, combo: multiplicadorDeCombo(this.sequencia), sequencia: this.sequencia, quebrou: !acertou && comboAntes > 1 });
-    this.linhaGanho.set(n.linha, (this.linhaGanho.get(n.linha) ?? 0) + this.ganho[i]);
+    if (razao >= RAZAO_PERFEITA && !curta) this.perfeitas++;
+    eventos.push({ tipo: 'nota', indice: i, razao, golden: n.golden, combo: multiplicadorDeCombo(this.sequencia), sequencia: this.sequencia, quebrou: !curta && !acertou && comboAntes > 1 });
+    this.linhaGanho.set(n.linha, (this.linhaGanho.get(n.linha) ?? 0) + this.efetivo(i));
     const restam = (this.linhaRestam.get(n.linha) ?? 1) - 1;
     this.linhaRestam.set(n.linha, restam);
     if (restam <= 0) {
@@ -425,7 +504,7 @@ export class PontuacaoAoVivo {
       combo: multiplicadorDeCombo(this.sequencia), sequencia: this.sequencia,
       maiorSequencia: this.maiorSequencia, maiorCombo: this.maiorCombo,
       notasFinalizadas: this.fechadas, notasTotal: this.notas.length, notasPerfeitas: this.perfeitas,
-      perfeitasPct: this.fechadas ? this.perfeitas / this.fechadas : 0,
+      perfeitasPct: this.fechadasLongas ? this.perfeitas / this.fechadasLongas : 0,
       quadrosValidos: this.validos,
     };
   }
@@ -470,10 +549,10 @@ export class PontuacaoAoVivo {
  * quadros precisam trazer m (posição do áudio em ms). latenciaMs: atraso entre ouvir e cantar (e do microfone), descontado de m.
  * offsetMs: ajuste de sincronia do telão (positivo atrasa a letra e as notas).
  */
-export function pontuarEstudio(quadros: readonly Quadro[], notas: readonly NotaEstudio[], latenciaMs: number = LATENCIA_PADRAO_MS, offsetMs = 0): ResultadoEstudio {
+export function pontuarEstudio(quadros: readonly Quadro[], notas: readonly NotaEstudio[], latenciaMs: number = LATENCIA_PADRAO_MS, offsetMs = 0, opcoes: OpcoesMotor = {}): ResultadoEstudio {
   const todos = [...quadros].sort((a, b) => a.t - b.t);
   const ruido = medirRuido(todos);
-  const motor = new PontuacaoAoVivo(notas, { latenciaMs, offsetMs, limiar: limiarDeVoz(ruido) });
+  const motor = new PontuacaoAoVivo(notas, { latenciaMs, offsetMs, limiar: limiarDeVozEstudio(ruido), ...opcoes });
   for (let i = 0; i < todos.length; i++) {
     const f = todos[i];
     if (typeof f.m !== 'number' || !Number.isFinite(f.m)) continue;

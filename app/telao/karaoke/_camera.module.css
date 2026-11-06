@@ -1,0 +1,5 @@
+.fundo { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; display: block; }
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.chip { display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 999px; background: rgba(23, 27, 24, 0.9); border: 1px solid rgba(243, 235, 220, 0.25); color: #f3ebdc; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.chip:hover { border-color: #bfa577; }
+.chipLigado { background: rgba(191, 165, 119, 0.22); border-color: #bfa577; color: #fff6dd; }

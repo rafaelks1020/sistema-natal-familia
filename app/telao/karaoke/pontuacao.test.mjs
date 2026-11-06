@@ -303,15 +303,17 @@ test('estúdio: desafinar 3 semitons zera os pontos; meio semitom ainda é cheio
   const notas = melodia();
   assert.ok(pontuarEstudio(vozEstudio(notas, { desvio: 3 }), notas, 80).nota <= 2);
   assert.ok(pontuarEstudio(vozEstudio(notas, { desvio: 0.45 }), notas, 80).nota >= 97);
-  const meio = pontuarEstudio(vozEstudio(notas, { desvio: 1 }), notas, 80).nota;
+  // 1,25 semitom: 25% do ponto; contra a cobertura esperada de 50%, meio acerto por nota.
+  const meio = pontuarEstudio(vozEstudio(notas, { desvio: 1.25 }), notas, 80).nota;
   assert.ok(meio > 40 && meio < 60, `nota ${meio}`);
 });
 
 test('estúdio: a latência do microfone é descontada', () => {
   const notas = melodia();
   const atrasada = vozEstudio(notas, { latencia: 200 });
-  const certa = pontuarEstudio(atrasada, notas, 200).nota;
-  const errada = pontuarEstudio(atrasada, notas, 0).nota;
+  const estrito = { cobertura: 1, gracaMs: 0 };
+  const certa = pontuarEstudio(atrasada, notas, 200, 0, estrito).nota;
+  const errada = pontuarEstudio(atrasada, notas, 0, 0, estrito).nota;
   assert.ok(certa >= 97, `nota ${certa}`);
   assert.ok(errada < certa);
 });
@@ -319,13 +321,14 @@ test('estúdio: a latência do microfone é descontada', () => {
 test('estúdio: o ajuste de sincronia desloca as notas', () => {
   const notas = melodia();
   const q = vozEstudio(notas, { latencia: 80 + 250 });
-  assert.ok(pontuarEstudio(q, notas, 80, 250).nota >= 97);
-  assert.ok(pontuarEstudio(q, notas, 80, 0).nota < 97);
+  const estrito = { cobertura: 1, gracaMs: 0 };
+  assert.ok(pontuarEstudio(q, notas, 80, 250, estrito).nota >= 97);
+  assert.ok(pontuarEstudio(q, notas, 80, 0, estrito).nota < 97);
 });
 
 test('estúdio: quadros sem clareza ou abaixo do ruído não contam', () => {
   const notas = melodia();
-  assert.equal(pontuarEstudio(vozEstudio(notas, { clareza: 0.7 }), notas, 80).nota, 0);
+  assert.equal(pontuarEstudio(vozEstudio(notas, { clareza: 0.4 }), notas, 80).nota, 0);
   const baixo = vozEstudio(notas).map((q) => (q.t >= 2000 ? { ...q, rms: q.hz ? 0.001 : q.rms } : q));
   assert.equal(pontuarEstudio(baixo, notas, 80).nota, 0);
 });
@@ -463,7 +466,7 @@ test('ao vivo: eventos de linha e estrela', () => {
 test('ao vivo: silêncio e quadros inválidos não pontuam; ultimoQuadro informa a nota', () => {
   const notas = melodiaLonga(6);
   const motor = new PontuacaoAoVivo(notas, { latenciaMs: 0 });
-  motor.adicionarQuadro(3000, 55, 0.5, 0.08, PASSO);
+  motor.adicionarQuadro(3000, 55, 0.4, 0.08, PASSO);
   assert.equal(motor.ultimoQuadro.valido, false);
   assert.equal(motor.ultimoQuadro.indice, 0);
   motor.adicionarQuadro(3033, 55, 0.95, 0.001, PASSO);
@@ -494,4 +497,64 @@ test('plateia: forças do modo estúdio e do modo letra', () => {
   assert.equal(forcaLetra(true, true), 0.6);
   assert.equal(forcaLetra(true, false), -0.6);
   assert.equal(forcaLetra(false, false), -0.15);
+});
+
+// ---------- calibração com voz real (scripts/karaoke-diagnostico.mjs) ----------
+
+test('estúdio: voz que cobre metade da nota com tom certo já enche a nota (consoantes e respiração não têm tom)', () => {
+  const notas = melodia();
+  // canta só os primeiros 55% de cada nota
+  const quadros = vozEstudio(notas, { quando: () => true }).map((q) => {
+    const idx = notas.findIndex((n) => q.m - 80 >= n.inicio_ms && q.m - 80 < n.inicio_ms + n.dur_ms);
+    if (idx < 0) return q;
+    const dentro = (q.m - 80 - notas[idx].inicio_ms) / notas[idx].dur_ms;
+    return dentro < 0.55 ? q : { ...q, hz: 0, clareza: 0.2, rms: 0.003 };
+  });
+  const r = pontuarEstudio(quadros, notas, 80);
+  assert.ok(r.nota >= 95, `nota ${r.nota}`);
+});
+
+test('estúdio: clareza de voz cantada (0,5 a 0,8) vale; abaixo de 0,5 não', () => {
+  const notas = melodia();
+  assert.ok(pontuarEstudio(vozEstudio(notas, { clareza: 0.6 }), notas, 80).nota >= 97);
+  assert.equal(pontuarEstudio(vozEstudio(notas, { clareza: 0.45 }), notas, 80).nota, 0);
+});
+
+test('estúdio: tolerância de tempo de 100 ms nas bordas das notas', () => {
+  const notas = melodia();
+  // voz 90 ms adiantada em relação à latência declarada: ainda dentro da graça
+  const quadros = vozEstudio(notas, { latencia: 80 - 90 });
+  const com = pontuarEstudio(quadros, notas, 80).nota;
+  const sem = pontuarEstudio(quadros, notas, 80, 0, { gracaMs: 0, cobertura: 1 }).nota;
+  assert.ok(com >= 95, `nota ${com}`);
+  assert.ok(sem < com);
+});
+
+test('estúdio: tom fixo contra uma melodia que anda quase não pontua; melodia parada pontua', () => {
+  const ciclo = [60, 64, 67, 62, 65, 69];
+  const notas = Array.from({ length: 60 }, (_, i) => ({ inicio_ms: 2500 + i * 500, dur_ms: 400, midi: ciclo[i % ciclo.length], golden: false, linha: Math.floor(i / 6) }));
+  const fim = notas[notas.length - 1].inicio_ms + 3000;
+  const tom = [];
+  for (let m = 0; m < fim; m += PASSO) tom.push(m < 2000 ? { t: m, hz: 0, clareza: 0.2, rms: 0.003, m } : { t: m, hz: hz(60), clareza: 0.99, rms: 0.1, m });
+  const r = pontuarEstudio(tom, notas, 80);
+  assert.ok(r.nota < 25, `nota ${r.nota}`);
+  // o mesmo tom contra uma melodia que fica nele: nota alta (não é punição à toa)
+  const parada = notas.map((n) => ({ ...n, midi: 60 }));
+  assert.ok(pontuarEstudio(tom, parada, 80).nota >= 90);
+});
+
+test('estúdio: notas curtas (< 150 ms) valem pontos mas não quebram a sequência', () => {
+  const notas = melodiaLonga(12).map((n) => ({ ...n, golden: false }));
+  notas[5] = { ...notas[5], dur_ms: 100 };
+  const motor = new PontuacaoAoVivo(notas, { latenciaMs: 80 });
+  alimentar(motor, quadrosLongos(notas, { acerta: (i) => i !== 5 }));
+  motor.encerrar();
+  assert.equal(motor.estado().maiorSequencia, 11);
+});
+
+test('estúdio: limiar de voz do estúdio fica entre 0,008 e 0,03', async () => {
+  const { limiarDeVozEstudio } = mod.exports;
+  assert.equal(limiarDeVozEstudio(0), 0.008);
+  assert.equal(limiarDeVozEstudio(0.1), 0.03);
+  assert.ok(Math.abs(limiarDeVozEstudio(0.01) - 0.02) < 1e-9);
 });
