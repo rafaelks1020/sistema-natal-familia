@@ -44,7 +44,7 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
   /** Últimos segundos de altura, para o medidor desenhar a linha rolando. */
   const historico = useRef<PontoAltura[]>([]);
   const audio = useRef<{ ctx?: AudioContext; stream?: MediaStream; timer?: number; vozGain?: GainNode; token: number }>({ token: 0 });
-  const gravacao = useRef<{ ativa: boolean; pausada: boolean; t0: number; quadros: Quadro[]; limiar: number }>({ ativa: false, pausada: false, t0: 0, quadros: [], limiar: 0 });
+  const gravacao = useRef<{ ativa: boolean; pausada: boolean; t0: number; quadros: Quadro[]; limiar: number; posicao?: () => number }>({ ativa: false, pausada: false, t0: 0, quadros: [], limiar: 0 });
   const voz = useRef({ ligada: vozNaTv, volume: volumeVoz });
   const idPedido = useRef(deviceId);
 
@@ -119,7 +119,7 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
         const agora = performance.now();
         const g = gravacao.current;
         if (g.ativa && !g.pausada) {
-          g.quadros.push({ t: agora - g.t0, hz, clareza, rms });
+          g.quadros.push(g.posicao ? { t: agora - g.t0, hz, clareza, rms, m: g.posicao() } : { t: agora - g.t0, hz, clareza, rms });
           if (!g.limiar && agora - g.t0 >= 2000) g.limiar = limiarDeVoz(medirRuido(g.quadros));
         }
         const limiar = g.limiar || limiarDeVoz(0);
@@ -176,9 +176,9 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
   const ligar = useCallback(() => abrir(idPedido.current), [abrir]);
   const desligar = useCallback(() => { parar(); setStatus('parado'); }, [parar]);
 
-  /** Começa a guardar os quadros (chamar quando a música começa a tocar). */
-  const iniciarGravacao = useCallback(() => {
-    gravacao.current = { ativa: true, pausada: false, t0: performance.now(), quadros: [], limiar: 0 };
+  /** Começa a guardar os quadros (chamar quando a música começa a tocar). posicao: ms atuais do vídeo, para casar a voz com a letra. */
+  const iniciarGravacao = useCallback((posicao?: () => number) => {
+    gravacao.current = { ativa: true, pausada: false, t0: performance.now(), quadros: [], limiar: 0, posicao };
   }, []);
   const pausarGravacao = useCallback((pausada: boolean) => { gravacao.current.pausada = pausada; }, []);
   const pararGravacao = useCallback((): Quadro[] => {

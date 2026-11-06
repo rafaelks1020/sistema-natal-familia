@@ -1,16 +1,26 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Mic2, SkipForward, Star, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Captions, Mic2, SkipForward, Star, Trash2, Video } from 'lucide-react';
 import PageHeader from '@/app/ui/PageHeader';
 import { api } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
 import { useMe } from '@/app/ui/user';
-import { formatarDuracao, quemCanta, type EstadoKaraoke, type ItemFila, type VideoKaraoke } from '@/app/telao/karaoke/tipos';
+import { formatarDuracao, quemCanta, type EstadoKaraoke, type ItemFila, type MusicaLrclib, type VideoKaraoke } from '@/app/telao/karaoke/tipos';
 
 function Estrelas({ n }: { n: number }) {
   return <span className="inline-flex items-center gap-0.5 text-champagne" aria-label={`${n} de 5 estrelas`}>{[1, 2, 3, 4, 5].map((i) => <Star key={i} size={13} strokeWidth={1.6} fill={i <= n ? 'currentColor' : 'none'} className={i <= n ? '' : 'opacity-40'} />)}</span>;
 }
+
+/** Como a música vai aparecer no telão. */
+function SeloModo({ f }: { f: ItemFila }) {
+  const letra = f.modo === 'letra';
+  return <span className={`mt-1 inline-flex items-center gap-1 text-xs ${letra ? 'text-champagne' : 'text-marfim-3'}`}>
+    {letra ? <Captions size={13} strokeWidth={1.6} aria-hidden="true" /> : <Video size={13} strokeWidth={1.6} aria-hidden="true" />}{letra ? 'Letra na tela' : 'Vídeo karaokê'}
+  </span>;
+}
+
+const EH_LINK = /youtu\.?be|youtube\.com/i;
 
 export default function KaraokeClient() {
   const me = useMe();
@@ -18,7 +28,10 @@ export default function KaraokeClient() {
   const [estado, setEstado] = useState<EstadoKaraoke | null>(null);
   const [erro, setErro] = useState('');
   const [busca, setBusca] = useState('');
+  const [musicas, setMusicas] = useState<MusicaLrclib[]>([]);
   const [resultados, setResultados] = useState<VideoKaraoke[]>([]);
+  /** false: busca de música com letra; true: busca de vídeo de karaokê no YouTube (ou link). */
+  const [porVideo, setPorVideo] = useState(false);
   const [buscou, setBuscou] = useState(false);
   const [buscando, setBuscando] = useState(false);
   const [dueto, setDueto] = useState('');
@@ -44,8 +57,15 @@ export default function KaraokeClient() {
     const c = new AbortController(); controle.current = c;
     setBuscando(true);
     try {
-      const r = await api<{ videos: VideoKaraoke[] }>(`/api/karaoke/buscar?q=${encodeURIComponent(busca.trim())}`, { signal: c.signal });
-      setResultados(r.videos); setBuscou(true);
+      const termo = encodeURIComponent(busca.trim());
+      if (porVideo || EH_LINK.test(busca)) {
+        const r = await api<{ videos: VideoKaraoke[] }>(`/api/karaoke/buscar?q=${termo}`, { signal: c.signal });
+        setResultados(r.videos); setMusicas([]); setPorVideo(true);
+      } else {
+        const r = await api<{ musicas: MusicaLrclib[] }>(`/api/karaoke/musica?q=${termo}`, { signal: c.signal });
+        setMusicas(r.musicas); setResultados([]);
+      }
+      setBuscou(true);
     } catch (e) { if (!c.signal.aborted) toast((e as Error).message, 'erro'); }
     finally { if (!c.signal.aborted) setBuscando(false); }
   }
@@ -60,6 +80,10 @@ export default function KaraokeClient() {
 
   const cantar = (v: VideoKaraoke) => executar(
     () => api<EstadoKaraoke>('/api/karaoke/fila', { method: 'POST', json: { video_id: v.video_id, titulo: v.titulo, canal: v.canal, duracao_s: v.duracao_s, dueto_user_id: dueto ? Number(dueto) : null } }),
+    'Você entrou na fila!',
+  );
+  const cantarMusica = (m: MusicaLrclib) => executar(
+    () => api<EstadoKaraoke>('/api/karaoke/fila', { method: 'POST', json: { lrclib_id: m.id, dueto_user_id: dueto ? Number(dueto) : null } }),
     'Você entrou na fila!',
   );
   const admin = (id: number, acao: 'subir' | 'descer' | 'pular' | 'remover') => executar(() => api<EstadoKaraoke>('/api/karaoke/fila', { method: 'PATCH', json: { id, acao } }));
@@ -86,9 +110,11 @@ export default function KaraokeClient() {
 
     <form onSubmit={buscar} className="space-y-3">
       <h2 className="display text-2xl">Quero cantar</h2>
-      <p className="text-sm text-marfim-2">Busque a música (a gente procura a versão karaokê) ou cole o link de um vídeo do YouTube. Cada pessoa pode ter até {estado?.maxPendentes ?? 2} músicas esperando.</p>
-      <label className="block text-sm">Música, artista ou link
-        <input className="field mt-2" value={busca} onChange={(e) => { setBusca(e.target.value); setBuscou(false); setResultados([]); }} maxLength={120} placeholder="Então é Natal ou https://youtu.be/..." required />
+      <p className="text-sm text-marfim-2">{porVideo
+        ? 'Busque um vídeo de karaokê no YouTube ou cole o link. A letra é a do próprio vídeo.'
+        : 'Busque a música: a letra aparece na TV, palavra por palavra, enquanto você canta.'} Cada pessoa pode ter até {estado?.maxPendentes ?? 2} músicas esperando.</p>
+      <label className="block text-sm">{porVideo ? 'Vídeo, música ou link' : 'Música ou artista'}
+        <input className="field mt-2" value={busca} onChange={(e) => { setBusca(e.target.value); setBuscou(false); setResultados([]); setMusicas([]); }} maxLength={120} placeholder={porVideo ? 'Então é Natal ou https://youtu.be/...' : 'Então é Natal'} required />
       </label>
       {estado?.pessoas.length ? <label className="block text-sm">Dueto com (opcional)
         <select className="field mt-2" value={dueto} onChange={(e) => setDueto(e.target.value)}>
@@ -96,10 +122,26 @@ export default function KaraokeClient() {
           {estado.pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
         </select>
       </label> : null}
-      <button className="btn btn-primary w-full" disabled={buscando || !busca.trim()}>{buscando ? 'Buscando...' : 'Buscar música'}</button>
+      <button className="btn btn-primary w-full" disabled={buscando || !busca.trim()}>{buscando ? 'Buscando...' : porVideo ? 'Buscar vídeo' : 'Buscar música'}</button>
+      <button type="button" className="btn btn-quiet w-full" onClick={() => { setPorVideo((v) => !v); setBuscou(false); setResultados([]); setMusicas([]); }}>{porVideo ? 'Voltar para a busca de música com letra' : 'Não achou? Buscar vídeo de karaokê no YouTube'}</button>
     </form>
 
-    {buscou ? <section aria-live="polite"><h2 className="display mb-3 text-2xl">Resultado da busca</h2>
+    {buscou && !porVideo ? <section aria-live="polite"><h2 className="display mb-3 text-2xl">Resultado da busca</h2>
+      {!musicas.length ? <p className="text-sm text-marfim-2">Nada encontrado. Tente outro nome ou use a busca de vídeo de karaokê.</p> : <ul className="divide-y divide-linha">
+        {musicas.map((m) => <li key={m.id} className="space-y-3 py-4">
+          <div className="min-w-0">
+            <p className="break-words font-medium">{m.faixa}</p>
+            <p className="break-words text-sm text-marfim-2">{m.artista}{m.duracao_s ? ` · ${formatarDuracao(m.duracao_s)}` : ''}</p>
+            {m.sincronizada
+              ? <span className="mt-1 inline-flex items-center gap-1 text-xs text-champagne"><Captions size={13} strokeWidth={1.6} aria-hidden="true" />Letra sincronizada</span>
+              : <span className="mt-1 inline-flex items-center gap-1 text-xs text-marfim-3"><Video size={13} strokeWidth={1.6} aria-hidden="true" />Sem letra sincronizada: toca o vídeo de karaokê</span>}
+          </div>
+          <button type="button" className="btn btn-primary w-full gap-2" disabled={ocupado || (estado?.minhasPendentes ?? 0) >= (estado?.maxPendentes ?? 2)} onClick={() => void cantarMusica(m)}><Mic2 size={18} strokeWidth={1.6} aria-hidden="true" />{ocupado ? 'Preparando...' : 'Quero cantar'}</button>
+        </li>)}
+      </ul>}
+    </section> : null}
+
+    {buscou && porVideo ? <section aria-live="polite"><h2 className="display mb-3 text-2xl">Resultado da busca</h2>
       {!resultados.length ? <p className="text-sm text-marfim-2">Nada encontrado. Tente outro nome ou cole o link do vídeo.</p> : <ul className="divide-y divide-linha">
         {resultados.map((v) => <li key={v.video_id} className="space-y-3 py-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -116,7 +158,7 @@ export default function KaraokeClient() {
         {estado.fila.map((f, i) => <li key={f.id} className="space-y-2 py-3">
           <div className="flex min-w-0 items-center gap-3">
             <span className="display w-8 shrink-0 text-xl text-champagne">{i + 1}</span>
-            <div className="min-w-0 flex-1"><p className="break-words font-medium">{nomeFila(f)}</p><p className="break-words text-sm text-marfim-2">{f.titulo}</p></div>
+            <div className="min-w-0 flex-1"><p className="break-words font-medium">{nomeFila(f)}</p><p className="break-words text-sm text-marfim-2">{f.titulo}</p><SeloModo f={f} /></div>
           </div>
           {me.is_admin ? <div className="flex flex-wrap gap-2" role="group" aria-label={`Organizar ${f.titulo}`}>
             <button type="button" className="btn btn-quiet min-h-11" disabled={ocupado || i === 0} aria-label="Subir na fila" onClick={() => void admin(f.id, 'subir')}><ArrowUp size={18} aria-hidden="true" /></button>

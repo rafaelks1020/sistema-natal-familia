@@ -1,8 +1,11 @@
 // Cálculo da nota do karaokê. Funções puras, sem imports: testadas por pontuacao.test.mjs.
 // Sem notas de referência, a nota mede quanto a pessoa cantou, quão firme e afinada foi a voz e a energia.
 
-/** Um instante medido do microfone. t em ms desde o início da gravação; hz 0 = sem altura clara. */
-export type Quadro = { t: number; hz: number; clareza: number; rms: number };
+/** Um instante medido do microfone. t em ms desde o início da gravação; hz 0 = sem altura clara. m = posição do vídeo (ms) nesse instante, se conhecida. */
+export type Quadro = { t: number; hz: number; clareza: number; rms: number; m?: number };
+
+/** Trecho (ms da posição do vídeo) em que a letra está sendo cantada. */
+export type Janela = { de: number; ate: number };
 
 export type Detalhes = {
   cobertura: number; // fração da música com voz detectada (0 a 1)
@@ -12,6 +15,8 @@ export type Detalhes = {
   trechos: number;
   ruido: number;
   limiar: number;
+  /** 'letra': nota só dentro das linhas da letra; ausente ou 'video': música inteira. */
+  modo?: 'letra' | 'video';
 };
 
 export type Resultado = { nota: number; estrelas: number; detalhes: Detalhes };
@@ -26,6 +31,10 @@ const DT_MAX_MS = 100;
 /** Tempo de voz que já vale cobertura total (ninguém canta 100% do vídeo: tem introdução e solos). */
 const COBERTURA_CHEIA = 0.55;
 const PISO_NOTA = 40;
+/** Com a letra, a cobertura é medida só nas linhas cantadas (sem introdução nem solos), então o "cantou o bastante" é maior. */
+const COBERTURA_CHEIA_LETRA = 0.7;
+/** Folga em volta de cada linha da letra (entra no tempo de letra): quem começa um pouco antes ou termina um pouco depois ainda é contado. */
+const FOLGA_JANELA_MS = 250;
 
 const limitar = (x: number, min = 0, max = 1) => (x < min ? min : x > max ? max : x);
 
@@ -78,13 +87,34 @@ export function estrelasDaNota(nota: number): number {
  * quadros: série medida durante a música; duracaoMs: duração do vídeo.
  * inicioMs: instante (mesma escala de t) em que a música começou; o ruído usa os 2 s antes dele
  * (a contagem regressiva), e só quadros depois dele valem nota. Sem inicioMs, tudo vale e o ruído sai dos 2 s iniciais.
+ * janelas (opcional): trechos da letra, na mesma escala de Quadro.m. Com elas, só contam os quadros dentro das linhas com texto
+ * e a cobertura é medida sobre o tempo dessas linhas: silêncio durante a letra pesa um pouco, pausas instrumentais não pesam nada.
+ * Sem janelas, ou se nenhum quadro traz m, vale a música inteira.
  */
-export function pontuar(quadros: readonly Quadro[], duracaoMs: number, inicioMs?: number): Resultado {
+export function pontuar(quadros: readonly Quadro[], duracaoMs: number, inicioMs?: number, janelas?: readonly Janela[]): Resultado {
   const todos = [...quadros].sort((a, b) => a.t - b.t);
   const ruidoBase = inicioMs === undefined ? todos : todos.filter((q) => q.t < inicioMs);
   const ruido = medirRuido(ruidoBase.length ? ruidoBase : todos);
   const limiar = limiarDeVoz(ruido);
-  const q = inicioMs === undefined ? todos : todos.filter((x) => x.t >= inicioMs);
+  let q = inicioMs === undefined ? todos : todos.filter((x) => x.t >= inicioMs);
+
+  // Letra: recorta as janelas ao que tocou e fica só com os quadros dentro delas.
+  const fimMs = Math.max(0, duracaoMs);
+  const recortadas = (janelas ?? [])
+    .map((j) => ({ de: Math.max(0, j.de), ate: Math.min(fimMs, j.ate) }))
+    .filter((j) => Number.isFinite(j.de) && Number.isFinite(j.ate) && j.ate > j.de)
+    .map((j) => ({ de: j.de - FOLGA_JANELA_MS, ate: j.ate + FOLGA_JANELA_MS }))
+    .sort((a, b) => a.de - b.de);
+  // Junta janelas que se encostam (com a folga) para o tempo de letra não ser contado em dobro.
+  const validas: Janela[] = [];
+  for (const j of recortadas) {
+    const ultima = validas[validas.length - 1];
+    if (ultima && j.de <= ultima.ate) ultima.ate = Math.max(ultima.ate, j.ate);
+    else validas.push({ ...j });
+  }
+  const porLetra = validas.length > 0 && q.some((x) => typeof x.m === 'number');
+  const tempoLetra = porLetra ? validas.reduce((a, j) => a + (j.ate - j.de), 0) : 0;
+  if (porLetra) q = q.filter((x) => typeof x.m === 'number' && validas.some((j) => x.m! >= j.de && x.m! < j.ate));
 
   let tempoVoz = 0;
   let somaRms = 0;
@@ -125,9 +155,9 @@ export function pontuar(quadros: readonly Quadro[], duracaoMs: number, inicioMs?
   }
   fechar();
 
-  const dur = Math.max(1, duracaoMs);
+  const dur = Math.max(1, porLetra ? tempoLetra : duracaoMs);
   const cobertura = limitar(tempoVoz / dur);
-  const coberturaNorm = limitar(cobertura / COBERTURA_CHEIA);
+  const coberturaNorm = limitar(cobertura / (porLetra ? COBERTURA_CHEIA_LETRA : COBERTURA_CHEIA));
   // Sem trecho sustentado a pessoa falou ou sussurrou: afinação neutra baixa, não zero.
   const afinacao = quadrosTrecho ? limitar(1 - somaDesvio / quadrosTrecho / 50) : nVoz ? 0.4 : 0;
   const estabilidade = quadrosTrecho ? limitar(1 - somaDp / quadrosTrecho / 0.8) : nVoz ? 0.4 : 0;
@@ -141,6 +171,6 @@ export function pontuar(quadros: readonly Quadro[], duracaoMs: number, inicioMs?
   return {
     nota,
     estrelas: estrelasDaNota(nota),
-    detalhes: { cobertura: arred(cobertura), afinacao: arred(afinacao), estabilidade: arred(estabilidade), energia: arred(energia), trechos, ruido: arred(ruido), limiar: arred(limiar) },
+    detalhes: { cobertura: arred(cobertura), afinacao: arred(afinacao), estabilidade: arred(estabilidade), energia: arred(energia), trechos, ruido: arred(ruido), limiar: arred(limiar), modo: porLetra ? 'letra' : 'video' },
   };
 }

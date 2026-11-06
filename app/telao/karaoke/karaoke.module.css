@@ -85,6 +85,51 @@
   .estrela { width: 12vmin; height: 12vmin; }
 }
 
+/* ---------- modo letra: letra própria sincronizada no centro, vídeo pequeno no canto ---------- */
+.modoLetra { --lateral: 26vmin; --video-w: 360px; --video-h: 203px; }
+.videoPequeno { top: auto; right: auto; width: var(--video-w); height: var(--video-h); bottom: calc(var(--faixa) + 2.4vmin); border-radius: 1.2vmin; z-index: 3; }
+.fundoLetra { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: #171b18; }
+.fundoLetra img { position: absolute; inset: -8%; width: 116%; height: 116%; object-fit: cover; filter: blur(4.5vmin) brightness(0.3) saturate(1.15); transform: scale(1.05); }
+.fundoLetra::after { content: ""; position: absolute; inset: 0; background: radial-gradient(110% 80% at 50% 40%, rgba(23, 27, 24, 0.15) 0%, rgba(23, 27, 24, 0.82) 100%); }
+.brilhoLetra { position: absolute; inset: -20%; z-index: 1; background: radial-gradient(40% 35% at 30% 40%, rgba(197, 41, 45, 0.22), transparent 70%), radial-gradient(35% 30% at 72% 62%, rgba(191, 165, 119, 0.2), transparent 70%); animation: brilhoLento 14s ease-in-out infinite alternate; mix-blend-mode: screen; }
+.letraTopo { position: absolute; z-index: 2; top: 6.2vmin; left: 2.4vmin; right: calc(var(--lateral) + 4.8vmin); display: flex; flex-direction: column; align-items: center; gap: 0.6vmin; text-align: center; pointer-events: none; }
+.letraCantando { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 4vmin; line-height: 1.1; color: #bfa577; text-shadow: 0 0 3vmin rgba(191, 165, 119, 0.35); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.letraCantando b { color: #f3ebdc; font-weight: 800; }
+.letraMusica { font-size: 1.9vmin; font-weight: 600; letter-spacing: 0.06em; color: #cfc6b6; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palco { position: absolute; z-index: 2; left: 2.4vmin; top: 21vmin; right: calc(var(--lateral) + 4.8vmin); bottom: calc(var(--faixa) + 2.4vmin + var(--video-h) + 1.6vmin); pointer-events: none; }
+.linhaLetra { position: absolute; left: 50%; top: 50%; width: min(100%, 135vmin); text-align: center; font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 700; line-height: 1.12; text-wrap: balance; transform: translate(-50%, calc(-50% + var(--dy, 0vmin))) scale(var(--s, 1)); opacity: var(--o, 0); transition: transform 0.75s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.6s ease; will-change: transform, opacity; }
+.linhaLetra[data-slot="0"] { --dy: 0vmin; --s: 1; --o: 1; filter: drop-shadow(0 0 2.2vmin rgba(197, 41, 45, 0.45)); }
+.linhaLetra[data-slot="-1"] { --dy: -17vmin; --s: 0.46; --o: 0.4; }
+.linhaLetra[data-slot="1"] { --dy: 16vmin; --s: 0.62; --o: 0.55; }
+.linhaLetra[data-slot="-2"] { --dy: -26vmin; --s: 0.3; --o: 0; }
+.linhaLetra[data-slot="2"] { --dy: 26vmin; --s: 0.4; --o: 0; }
+.palavra { --p: 0; display: inline-block; color: transparent; -webkit-background-clip: text; background-clip: text; background-image: linear-gradient(90deg, #e6c98e 0%, #e6c98e calc(var(--p) * 100%), #f3ebdc calc(var(--p) * 100% + 0.4%), #f3ebdc 100%); }
+.linhaLetra[data-slot="-1"] .palavra { background-image: linear-gradient(90deg, #bfa577, #bfa577); }
+.pausa { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 3vmin; opacity: 0; transition: opacity 0.6s ease; }
+.pausaVisivel { opacity: 1; }
+.notas { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 700; font-size: 9vmin; letter-spacing: 0.3em; color: #bfa577; text-shadow: 0 0 4vmin rgba(191, 165, 119, 0.45); animation: pulsa 2.4s ease-in-out infinite; }
+.pontos { display: flex; gap: 2.4vmin; }
+.pontos span { width: 2.6vmin; height: 2.6vmin; border-radius: 50%; transition: opacity 0.35s ease, transform 0.35s ease, background 0.35s ease; }
+.pontoAceso { background: #c5292d; box-shadow: 0 0 2vmin rgba(197, 41, 45, 0.7); }
+.pontoApagado { background: rgba(243, 235, 220, 0.25); transform: scale(0.6); }
+.ajusteLetra { position: absolute; z-index: 9; left: calc(2.4vmin + var(--video-w) + 2vmin); bottom: calc(var(--faixa) + 2.4vmin); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ajusteValor { min-width: 96px; text-align: center; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; color: #bfa577; }
+.lateralMini { padding: 1.6vmin; gap: 1vmin; top: 22vmin; bottom: auto; height: 50vmin; }
+.lateralMini .latNome { font-size: 2.4vmin; }
+.lateralMini .latMusica, .lateralMini .latDica { display: none; }
+
+@keyframes brilhoLento { from { transform: translate(-3%, -2%) scale(1); } to { transform: translate(4%, 3%) scale(1.12); } }
+@keyframes pulsa { 0%, 100% { opacity: 0.65; } 50% { opacity: 1; } }
+@media (orientation: portrait) {
+  .modoLetra { --lateral: 0px; }
+  .modoLetra .videoPequeno { left: 2vmin; }
+  .modoLetra .lateralMini { left: auto; right: 2vmin; width: 32vmin; top: auto; bottom: calc(var(--faixa) + 2vmin); height: var(--video-h); }
+  .letraTopo, .palco { left: 2vmin; right: 2vmin; }
+  .ajusteLetra { left: 2vmin; bottom: calc(var(--faixa) + 2.4vmin + var(--video-h) + 1vmin); }
+  .palco { bottom: calc(var(--faixa) + 2.4vmin + var(--video-h) + 8vmin); }
+}
+@media (prefers-reduced-motion: reduce) { .brilhoLetra, .notas { animation: none; } .linhaLetra { transition-duration: 0.01s; } }
+
 @keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
 @keyframes estoura { 0% { opacity: 0; transform: scale(0.3); } 60% { opacity: 1; transform: scale(1.08); } 100% { opacity: 1; transform: scale(1); } }
 @keyframes estrelaPop { 0% { opacity: 0; transform: scale(0.2) rotate(-40deg); } 70% { opacity: 1; transform: scale(1.25) rotate(8deg); } 100% { opacity: 1; transform: scale(1) rotate(0); } }

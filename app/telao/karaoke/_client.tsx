@@ -1,11 +1,13 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { Mic, MicOff, Pause, Play, SkipForward, Star, Volume2, VolumeX, Repeat } from 'lucide-react';
+import { FastForward, Mic, MicOff, Pause, Play, Rewind, SkipForward, Star, Volume2, VolumeX, Repeat } from 'lucide-react';
 import { api } from '@/app/ui/client';
 import { Confete } from '../_confete';
 import { MedidorAfinacao } from './_medidor';
+import { FundoLetra, LetraPalco } from './_letra';
+import { janelasDaLetra, prepararLetra } from './letra';
 import { pontuar, useAfinacao, type Resultado } from './_pitch';
 import { quemCanta, type EstadoKaraoke, type ItemFila } from './tipos';
 import styles from './karaoke.module.css';
@@ -16,6 +18,11 @@ const NOTA_MS = 15000;
 const LS_DISPOSITIVO = 'karaoke.mic.dispositivo';
 const LS_LIGADO = 'karaoke.mic.ligado';
 const LS_VOLUME = 'karaoke.voz.volume';
+const PASSO_OFFSET_MS = 250;
+const OFFSET_MAX_MS = 30000;
+const ATRASO_GRAVAR_OFFSET_MS = 400;
+
+const formatarOffset = (ms: number) => `${ms > 0 ? '+' : ''}${(ms / 1000).toFixed(2).replace('.', ',')} s`;
 
 // ---------- YouTube IFrame API (só os pedaços usados) ----------
 interface YTPlayer {
@@ -117,6 +124,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const [deviceId, setDeviceId] = useState<string | null>(() => lerLS(LS_DISPOSITIVO));
   const [qr, setQr] = useState('');
   const [emCurso, setEmCurso] = useState<ItemFila | null>(null);
+  const [offsetMs, setOffsetMs] = useState(0);
 
   const pitch = useAfinacao(deviceId, { vozNaTv, volumeVoz });
   const { iniciarGravacao, pausarGravacao, pararGravacao, retomar, ligar } = pitch;
@@ -140,6 +148,10 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const timerAviso = useRef<number | undefined>(undefined);
   const tratadores = useRef<{ finalizar: () => void; erroVideo: () => void }>({ finalizar: () => undefined, erroVideo: () => undefined });
   const nivelRef = useRef<HTMLDivElement>(null);
+  /** Ajuste da letra (ms) da música em andamento; vale na hora e é gravado depois de uma pequena espera. */
+  const offsetRef = useRef(0);
+  const timerOffset = useRef<number | undefined>(undefined);
+  const relogioRef = useRef({ v: 0, w: 0, saida: 0 });
 
   useEffect(() => { autoRef.current = auto; micRef.current = pitch.status === 'ativo'; });
 
@@ -150,6 +162,24 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     window.clearTimeout(timerAviso.current);
     timerAviso.current = window.setTimeout(() => setAviso(''), 6000);
   }, []);
+
+  /** Posição do vídeo em ms, interpolada entre as leituras do player (que andam em degraus) para o preenchimento ficar suave. */
+  const msVideo = useCallback((): number => {
+    const r = relogioRef.current;
+    const p = playerRef.current;
+    if (!p || !prontoRef.current) return r.saida;
+    let v = 0;
+    let rodando = false;
+    try { v = p.getCurrentTime() * 1000; rodando = p.getPlayerState() === PLAYING; } catch { return r.saida; }
+    const agora = performance.now();
+    if (v !== r.v) { r.v = v; r.w = agora; }
+    let est = rodando ? r.v + Math.min(agora - r.w, 300) : r.v;
+    if (est < r.saida && r.saida - est < 200) est = r.saida;
+    r.saida = est;
+    return est;
+  }, []);
+  /** Instante da letra: posição do vídeo menos o ajuste (ajuste positivo atrasa a letra). */
+  const lerMsLetra = useCallback(() => msVideo() - offsetRef.current, [msVideo]);
 
   const limparTimers = useCallback(() => {
     window.clearInterval(timerContagem.current); window.clearTimeout(timerNota.current); window.clearInterval(timerEspera.current);
@@ -177,6 +207,8 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     limparTimers();
     definirEmCurso(item);
     gravandoRef.current = false;
+    offsetRef.current = item.offset_ms || 0; setOffsetMs(offsetRef.current);
+    relogioRef.current = { v: 0, w: 0, saida: 0 };
     setResultado(null); setContagem(CONTAGEM_S);
     mudarFase('contagem');
     let n = CONTAGEM_S;
@@ -199,7 +231,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     if (ocupadoRef.current) return;
     const s = ++seqRef.current;
     try {
-      const novo = await api<EstadoKaraoke>('/api/karaoke/fila');
+      const novo = await api<EstadoKaraoke>('/api/karaoke/fila?letra=1');
       if (s === seqRef.current && !ocupadoRef.current) aplicar(novo);
     } catch { /* tenta de novo no próximo ciclo */ }
   }, [aplicar]);
@@ -253,7 +285,9 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     gravandoRef.current = false;
     setTocando(false);
     const duracao = antes && tocouMs > 0 ? tocouMs : (playerRef.current?.getDuration() || item.duracao_s || 0) * 1000;
-    const r = micRef.current && quadros.length > 60 && duracao > 0 ? pontuar(quadros, duracao) : null;
+    // Com a letra na tela, a nota considera só as linhas cantadas (a posição do vídeo vem em cada quadro).
+    const janelas = item.modo === 'letra' ? janelasDaLetra(prepararLetra(item.letra), offsetRef.current) : undefined;
+    const r = micRef.current && quadros.length > 60 && duracao > 0 ? pontuar(quadros, duracao, undefined, janelas) : null;
     setResultado({ item, r });
     mudarFase('nota');
     window.clearTimeout(timerNota.current);
@@ -278,6 +312,15 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   }, [abortar, acaoComRetentativa, avisar, iniciar, mudarFase]);
 
   useEffect(() => { tratadores.current = { finalizar, erroVideo }; }, [finalizar, erroVideo]);
+
+  const ajustarLetra = useCallback((delta: number) => {
+    const id = emCursoRef.current?.id;
+    if (!id) return;
+    offsetRef.current = Math.max(-OFFSET_MAX_MS, Math.min(OFFSET_MAX_MS, offsetRef.current + delta));
+    setOffsetMs(offsetRef.current);
+    window.clearTimeout(timerOffset.current);
+    timerOffset.current = window.setTimeout(() => { void acao({ acao: 'offset', id, offset_ms: offsetRef.current }); }, ATRASO_GRAVAR_OFFSET_MS);
+  }, [acao]);
 
   const pular = useCallback(async () => {
     const alvo = estadoRef.current?.atual ?? estadoRef.current?.fila[0];
@@ -310,7 +353,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
             if (faseRef.current !== 'cantando') return;
             if (e.data === PLAYING) {
               setTocando(true);
-              if (!gravandoRef.current) { iniciarGravacao(); gravandoRef.current = true; } else pausarGravacao(false);
+              if (!gravandoRef.current) { iniciarGravacao(msVideo); gravandoRef.current = true; } else pausarGravacao(false);
             } else if (e.data === PAUSED || e.data === BUFFERING) { setTocando(false); pausarGravacao(true); }
             else if (e.data === ENDED) tratadores.current.finalizar();
           },
@@ -325,7 +368,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
       playerRef.current = null; prontoRef.current = false;
       alvo.remove();
     };
-  }, [admin, iniciarGravacao, pausarGravacao]);
+  }, [admin, iniciarGravacao, pausarGravacao, msVideo]);
 
   // Sincroniza com o servidor.
   useEffect(() => {
@@ -376,6 +419,9 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const proximo = estado?.fila[0] ?? null;
   const emPalco = fase === 'contagem' || fase === 'cantando';
   const item = emCurso ?? atual;
+  const linhasCantadas = useMemo(() => prepararLetra(item?.letra), [item?.letra]);
+  const usaLetra = item?.modo === 'letra' && linhasCantadas.length > 0;
+  const letraAtiva = fase === 'cantando' && usaLetra;
 
   const cartazOcioso = () => {
     if (!estado) return <div className={styles.cartaz}><p className={styles.kicker}>Karaokê</p><p className={styles.subtitulo}>Carregando a fila...</p></div>;
@@ -404,12 +450,22 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     </div>;
   };
 
-  return <div className={styles.root + (admin ? '' : ` ${styles.semFaixa}`)}>
+  return <div className={styles.root + (admin ? '' : ` ${styles.semFaixa}`) + (letraAtiva ? ` ${styles.modoLetra}` : '')}>
+    {letraAtiva && item ? <FundoLetra videoId={item.video_id} /> : null}
     <div className={styles.topo}><span className={styles.marca}>Natal em Família · Karaokê</span></div>
 
-    {admin ? <div ref={caixaRef} className={`${styles.videoCaixa} ${fase === 'cantando' ? '' : styles.videoOculto}`} /> : null}
+    {/* O vídeo do YouTube fica sempre visível enquanto toca (exigência do YouTube); no modo letra só encolhe para o canto. */}
+    {admin ? <div ref={caixaRef} className={`${styles.videoCaixa} ${fase === 'cantando' ? '' : styles.videoOculto} ${letraAtiva ? styles.videoPequeno : ''}`} /> : null}
 
-    {fase === 'cantando' && item ? <aside className={styles.lateral}>
+    {letraAtiva && item ? <>
+      <div className={styles.letraTopo}>
+        <p className={styles.letraCantando}>Cantando: <b>{quemCanta(item)}</b></p>
+        <p className={styles.letraMusica}>{item.faixa ?? item.titulo}{item.artista ? ` · ${item.artista}` : ''}</p>
+      </div>
+      <LetraPalco key={item.id} linhas={linhasCantadas} lerMs={lerMsLetra} />
+    </> : null}
+
+    {fase === 'cantando' && item ? <aside className={`${styles.lateral} ${letraAtiva ? styles.lateralMini : ''}`}>
       <p className={styles.latKicker}>Agora cantando</p>
       <p className={styles.latNome}>{quemCanta(item)}</p>
       <p className={styles.latMusica}>{item.titulo}</p>
@@ -432,6 +488,11 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     {aviso ? <p className={styles.aviso} role="status">{aviso}</p> : null}
 
     {admin ? <>
+      {letraAtiva ? <div className={styles.ajusteLetra} role="group" aria-label="Ajustar o tempo da letra">
+        <button type="button" className={styles.botao} onClick={() => ajustarLetra(PASSO_OFFSET_MS)} title="A letra aparece antes da voz: atrasa a letra em 0,25 s"><Rewind size={18} aria-hidden="true" />Letra adiantada</button>
+        <span className={styles.ajusteValor} aria-live="polite">{formatarOffset(offsetMs)}</span>
+        <button type="button" className={styles.botao} onClick={() => ajustarLetra(-PASSO_OFFSET_MS)} title="A letra aparece depois da voz: adianta a letra em 0,25 s"><FastForward size={18} aria-hidden="true" />Letra atrasada</button>
+      </div> : null}
       <div className={styles.faixa}>
         {fase === 'ocioso' && (proximo || atual) ? <button type="button" className={`${styles.botao} ${styles.botaoPrincipal}`} onClick={() => void iniciar(atual ? undefined : proximo?.id)}><Play size={18} aria-hidden="true" />Começar</button> : null}
         {fase === 'cantando' ? <button type="button" className={`${styles.botao} ${styles.botaoPrincipal}`} onClick={() => finalizar(true)}><Star size={18} aria-hidden="true" />Encerrar e ver a nota</button> : null}

@@ -1,4 +1,6 @@
-// Formato das respostas de /api/karaoke/fila e /api/karaoke/buscar (compartilhado pelo celular e pelo telão).
+// Formato das respostas de /api/karaoke/fila, /api/karaoke/buscar e /api/karaoke/musica (compartilhado pelo celular e pelo telão).
+
+export type LinhaLetra = { ms: number; texto: string };
 
 export type ItemFila = {
   id: number;
@@ -15,6 +17,15 @@ export type ItemFila = {
   posicao: number;
   nota: number | null;
   estrelas: number | null;
+  faixa: string | null;
+  artista: string | null;
+  lrclib_id: number | null;
+  /** Só vem para a música que está cantando e quando o telão pede (?letra=1). */
+  letra: LinhaLetra[] | null;
+  /** Ajuste da letra em ms: positivo atrasa a letra. */
+  offset_ms: number;
+  /** 'letra': letra própria na tela; 'video': letra do próprio vídeo. */
+  modo: 'letra' | 'video';
 };
 
 export type LinhaRanking = { user_id: number; nome: string; melhor: number; media: number; cantadas: number };
@@ -31,6 +42,8 @@ export type EstadoKaraoke = {
 };
 
 export type VideoKaraoke = { video_id: string; titulo: string; canal: string; duracao_s: number | null; miniatura: string };
+
+export type MusicaLrclib = { id: number; faixa: string; artista: string; album: string; duracao_s: number | null; sincronizada: boolean };
 
 /** "Maria" ou "Maria e João". */
 export const quemCanta = (i: Pick<ItemFila, 'nome' | 'dueto_nome'>) => (i.dueto_nome ? `${i.nome} e ${i.dueto_nome}` : i.nome);
