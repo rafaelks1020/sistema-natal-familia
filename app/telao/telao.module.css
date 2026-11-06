@@ -158,7 +158,7 @@
 .avisoTextoLongo { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 7.6vmin; line-height: 1.12; text-wrap: balance; max-width: 150vmin; }
 
 /* ---------- controles de quem está no computador (somem sozinhos) ---------- */
-.controles { position: absolute; z-index: 8; left: 24px; bottom: 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; max-width: calc(100% - 48px); transition: opacity 0.6s; }
+.controles { position: absolute; z-index: 25; left: 24px; bottom: 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; max-width: calc(100% - 48px); transition: opacity 0.6s; }
 .controlesOcultos { opacity: 0; pointer-events: none; }
 .botao { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; background: rgba(23, 27, 24, 0.9); border: 1px solid rgba(243, 235, 220, 0.25); color: #f3ebdc; font-size: 15px; font-weight: 600; cursor: pointer; }
 .botao:hover { border-color: #bfa577; }
