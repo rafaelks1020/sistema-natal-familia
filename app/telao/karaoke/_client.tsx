@@ -20,7 +20,7 @@ const LS_VOLUME = 'karaoke.voz.volume';
 // ---------- YouTube IFrame API (só os pedaços usados) ----------
 interface YTPlayer {
   loadVideoById(id: string): void; playVideo(): void; pauseVideo(): void; stopVideo(): void;
-  getPlayerState(): number; getDuration(): number; destroy(): void;
+  getPlayerState(): number; getDuration(): number; getCurrentTime(): number; destroy(): void;
 }
 interface YTNamespace {
   Player: new (el: HTMLElement, opts: {
@@ -90,6 +90,7 @@ function NotaCena({ item, r }: { item: ItemFila; r: Resultado | null }) {
     <Confete modo={r && r.estrelas >= 4 ? 'explosao' : 'rajada'} />
     <p className={styles.kicker}>{r ? 'Nota da apresentação' : 'Apresentação encerrada'}</p>
     <p className={styles.subtitulo}>{quemCanta(item)} · {item.titulo}</p>
+    {!r ? <p className={styles.frase}>Sem nota desta vez: ligue o microfone (botão Microfone) e cante pelo menos uns 20 segundos.</p> : null}
     {r ? <>
       <p className={styles.notaNumero} aria-label={`Nota ${r.nota}`}>{numero}</p>
       <div className={styles.estrelas} aria-label={`${r.estrelas} de 5 estrelas`}>
@@ -241,14 +242,17 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     if (autoRef.current && (estadoRef.current?.fila.length ?? 0) > 0) void iniciar();
   }, [iniciar, definirEmCurso, mudarFase]);
 
-  const finalizar = useCallback(() => {
+  const finalizar = useCallback((antes = false) => {
     const item = emCursoRef.current;
     if (!item || faseRef.current !== 'cantando') return;
+    // Encerrar antes do fim: a nota considera só o trecho que tocou.
+    const tocouMs = antes ? (playerRef.current?.getCurrentTime() || 0) * 1000 : 0;
+    if (antes) playerRef.current?.pauseVideo();
     ignoradosRef.current.add(item.id);
     const quadros = pararGravacao();
     gravandoRef.current = false;
     setTocando(false);
-    const duracao = (playerRef.current?.getDuration() || item.duracao_s || 0) * 1000;
+    const duracao = antes && tocouMs > 0 ? tocouMs : (playerRef.current?.getDuration() || item.duracao_s || 0) * 1000;
     const r = micRef.current && quadros.length > 60 && duracao > 0 ? pontuar(quadros, duracao) : null;
     setResultado({ item, r });
     mudarFase('nota');
@@ -430,6 +434,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     {admin ? <>
       <div className={styles.faixa}>
         {fase === 'ocioso' && (proximo || atual) ? <button type="button" className={`${styles.botao} ${styles.botaoPrincipal}`} onClick={() => void iniciar(atual ? undefined : proximo?.id)}><Play size={18} aria-hidden="true" />Começar</button> : null}
+        {fase === 'cantando' ? <button type="button" className={`${styles.botao} ${styles.botaoPrincipal}`} onClick={() => finalizar(true)}><Star size={18} aria-hidden="true" />Encerrar e ver a nota</button> : null}
         {fase === 'cantando' ? <button type="button" className={styles.botao} onClick={alternarPausa}>{tocando ? <><Pause size={18} aria-hidden="true" />Pausar</> : <><Play size={18} aria-hidden="true" />Continuar</>}</button> : null}
         <button type="button" className={styles.botao} disabled={!atual && !proximo} onClick={() => void pular()}><SkipForward size={18} aria-hidden="true" />Pular</button>
         <button type="button" className={`${styles.botao} ${pitch.status === 'ativo' ? styles.botaoLigado : ''}`} onClick={() => setConfig((c) => !c)} aria-expanded={config}>{pitch.status === 'ativo' ? <Mic size={18} aria-hidden="true" /> : <MicOff size={18} aria-hidden="true" />}Microfone</button>
