@@ -613,6 +613,12 @@ export default function ScreenClient({ initial }: { initial: EstadoTelao }) {
 
     <ReacoesFlutuantes reacoes={ao.reacoes} />
     <RecadoVivo recado={ao.recados} />
+    {ao.pendentes.length ? (
+      <div style={{ position: 'absolute', zIndex: 9, top: '10vmin', right: '3vmin', padding: '1vmin 2vmin', borderRadius: '999px',
+        background: 'rgba(197, 41, 45, 0.92)', color: '#F3EBDC', fontSize: '2vmin', fontWeight: 700 }}>
+        {ao.pendentes.length === 1 ? '1 recado esperando aprovação no controle' : `${ao.pendentes.length} recados esperando aprovação no controle`}
+      </div>
+    ) : null}
 
     <header className={styles.topo}>
       <p className={styles.marca}>Natal em Família · {lean.ano}</p>

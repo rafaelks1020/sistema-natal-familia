@@ -64,10 +64,10 @@ export default function AoVivoClient() {
     if (!limpo || busy || espera > 0) return;
     setBusy(true);
     try {
-      await api('/api/telao/ao-vivo', { method: 'POST', json: { tipo: 'recado', texto: limpo } });
+      const r = await api<{ aprovado?: boolean }>('/api/telao/ao-vivo', { method: 'POST', json: { tipo: 'recado', texto: limpo } });
       setTexto('');
       setEspera(30);
-      toast('Recado enviado. Ele aparece no telão se for aprovado.');
+      toast(r?.aprovado ? 'Recado enviado. Já está aparecendo no telão.' : 'Recado enviado. Ele aparece no telão assim que quem organiza aprovar.');
     } catch (err) {
       toast((err as Error).message, 'erro');
     } finally {

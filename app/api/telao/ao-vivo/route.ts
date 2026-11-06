@@ -120,19 +120,20 @@ export const POST = route(async (req) => {
       const id = await transaction(async (q) => {
         await q('SELECT pg_advisory_xact_lock($1, $2)', [16012, me.id]);
         const { rows } = await q<{ id: string | number }>(
-          `INSERT INTO telao_recados_vivo (ano, user_id, texto)
-           SELECT $1, $2, $3
+          // Recado de quem organiza já entra aprovado.
+          `INSERT INTO telao_recados_vivo (ano, user_id, texto, status, moderado_em)
+           SELECT $1, $2, $3, CASE WHEN $4 THEN 'aprovado' ELSE 'pendente' END, CASE WHEN $4 THEN NOW() END
            WHERE NOT EXISTS (
              SELECT 1 FROM telao_recados_vivo
              WHERE user_id = $2 AND ano = $1 AND created_at > NOW() - INTERVAL '30 seconds'
            )
            RETURNING id`,
-          [ano, me.id, texto],
+          [ano, me.id, texto, me.is_admin],
         );
         if (!rows.length) throw new HttpError(429, 'Espere 30 segundos para mandar outro recado.');
         return Number(rows[0].id);
       });
-      return ok({ id }, 201);
+      return ok({ id, aprovado: me.is_admin }, 201);
     }
     throw new HttpError(400, 'Tipo inválido.');
   } catch (err) {
