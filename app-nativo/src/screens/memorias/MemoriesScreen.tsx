@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, API_BASE_URL } from '../../api';
 import { theme } from '../../theme';
 import { Button } from '../../ui/Button';
+import { Cabecalho } from '../familia/Cabecalho';
 import { Text } from '../../ui/Text';
 import { Surface } from '../../ui/Surface';
 import { Skeleton } from '../../ui/Skeleton';
@@ -25,9 +26,9 @@ export default function MemoriesScreen() {
   const memories = useQuery({ queryKey: ['album', 'memorias'], queryFn: ({ signal }) => api<MemoriesHome>('/api/memorias', { signal }) });
   function open(photos: AlbumItem[], key: string) { setViewer({ key, photos }); }
   async function book(ano: number) { try { await Linking.openURL(`${API_BASE_URL}/memorias/livro/${ano}`); } catch { toast('Não foi possível abrir o livro no navegador.', 'error'); } }
-  return <View style={styles.root}><ScrollView contentContainerStyle={[styles.content, { paddingTop: inset.top + 20, paddingBottom: inset.bottom + 32 }]}
+  return <View style={styles.root}><ScrollView contentContainerStyle={[styles.content, { paddingBottom: inset.bottom + 32 }]}
     refreshControl={<RefreshControl refreshing={memories.isRefetching} onRefresh={() => { void memories.refetch(); }} tintColor={theme.colors.champagne} />}>
-    <Button variant="quiet" onPress={() => router.back()}>Voltar</Button><Text variant="kicker">Cada Natal tem uma história</Text><Text variant="display" accessibilityRole="header">Nossas memórias</Text>
+    <View style={styles.cabecalho}><Cabecalho kicker="Cada Natal tem uma história" titulo="Nossas memórias" aoVoltar={() => { if (router.canGoBack()) router.back(); else router.navigate('/'); }} /></View>
     {memories.isPending ? <Skeleton style={{ height: 240 }} /> : memories.isError ? <EmptyState title="As memórias não chegaram" message={memories.error.message} action="Tentar de novo" onAction={() => { void memories.refetch(); }} /> : <>
       <View style={styles.buttons}><Button style={styles.flex} variant={!timeline ? 'primary' : 'ghost'} onPress={() => setTimeline(false)}>Neste dia</Button><Button style={styles.flex} variant={timeline ? 'primary' : 'ghost'} onPress={() => setTimeline(true)}>Linha do tempo</Button></View>
       {!timeline && <Surface><Text variant="kicker">Neste dia</Text><Text variant="display" style={{ fontSize: 28 }}>Lembra deste momento?</Text>
@@ -47,4 +48,4 @@ export default function MemoriesScreen() {
     </>}
   </ScrollView>{viewer && <PhotoViewer initialKey={viewer.key} photos={viewer.photos} hasMore={false} loadingMore={false} error={null} onLoadMore={() => {}} onClose={() => setViewer(null)} />}</View>;
 }
-const styles = StyleSheet.create({ root: { flex: 1, backgroundColor: theme.colors.background }, content: { paddingHorizontal: 24, gap: 20, maxWidth: 720, width: '100%', alignSelf: 'center' }, buttons: { flexDirection: 'row', gap: 8 }, flex: { flex: 1 }, card: { gap: 16 }, cover: { width: '100%', aspectRatio: 4 / 3, borderRadius: theme.radius.card } });
+const styles = StyleSheet.create({ root: { flex: 1, backgroundColor: theme.colors.background }, content: { paddingHorizontal: 24, gap: 20, maxWidth: 720, width: '100%', alignSelf: 'center' }, cabecalho: { marginHorizontal: -24 }, buttons: { flexDirection: 'row', gap: 8 }, flex: { flex: 1 }, card: { gap: 16 }, cover: { width: '100%', aspectRatio: 4 / 3, borderRadius: theme.radius.card } });

@@ -10,6 +10,7 @@ import { theme } from '../../theme';
 import { escolherFotos, enviarFoto } from '../../upload';
 import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
+import { Cabecalho } from '../familia/Cabecalho';
 import { EmptyState } from '../../ui/EmptyState';
 import { Field } from '../../ui/Field';
 import { Sheet } from '../../ui/Sheet';
@@ -67,13 +68,12 @@ export default function Book({ kind }: { kind: Kind }) {
   const current = query.data?.items.find(item => item.id === selected);
   const visible = current ? [current] : (query.data?.items ?? []).filter(item =>
     `${item.titulo} ${'de_quem' in item ? item.de_quem : item.quem_conta}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')) && (!category || ('categoria' in item && item.categoria === category)));
-  return <SafeAreaView edges={['top', 'left', 'right']} style={styles.screen}>
+  return <SafeAreaView edges={['left', 'right']} style={styles.screen}>
     <FlatList ref={list} data={visible} keyExtractor={item => String(item.id)} contentContainerStyle={styles.content}
       refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }} keyboardShouldPersistTaps="handled"
       ListHeaderComponent={<View style={styles.header}>
-        <Button variant="quiet" onPress={() => { if (selected !== null) select(null); else router.back(); }}>Voltar</Button>
-        <Text variant="kicker">Memórias da família{query.data ? ` · Natal ${query.data.ano}` : ''}</Text>
-        <Text variant="display" accessibilityRole="header">{recipe ? 'Livro de receitas' : 'Histórias em áudio'}</Text>
+        <View style={styles.cabecalho}><Cabecalho kicker={`Memórias da família${query.data ? ` · Natal ${query.data.ano}` : ''}`} titulo={recipe ? 'Livro de receitas' : 'Histórias em áudio'}
+          aoVoltar={() => { if (selected !== null) select(null); else router.back(); }} rotuloVoltar={selected !== null ? (recipe ? 'Voltar às receitas' : 'Voltar às histórias') : 'Voltar'} /></View>
         <Text variant="muted">{recipe ? 'O sabor que atravessa gerações. Guarde a receita e o segredo de quem faz.' : 'Como era o Natal antigamente? Sente com quem viveu e guarde essa voz para a família.'}</Text>
         {!current ? <>
           <Button disabled={busy} onPress={() => open()}>{recipe ? 'Guardar uma receita' : 'Contar uma história'}</Button>
@@ -129,7 +129,7 @@ export default function Book({ kind }: { kind: Kind }) {
   </SafeAreaView>;
 }
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.colors.background }, content: { padding: 20, gap: 20, paddingBottom: 80 },
+  screen: { flex: 1, backgroundColor: theme.colors.background }, content: { paddingHorizontal: 24, paddingTop: 0, gap: 20, paddingBottom: 80 }, cabecalho: { marginHorizontal: -24 },
   header: { gap: 18, paddingBottom: 12 }, card: { gap: 16, padding: 18 }, title: { fontSize: 28, lineHeight: 36 },
   image: { width: '100%', aspectRatio: 4 / 3, borderRadius: 14 }, accent: { color: theme.colors.champagne },
   categories: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 }, form: { gap: 18, paddingBottom: 30 },

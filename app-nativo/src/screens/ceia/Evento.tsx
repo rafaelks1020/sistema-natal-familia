@@ -63,7 +63,7 @@ export function EventoCeia({ evento, admin }: { evento: CeiaEvento; admin: boole
     });
   }
   return <Secao indice="01" kicker="Quando e onde" titulo="A nossa noite">
-    <Text style={styles.data}>{quando.data}</Text>
+    <Text style={styles.data}>{quando.data.charAt(0).toUpperCase() + quando.data.slice(1)}</Text>
     {quando.hora ? <Text variant="muted">{quando.hora}, horário de Brasília</Text> : null}
     <View style={styles.local}>
       <MapPin size={16} color={theme.colors.champagne} strokeWidth={1.5} />
@@ -83,7 +83,7 @@ export function EventoCeia({ evento, admin }: { evento: CeiaEvento; admin: boole
 }
 
 const styles = StyleSheet.create({
-  data: { fontSize: 18, textTransform: 'capitalize' },
+  data: { fontSize: 18 },
   local: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   flex: { flex: 1, minWidth: 0 },
   dias: { fontSize: 64, lineHeight: 72 },
