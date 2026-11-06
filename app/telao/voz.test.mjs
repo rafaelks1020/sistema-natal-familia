@@ -40,13 +40,34 @@ test('navegação', () => {
   assert.deepEqual(interpretarVoz('Natal, volta ao automático'), { tipo: 'ciclo' });
 });
 
-test('cenas', () => {
+test('cenas clássicas e novas cenas da noite', () => {
   assert.deepEqual(interpretarVoz('Natal, mostra as fotos'), { tipo: 'cena', cena: 'fotos' });
   assert.deepEqual(interpretarVoz('Natal, mostra a música'), { tipo: 'cena', cena: 'tocando' });
   assert.deepEqual(interpretarVoz('Natal, quanto falta'), { tipo: 'cena', cena: 'contagem' });
   assert.deepEqual(interpretarVoz('Natal, mostra os recados'), { tipo: 'cena', cena: 'recados' });
   assert.deepEqual(interpretarVoz('Natal, mostra o advento'), { tipo: 'cena', cena: 'advento' });
   assert.deepEqual(interpretarVoz('Natal fotos'), { tipo: 'cena', cena: 'fotos' });
+  assert.deepEqual(interpretarVoz('Natal, mostra a ceia'), { tipo: 'cena', cena: 'ceia' });
+  assert.deepEqual(interpretarVoz('Natal, linha do tempo'), { tipo: 'cena', cena: 'linha' });
+  assert.deepEqual(interpretarVoz('Natal, lareira'), { tipo: 'cena', cena: 'lareira' });
+  assert.deepEqual(interpretarVoz('Natal, cadê o Papai Noel'), { tipo: 'cena', cena: 'papainoel' });
+  assert.deepEqual(interpretarVoz('Natal, hora do brinde'), { tipo: 'cena', cena: 'brinde' });
+  assert.deepEqual(interpretarVoz('Natal, karaokê'), { tipo: 'cena', cena: 'karaoke' });
+  assert.deepEqual(interpretarVoz('Natal, mostra a virada'), { tipo: 'cena', cena: 'virada' });
+});
+
+test('comandos de música não caem em navegação de cena', () => {
+  assert.deepEqual(interpretarVoz('Natal, próxima música'), { tipo: 'musica', acao: 'proxima' });
+  assert.deepEqual(interpretarVoz('Natal, música anterior'), { tipo: 'musica', acao: 'anterior' });
+  assert.deepEqual(interpretarVoz('Natal, pausa a música'), { tipo: 'musica', acao: 'pausar' });
+  assert.deepEqual(interpretarVoz('Natal, toca a música'), { tipo: 'musica', acao: 'continuar' });
+  assert.deepEqual(interpretarVoz('Natal, aumenta o som'), { tipo: 'musica', acao: 'mais_alto' });
+  assert.deepEqual(interpretarVoz('Natal, abaixa'), { tipo: 'musica', acao: 'mais_baixo' });
+});
+
+test('fotos por ano', () => {
+  assert.deepEqual(interpretarVoz('Natal, mostra as fotos de 2025'), { tipo: 'fotos_ano', ano: 2025 });
+  assert.deepEqual(interpretarVoz('Natal, quero ver fotos de 2024'), { tipo: 'fotos_ano', ano: 2024 });
 });
 
 test('"volta para as fotos" é cena, "volta" sozinho é voltar', () => {

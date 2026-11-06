@@ -11,6 +11,7 @@ export default function FestaClient({ initial }: { initial: ChallengeData }) {
     ['/festa/quiz', 'Quiz da família', 'Quem conhece melhor a nossa história?'],
     ['/festa/bingo', 'Bingo de Natal', 'Prepare sua cartela e venha brincar.'],
     ['/festa/enquete', 'Enquete ao vivo', 'A família escolhe, o resultado aparece na hora.'],
+    ['/festa/jogos-novos', 'Jogos da noite', 'Mímica, quem é o bebê, roleta de prendas e batalha de times.'],
     ['/amigo-oculto/ao-vivo', 'Revelação do amigo oculto', 'Acompanhe cada surpresa da noite.'],
     ['/telao', 'Telão para a TV', 'Abra no navegador da TV e entre com sua conta.'],
   ];

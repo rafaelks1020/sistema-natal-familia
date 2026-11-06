@@ -1,0 +1,591 @@
+/* Estilos das cenas extras do telão (Visual Meia-Noite, unidades em vmin para TV). */
+
+.cena {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 0%, #241d1c 0%, #171b18 68%);
+  color: #f3ebdc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 11vmin 6vmin 8vmin;
+  text-align: center;
+}
+
+.kicker {
+  font-size: 2.1vmin;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #bfa577;
+  margin: 0;
+}
+
+.titulo {
+  font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif;
+  font-weight: 700;
+  font-size: 8.2vmin;
+  line-height: 1.06;
+  letter-spacing: -0.01em;
+  color: #f3ebdc;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.subtitulo {
+  font-size: 3.1vmin;
+  line-height: 1.35;
+  color: #cfc6b6;
+  max-width: 115vmin;
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* ---------- Virada ---------- */
+.viradaAntes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3vmin;
+}
+
+.viradaRelogio {
+  font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif;
+  font-weight: 800;
+  font-size: 13vmin;
+  line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: #f3ebdc;
+  padding: 3vmin 5vmin;
+  border-radius: 2.4vmin;
+  background: #1d221f;
+  border: 0.25vmin solid rgba(191, 165, 119, 0.35);
+  box-shadow: 0 2vmin 6vmin rgba(0, 0, 0, 0.45);
+}
+
+.viradaDez {
+  font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif;
+  font-weight: 900;
+  font-size: 46vmin;
+  line-height: 0.9;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: #f3ebdc;
+  text-shadow: 0 0 8vmin rgba(197, 41, 45, 0.65), 0 2vmin 6vmin rgba(0, 0, 0, 0.6);
+  animation: pulsoSuave 0.95s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.viradaFesta {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3.2vmin;
+  width: 100%;
+}
+
+.felizNatalGigante {
+  font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif;
+  font-weight: 900;
+  font-size: 19vmin;
+  line-height: 1;
+  margin: 0;
+  background: linear-gradient(180deg, #f3ebdc 12%, #bfa577 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 3.5vmin rgba(197, 41, 45, 0.6));
+  animation: entradaSuave 1.2s cubic-bezier(0.22, 1, 0.36, 1) both, respiroLento 3.6s ease-in-out 1.2s infinite;
+}
+
+.nomesFaixa {
+  width: 100%;
+  max-width: 160vmin;
+  overflow: hidden;
+  padding: 1.8vmin 0;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
+}
+
+.nomesTrilho {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.4vmin;
+  white-space: nowrap;
+  animation: rolarNomes 28s linear infinite;
+}
+
+.nomeTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1.2vmin 2.8vmin;
+  border-radius: 999px;
+  background: rgba(29, 34, 31, 0.88);
+  border: 0.22vmin solid rgba(191, 165, 119, 0.45);
+  font-size: 3.2vmin;
+  font-weight: 700;
+  color: #f3ebdc;
+}
+
+/* ---------- Ceia ---------- */
+.ceiaCena {
+  justify-content: flex-start;
+  padding-top: 11vmin;
+  gap: 3.2vmin;
+}
+
+.ceiaCabecalho {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1vmin;
+}
+
+.ceiaColunas {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(30vmin, 1fr));
+  gap: 2.4vmin;
+  align-content: start;
+}
+
+.ceiaColuna {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6vmin;
+  padding: 2.6vmin;
+  border-radius: 2.2vmin;
+  background: rgba(29, 34, 31, 0.9);
+  border: 0.2vmin solid rgba(243, 235, 220, 0.16);
+  text-align: left;
+  overflow: hidden;
+}
+
+.ceiaCatTitulo {
+  font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif;
+  font-weight: 700;
+  font-size: 4vmin;
+  color: #bfa577;
+  margin: 0;
+  padding-bottom: 1vmin;
+  border-bottom: 0.2vmin solid rgba(191, 165, 119, 0.28);
+}
+
+.ceiaLista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4vmin;
+}
+
+.ceiaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3vmin;
+}
+
+.ceiaPratoNome {
+  font-size: 3vmin;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #f3ebdc;
+}
+
+.ceiaPratoQuem {
+  font-size: 2.2vmin;
+  font-weight: 600;
+  color: #bfa577;
+}
+
+/* ---------- Linha do Tempo ---------- */
+.linhaCena {
+  justify-content: flex-start;
+  padding-top: 11vmin;
+  gap: 3vmin;
+}
+
+.linhaCabecalho {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1vmin;
+}
+
+.linhaJanela {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.linhaTrilho {
+  display: flex;
+  align-items: stretch;
+  gap: 4vmin;
+  padding: 2vmin 4vmin;
+  transition: transform 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.linhaCard {
+  flex: none;
+  width: 56vmin;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6vmin;
+  padding: 2.2vmin;
+  border-radius: 2.4vmin;
+  background: #1d221f;
+  border: 0.25vmin solid rgba(243, 235, 220, 0.18);
+  box-shadow: 0 2vmin 6vmin rgba(0, 0, 0, 0.45);
+  transition: transform 0.9s ease, border-color 0.9s ease, opacity 0.9s ease;
+}
+
+.linhaCardAtivo {
+  border-color: #bfa577;
+  transform: scale(1.03);
+}
+
+.linhaFotoMoldura {
+  width: 100%;
+  height: 36vmin;
+  border-radius: 1.6vmin;
+  overflow: hidden;
+  background: #141715;
+}
+
+.linhaFoto {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  animation: kenBurnsLeve 12s ease-in-out infinite alternate;
+}
+
+.linhaAno {
+  font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif;
+  font-weight: 800;
+  font-size: 7.4vmin;
+  line-height: 1;
+  color: #bfa577;
+  font-variant-numeric: lining-nums;
+}
+
+.linhaLegenda {
+  font-size: 2.5vmin;
+  line-height: 1.3;
+  color: #cfc6b6;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------- Lareira ---------- */
+.lareiraCena {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: radial-gradient(90% 65% at 50% 88%, rgba(197, 41, 45, 0.24) 0%, rgba(191, 165, 119, 0.08) 38%, #171b18 75%);
+  color: #f3ebdc;
+}
+
+.neveCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.lareiraCentro {
+  position: absolute;
+  left: 50%;
+  bottom: 10vmin;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.lareiraMoldura {
+  width: 68vmin;
+  height: 46vmin;
+  border-radius: 34vmin 34vmin 2vmin 2vmin;
+  background: radial-gradient(75% 80% at 50% 85%, #3a1714 0%, #151816 78%);
+  border: 0.5vmin solid rgba(191, 165, 119, 0.38);
+  box-shadow: 0 0 12vmin rgba(197, 41, 45, 0.35), inset 0 0 8vmin rgba(0, 0, 0, 0.8);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 4vmin;
+}
+
+.chamas {
+  position: relative;
+  width: 36vmin;
+  height: 28vmin;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.chama {
+  position: absolute;
+  bottom: 2vmin;
+  border-radius: 50% 50% 35% 35% / 60% 60% 30% 30%;
+  filter: blur(0.4vmin);
+  transform-origin: bottom center;
+}
+
+.chamaMaior {
+  width: 22vmin;
+  height: 25vmin;
+  background: linear-gradient(180deg, #f3ebdc 0%, #e8a948 38%, #c5292d 90%);
+  animation: chamaOscila 2.4s ease-in-out infinite alternate;
+}
+
+.chamaEsquerda {
+  left: 3vmin;
+  width: 15vmin;
+  height: 18vmin;
+  background: linear-gradient(180deg, #f3ebdc 0%, #bfa577 35%, #c5292d 95%);
+  animation: chamaOscila 1.9s ease-in-out -0.7s infinite alternate-reverse;
+}
+
+.chamaDireita {
+  right: 3vmin;
+  width: 15vmin;
+  height: 19vmin;
+  background: linear-gradient(180deg, #f3ebdc 0%, #e8a948 40%, #a82024 95%);
+  animation: chamaOscila 2.1s ease-in-out -1.2s infinite alternate;
+}
+
+.lenha {
+  position: absolute;
+  bottom: 2.2vmin;
+  width: 40vmin;
+  height: 4.2vmin;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2b1d16, #472e21 50%, #2b1d16);
+  box-shadow: 0 -0.6vmin 2.4vmin rgba(197, 41, 45, 0.55);
+}
+
+.lareiraRodape {
+  position: absolute;
+  left: 6vmin;
+  bottom: 5vmin;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4vmin;
+}
+
+.lareiraRelogio {
+  font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif;
+  font-size: 5.2vmin;
+  font-weight: 700;
+  color: rgba(243, 235, 220, 0.82);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.lareiraSaudacao {
+  font-size: 2.2vmin;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #bfa577;
+  margin: 0;
+}
+
+/* ---------- Papai Noel ---------- */
+.noelCena {
+  gap: 2.4vmin;
+  padding-top: 10vmin;
+}
+
+.noelMapaBox {
+  position: relative;
+  width: 100%;
+  max-width: 148vmin;
+  aspect-ratio: 2.1 / 1;
+  max-height: 50vmin;
+  border-radius: 2.6vmin;
+  background: radial-gradient(100% 100% at 50% 50%, #1f2823 0%, #141916 100%);
+  border: 0.25vmin solid rgba(191, 165, 119, 0.35);
+  box-shadow: 0 2.5vmin 8vmin rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.noelSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.noelTreno {
+  transition: transform 1s linear;
+}
+
+.noelContador {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1.6vmin;
+  padding: 1.6vmin 3.8vmin;
+  border-radius: 999px;
+  background: #1d221f;
+  border: 0.25vmin solid rgba(191, 165, 119, 0.45);
+  font-size: 3.4vmin;
+  font-weight: 700;
+  color: #f3ebdc;
+  font-variant-numeric: tabular-nums;
+}
+
+.noelContador strong {
+  font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif;
+  font-size: 4.8vmin;
+  font-weight: 800;
+  color: #bfa577;
+}
+
+/* ---------- Brinde ---------- */
+.brindeCena {
+  gap: 3.2vmin;
+}
+
+.brindeFrase {
+  font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif;
+  font-weight: 700;
+  font-size: 6.4vmin;
+  line-height: 1.15;
+  color: #f3ebdc;
+  max-width: 130vmin;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.brindeNumero {
+  font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif;
+  font-weight: 900;
+  font-size: 28vmin;
+  line-height: 0.95;
+  color: #bfa577;
+  animation: pulsoSuave 0.9s ease-in-out infinite;
+}
+
+.brindeSaudeBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.4vmin;
+  animation: entradaSuave 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.brindeTacas {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.4vmin;
+  color: #bfa577;
+}
+
+.tacaEsq {
+  width: 13vmin;
+  height: 13vmin;
+  transform: rotate(-14deg);
+  animation: tilintarEsq 1.8s ease-in-out infinite alternate;
+}
+
+.tacaDir {
+  width: 13vmin;
+  height: 13vmin;
+  transform: scaleX(-1) rotate(-14deg);
+  animation: tilintarDir 1.8s ease-in-out infinite alternate;
+}
+
+.brindeSaude {
+  font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif;
+  font-weight: 900;
+  font-size: 17vmin;
+  line-height: 1;
+  color: #bfa577;
+  margin: 0;
+  text-shadow: 0 0 5vmin rgba(197, 41, 45, 0.55);
+}
+
+/* ---------- Animações ---------- */
+@keyframes pulsoSuave {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+@keyframes entradaSuave {
+  from { opacity: 0; transform: scale(0.88); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes respiroLento {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+@keyframes rolarNomes {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes kenBurnsLeve {
+  from { transform: scale(1) translate(0, 0); }
+  to { transform: scale(1.07) translate(-1.2%, -0.8%); }
+}
+
+@keyframes chamaOscila {
+  0% { transform: scaleX(0.94) scaleY(0.95) rotate(-2deg); }
+  50% { transform: scaleX(1.04) scaleY(1.05) rotate(1.5deg); }
+  100% { transform: scaleX(0.97) scaleY(1.02) rotate(-1deg); }
+}
+
+@keyframes tilintarEsq {
+  from { transform: rotate(-18deg) translateX(-0.8vmin); }
+  to { transform: rotate(-6deg) translateX(0.6vmin); }
+}
+
+@keyframes tilintarDir {
+  from { transform: scaleX(-1) rotate(-18deg) translateX(-0.8vmin); }
+  to { transform: scaleX(-1) rotate(-6deg) translateX(0.6vmin); }
+}
+
+@media (orientation: portrait) {
+  .ceiaColunas { grid-template-columns: 1fr; }
+  .linhaCard { width: 72vmin; }
+  .viradaDez { font-size: 38vmin; }
+  .felizNatalGigante { font-size: 15vmin; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viradaDez,
+  .felizNatalGigante,
+  .nomesTrilho,
+  .linhaFoto,
+  .chamaMaior,
+  .chamaEsquerda,
+  .chamaDireita,
+  .brindeNumero,
+  .tacaEsq,
+  .tacaDir {
+    animation: none;
+  }
+}

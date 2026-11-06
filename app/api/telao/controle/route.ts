@@ -1,7 +1,7 @@
 import { cleanText, HttpError, ok, readJson, requireAdmin, route } from '@/app/lib/api';
 import { query } from '@/app/lib/db';
 import { edicaoAtual } from '@/app/lib/edicao';
-import { ehCena } from '@/app/telao/tipos';
+import { ehCena, FRASE_BRINDE_PADRAO } from '@/app/telao/tipos';
 import { limparCacheTelao } from '../estado/_data';
 
 export const dynamic = 'force-dynamic';
@@ -32,6 +32,12 @@ export const POST = route(async (req) => {
       await query(
         `INSERT INTO telao_state (ano, comando, comando_em, updated_at) VALUES ($1, $2, NOW(), NOW())
          ON CONFLICT (ano) DO UPDATE SET comando = EXCLUDED.comando, comando_em = NOW(), updated_at = NOW()`, [ano, `aviso:${texto}`]);
+    } else if (acao === 'brinde') {
+      // Como o aviso, vira comando. Solta a cena fixa para o brinde aparecer.
+      const frase = cleanText(body.frase, 'a frase do brinde', 120, false).replace(/\s+/g, ' ') || FRASE_BRINDE_PADRAO;
+      await query(
+        `INSERT INTO telao_state (ano, cena_fixa, comando, comando_em, updated_at) VALUES ($1, NULL, $2, NOW(), NOW())
+         ON CONFLICT (ano) DO UPDATE SET cena_fixa = NULL, comando = EXCLUDED.comando, comando_em = NOW(), updated_at = NOW()`, [ano, `brinde:${frase}`]);
     } else {
       throw new HttpError(400, 'Ação inválida.');
     }

@@ -1,6 +1,7 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
-import { Check } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { Check, Gift } from 'lucide-react';
 import { thumb } from '@/app/ui/client';
 import { Confete } from './_confete';
 import type { Jogo, JogoAmigo, JogoBingo, JogoEnquete, JogoQuiz, PlacarItem } from './tipos';
@@ -74,24 +75,198 @@ function Bingo({ j }: { j: JogoBingo }) {
   </div>;
 }
 
-function Amigo({ j, agora, desde }: { j: JogoAmigo; agora: number; desde: number }) {
-  if (j.encerrado) {
-    return <div className={styles.jogo}><Confete modo="rajada" /><p className={styles.kicker}>Amigo Oculto</p><h2 className={styles.jogoTitulo}>Revelação completa!</h2><p className={styles.texto}>Todos os segredos foram revelados. Hora dos presentes.</p></div>;
+/** Rufar de tambor sintetizado via WebAudio por 3 segundos antes da revelação. */
+function tocarRufarTambor(duracaoSeg = 3): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctx) return () => {};
+  let ctx: AudioContext | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    ctx = new Ctx();
+    const t0 = ctx.currentTime + 0.02;
+    const taxa = ctx.sampleRate;
+    const tamRuido = Math.floor(taxa * 0.06);
+    const buffer = ctx.createBuffer(1, tamRuido, taxa);
+    const canal = buffer.getChannelData(0);
+    for (let i = 0; i < tamRuido; i++) {
+      canal[i] = (Math.random() * 2 - 1) * Math.exp(-i / (taxa * 0.018));
+    }
+
+    let t = 0;
+    let passo = 0.055;
+    while (t < duracaoSeg) {
+      const instante = t0 + t;
+      const progresso = t / duracaoSeg;
+      const volume = 0.035 + progresso * progresso * 0.18;
+
+      const fonte = ctx.createBufferSource();
+      fonte.buffer = buffer;
+      const filtro = ctx.createBiquadFilter();
+      filtro.type = 'bandpass';
+      filtro.frequency.setValueAtTime(220 + progresso * 140, instante);
+      filtro.Q.setValueAtTime(1.8, instante);
+
+      const ganho = ctx.createGain();
+      ganho.gain.setValueAtTime(volume, instante);
+      ganho.gain.exponentialRampToValueAtTime(0.001, instante + 0.055);
+
+      fonte.connect(filtro);
+      filtro.connect(ganho);
+      ganho.connect(ctx.destination);
+      fonte.start(instante);
+
+      const tambor = ctx.createOscillator();
+      const ganhoTambor = ctx.createGain();
+      tambor.type = 'triangle';
+      tambor.frequency.setValueAtTime(118 + ( Math.round(t * 20) % 2 ) * 14, instante);
+      tambor.frequency.exponentialRampToValueAtTime(68, instante + 0.045);
+      ganhoTambor.gain.setValueAtTime(volume * 0.7, instante);
+      ganhoTambor.gain.exponentialRampToValueAtTime(0.001, instante + 0.048);
+      tambor.connect(ganhoTambor);
+      ganhoTambor.connect(ctx.destination);
+      tambor.start(instante);
+      tambor.stop(instante + 0.05);
+
+      passo = Math.max(0.026, 0.055 - progresso * 0.027);
+      t += passo;
+    }
+
+    // Prato suave no fim do rufar (aos 3 s) marcando a abertura da carta.
+    const fim = t0 + duracaoSeg;
+    const acorde = [523.25, 659.25, 783.99];
+    for (const freq of acorde) {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, fim);
+      g.gain.setValueAtTime(0.08, fim);
+      g.gain.exponentialRampToValueAtTime(0.0008, fim + 0.85);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start(fim);
+      osc.stop(fim + 0.9);
+    }
+
+    timer = setTimeout(() => {
+      void ctx?.close().catch(() => undefined);
+      ctx = null;
+    }, (duracaoSeg + 1.2) * 1000);
+  } catch {
+    // Caso o navegador bloqueie áudio automático, segue em silêncio sem quebrar a cerimônia.
   }
+  return () => {
+    if (timer) clearTimeout(timer);
+    if (ctx) void ctx.close().catch(() => undefined);
+  };
+}
+
+function Amigo({ j, agora, desde }: { j: JogoAmigo; agora: number; desde: number }) {
   const par = j.par;
   const suspense = !par || agora - desde < SUSPENSE_MS;
+  const ultimoRufarRef = useRef<number>(-1);
+
+  useEffect(() => {
+    if (j.encerrado || !par || !suspense) return;
+    if (ultimoRufarRef.current === j.atual) return;
+    ultimoRufarRef.current = j.atual;
+    return tocarRufarTambor(3);
+  }, [j.atual, j.encerrado, par, suspense]);
+
+  if (j.encerrado) {
+    return <div className={styles.jogo}>
+      <Confete modo="rajada" />
+      <p className={styles.kicker}>Amigo Oculto · {j.total} de {j.total} revelados</p>
+      <h2 className={styles.jogoTitulo}>Revelação completa!</h2>
+      <p className={styles.texto}>Todos os segredos foram revelados. Hora dos presentes.</p>
+    </div>;
+  }
+
+  const revelados = par ? j.atual + 1 : 0;
+
   return <div className={styles.jogo}>
-    <p className={styles.kicker}>Amigo Oculto ao vivo{par ? ` · ${j.atual + 1} de ${j.total}` : ''}</p>
+    <style>{`
+      @keyframes telaoCartaGira {
+        0% { transform: perspective(90vmin) rotateY(0deg) translateY(0); }
+        50% { transform: perspective(90vmin) rotateY(180deg) translateY(-1.2vmin); }
+        100% { transform: perspective(90vmin) rotateY(360deg) translateY(0); }
+      }
+      @keyframes telaoCartaAbre {
+        0% { transform: perspective(90vmin) rotateY(90deg) scale(0.92); opacity: 0; }
+        100% { transform: perspective(90vmin) rotateY(0deg) scale(1); opacity: 1; }
+      }
+    `}</style>
+    <p className={styles.kicker}>Amigo Oculto ao vivo · {revelados} de {j.total} revelados</p>
     {!par ? <>
       <h2 className={styles.suspense}>Quem será?</h2>
       <p className={styles.texto}>A revelação vai começar. O segredo está prestes a acabar...</p>
     </> : <>
+      <p className={styles.amigoTirou}>Quem tirou: <strong style={{ color: '#f3ebdc' }}>{par.giver}</strong></p>
       <p className={styles.amigoNome}>{par.giver}</p>
-      <p className={styles.amigoTirou}>tirou{suspense ? '' : ':'}</p>
-      {suspense
-        ? <h2 key={`s-${j.atual}`} className={styles.suspense}>Quem será<span className={styles.pontos}><i>.</i><i>.</i><i>.</i></span></h2>
-        : <h2 key={`r-${j.atual}`} className={styles.amigoRevela}>{par.receiver}</h2>}
-      {!suspense && <><Confete modo="rajada" /><p className={styles.texto}>{par.acertos.length ? `Acertou o palpite: ${par.acertos.join(', ')}` : 'Esse segredo foi bem guardado!'}</p></>}
+      {suspense ? (
+        <>
+          <div
+            aria-label="Cartas virando em suspense"
+            style={{
+              display: 'flex',
+              gap: '2.8vmin',
+              justifyContent: 'center',
+              alignItems: 'center',
+              margin: '1.5vmin 0',
+            }}
+          >
+            {[0, 1, 2].map((idx) => (
+              <div
+                key={idx}
+                style={{
+                  width: '18vmin',
+                  height: '25vmin',
+                  borderRadius: '2vmin',
+                  background: idx === 1
+                    ? 'linear-gradient(160deg, #c5292d, #8e1a1e)'
+                    : 'linear-gradient(160deg, #252b27, #171b18)',
+                  border: '0.35vmin solid #bfa577',
+                  boxShadow: '0 2vmin 5vmin rgba(0, 0, 0, 0.55)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '1.2vmin',
+                  color: '#f3ebdc',
+                  animation: `telaoCartaGira 1.5s ease-in-out ${idx * 0.25}s infinite`,
+                }}
+              >
+                <Gift style={{ width: '6.5vmin', height: '6.5vmin', color: '#bfa577' }} strokeWidth={1.6} />
+                <span style={{ fontFamily: 'var(--font-bodoni), Georgia, serif', fontSize: '4.5vmin', fontWeight: 800, color: '#bfa577' }}>?</span>
+              </div>
+            ))}
+          </div>
+          <h2 key={`s-${j.atual}`} className={styles.suspense}>
+            Rufem os tambores<span className={styles.pontos}><i>.</i><i>.</i><i>.</i></span>
+          </h2>
+        </>
+      ) : (
+        <>
+          <Confete modo="rajada" />
+          <div
+            key={`c-${j.atual}`}
+            style={{
+              padding: '2.8vmin 6vmin',
+              borderRadius: '2.6vmin',
+              background: 'linear-gradient(165deg, rgba(197, 41, 45, 0.28), rgba(29, 34, 31, 0.95))',
+              border: '0.35vmin solid #bfa577',
+              boxShadow: '0 2.5vmin 8vmin rgba(0, 0, 0, 0.6)',
+              animation: 'telaoCartaAbre 0.8s cubic-bezier(0.22, 1, 0.36, 1) both',
+            }}
+          >
+            <p className={styles.kicker} style={{ marginBottom: '1vmin' }}>Tirou</p>
+            <h2 key={`r-${j.atual}`} className={styles.amigoRevela}>{par.receiver}</h2>
+          </div>
+          <p className={styles.texto}>
+            {par.acertos.length ? `Acertou o palpite: ${par.acertos.join(', ')}` : 'Esse segredo foi bem guardado!'}
+          </p>
+        </>
+      )}
     </>}
   </div>;
 }

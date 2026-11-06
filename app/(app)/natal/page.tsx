@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
-  ArrowUpRight, BookOpen, Mail, CalendarDays, Camera, Car, Dices, Flame, Gift, Hourglass, Images, Mic, Music,
-  PartyPopper, Receipt, Sparkles, TreePine, Trophy, Tv, UserPlus, Users, Utensils, Vote,
+  ArrowUpRight, BookOpen, Mail, CalendarDays, Camera, Car, Dices, Flame, Gamepad2, Gift, Hourglass, Images, Mic, MicVocal, Music,
+  PartyPopper, Radio, Receipt, Sparkles, TreePine, Trophy, Tv, UserPlus, Users, Utensils, Vote,
 } from 'lucide-react';
 import PageHeader from '@/app/ui/PageHeader';
 
@@ -28,6 +28,9 @@ const GRUPOS: { titulo: string; itens: Item[] }[] = [
     { href: '/festa/enquete', titulo: 'Enquete ao vivo', texto: 'Votação na hora, com resultado na tela', icon: Vote },
     { href: '/festa/foto-oficial', titulo: 'Foto oficial do ano', texto: 'A mesma pose, todo ano', icon: Users },
     { href: '/telao', titulo: 'Telão na TV', texto: 'Fotos, música, jogos e comando de voz na TV', icon: Tv },
+    { href: '/ao-vivo', titulo: 'Telão ao vivo', texto: 'Mande reações e recados que aparecem na TV', icon: Radio },
+    { href: '/festa/jogos-novos', titulo: 'Jogos da noite', texto: 'Mímica, quem é o bebê, roleta de prendas e batalha de times', icon: Gamepad2 },
+    { href: '/karaoke', titulo: 'Karaokê', texto: 'Cante junto com a letra na TV', icon: MicVocal },
     { href: '/telao/controle', titulo: 'Controle do telão', texto: 'Quem organiza troca o que aparece na TV', icon: Tv },
   ] },
   { titulo: 'Memórias da família', itens: [

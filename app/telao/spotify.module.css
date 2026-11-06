@@ -1,0 +1,52 @@
+/* Player do telão e karaokê. Mesmas medidas em vmin do telão. Visual Meia-Noite. */
+.player { position: fixed; z-index: 20; left: 50%; bottom: 3vmin; width: min(150vmin, 94vw); transform: translateX(-50%); display: flex; align-items: center; gap: 2.4vmin; padding: 1.6vmin 2.6vmin 2.2vmin 1.6vmin; border-radius: 2.2vmin; background: rgba(23, 27, 24, 0.86); border: 0.2vmin solid rgba(191, 165, 119, 0.35); box-shadow: 0 2vmin 7vmin rgba(0, 0, 0, 0.55); backdrop-filter: blur(2vmin); -webkit-backdrop-filter: blur(2vmin); color: #f3ebdc; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
+.playerOculto { opacity: 0; transform: translate(-50%, 3vmin); pointer-events: none; }
+.pCapa { flex: none; width: 9vmin; height: 9vmin; border-radius: 1vmin; object-fit: cover; background: #252b27; display: grid; place-items: center; color: #bfa577; }
+.pTexto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5vmin; }
+.pNome { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 700; font-size: 3.4vmin; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pArtista { font-size: 2.3vmin; font-weight: 600; color: #cfc6b6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pBotoes { flex: none; display: flex; align-items: center; gap: 1.2vmin; }
+.pBtn { width: 7vmin; height: 7vmin; border-radius: 50%; display: grid; place-items: center; color: #f3ebdc; background: transparent; border: 0.2vmin solid rgba(243, 235, 220, 0.25); cursor: pointer; transition: background 0.6s ease, border-color 0.6s ease, transform 0.6s ease; }
+.pBtn:hover { border-color: #bfa577; background: rgba(191, 165, 119, 0.12); }
+.pBtnMain { width: 8.6vmin; height: 8.6vmin; background: #c5292d; border-color: #c5292d; }
+.pBtnMain:hover { background: #d33236; border-color: #d33236; }
+.pBtn svg { width: 3.4vmin; height: 3.4vmin; }
+.pVolume { flex: none; display: flex; align-items: center; gap: 1.2vmin; color: #bfa577; }
+.pVolume svg { width: 3.2vmin; height: 3.2vmin; }
+.pVolume input { width: 16vmin; accent-color: #bfa577; cursor: pointer; }
+.pProgresso { position: absolute; left: 2.6vmin; right: 2.6vmin; bottom: 0.7vmin; height: 0.5vmin; border-radius: 999px; background: rgba(243, 235, 220, 0.15); overflow: hidden; }
+.pProgressoPreench { height: 100%; width: 100%; transform-origin: left; background: linear-gradient(90deg, #bfa577, #f3ebdc); transition: transform 0.5s linear; }
+
+.ativar { position: fixed; z-index: 40; left: 50%; bottom: 8vmin; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 1.6vmin; animation: surge 1s ease both; }
+.ativarBtn { display: inline-flex; align-items: center; gap: 2vmin; padding: 3vmin 6.4vmin; border-radius: 999px; background: #c5292d; color: #f3ebdc; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; font-size: 4vmin; font-weight: 800; border: 0; cursor: pointer; box-shadow: 0 1.4vmin 6vmin rgba(197, 41, 45, 0.6); animation: respira 4.5s ease-in-out infinite; transition: background 0.6s ease; }
+.ativarBtn:hover { background: #d33236; }
+.ativarBtn svg { width: 4.6vmin; height: 4.6vmin; }
+.ativarDica { font-size: 2.2vmin; color: #cfc6b6; text-shadow: 0 0.3vmin 1.4vmin rgba(0, 0, 0, 0.8); }
+.aviso { position: fixed; z-index: 40; left: 50%; bottom: 4vmin; transform: translateX(-50%); max-width: 120vmin; padding: 1.8vmin 3.2vmin; border-radius: 2vmin; background: rgba(23, 27, 24, 0.9); border: 0.2vmin solid rgba(197, 41, 45, 0.6); color: #f3ebdc; font-size: 2.6vmin; text-align: center; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; }
+
+/* ---------- karaokê ---------- */
+.kara { position: absolute; inset: 0; overflow: hidden; background: #171b18; color: #f3ebdc; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; }
+.kFundo { position: absolute; inset: -12%; background-size: cover; background-position: center; background-color: #1d221f; filter: blur(7vmin) saturate(1.35) brightness(0.45); animation: aparecer 1.6s ease both, deriva 40s ease-in-out infinite alternate; }
+.kVeu { position: absolute; inset: 0; background: radial-gradient(120% 100% at 50% 45%, rgba(23, 27, 24, 0.15), rgba(23, 27, 24, 0.78)); }
+.kLetra { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3.6vmin; padding: 12vmin 8vmin 16vmin; text-align: center; animation: aparecer 1.2s ease both; }
+.kLinha { max-width: 140vmin; font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 700; line-height: 1.12; text-wrap: balance; transition: font-size 0.8s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.8s ease, color 0.8s ease, text-shadow 0.8s ease; animation: linhaEntra 0.9s ease both; }
+.kAtual { font-size: 10.5vmin; opacity: 1; color: #f3ebdc; text-shadow: 0 0 5vmin rgba(191, 165, 119, 0.4), 0 0.5vmin 2.4vmin rgba(0, 0, 0, 0.6); }
+.kVizinha { font-size: 5.2vmin; opacity: 0.38; color: #cfc6b6; }
+.kRodape { position: absolute; z-index: 2; left: 5vmin; bottom: 14vmin; display: flex; align-items: center; gap: 2vmin; max-width: 70vmin; }
+.kRodapeCapa { width: 8vmin; height: 8vmin; border-radius: 1vmin; object-fit: cover; box-shadow: 0 1vmin 3vmin rgba(0, 0, 0, 0.5); }
+.kRodapeNome { font-size: 2.6vmin; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kRodapeArtista { font-size: 2.1vmin; color: #cfc6b6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.kSemLetra { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 7vmin; padding: 12vmin 6vmin 16vmin; animation: aparecer 1.2s ease both; }
+.kCapaBox { flex: none; width: 54vmin; aspect-ratio: 1; border-radius: 1.4vmin; overflow: hidden; background: #252b27; display: grid; place-items: center; color: #bfa577; box-shadow: 0 3vmin 9vmin rgba(0, 0, 0, 0.65); animation: capaEntra 1.2s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.kCapa { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kTexto { flex: 1; min-width: 0; max-width: 90vmin; display: flex; flex-direction: column; gap: 2vmin; }
+.kNome { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 700; font-size: 8vmin; line-height: 1.06; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-wrap: balance; }
+.kArtista { font-size: 4.6vmin; font-weight: 600; color: #cfc6b6; line-height: 1.2; }
+
+@keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
+@keyframes surge { from { opacity: 0; transform: translate(-50%, 3vmin); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes respira { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+@keyframes linhaEntra { from { opacity: 0; transform: translateY(3vmin); } to { transform: none; } }
+@keyframes deriva { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.12) translate(-2%, 1.5%); } }
+@keyframes capaEntra { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }

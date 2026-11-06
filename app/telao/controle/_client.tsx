@@ -1,16 +1,31 @@
 'use client';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Megaphone, Pause, Play, RotateCw } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Gamepad2, Megaphone, MicVocal, Pause, Play, RotateCw, Wine } from 'lucide-react';
 import { api } from '@/app/ui/client';
 import { CENAS, NOMES_CENA, type Cena, type EstadoTelao } from '../tipos';
+import MusicaControle from './_musica';
+import { ModeracaoAoVivo } from './_moderacao';
+import { RoteiroControle } from './_roteiro';
 
 // Controle remoto do telão, pelo celular de quem organiza. Visual Meia-Noite, uma mão só.
-type Acao = { acao: 'cena'; cena: Cena | null } | { acao: 'pausar' } | { acao: 'continuar' } | { acao: 'proxima' } | { acao: 'anterior' } | { acao: 'aviso'; texto: string };
+type Acao = { acao: 'cena'; cena: Cena | null } | { acao: 'pausar' } | { acao: 'continuar' } | { acao: 'proxima' } | { acao: 'anterior' } | { acao: 'aviso'; texto: string } | { acao: 'brinde'; frase: string };
+
+/** Bloco que abre e fecha: botões grandes para uma mão só. */
+function Bloco({ titulo, children, aberto = false }: { titulo: string; children: React.ReactNode; aberto?: boolean }) {
+  return <details className="surface group mb-4" open={aberto}>
+    <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-4 py-3 [&::-webkit-details-marker]:hidden">
+      <span className="kicker">{titulo}</span>
+      <ChevronDown size={18} className="text-marfim-2 transition-transform group-open:rotate-180" />
+    </summary>
+    <div className="px-4 pb-4">{children}</div>
+  </details>;
+}
 
 export default function ControleClient() {
   const [estado, setEstado] = useState<EstadoTelao | null>(null);
   const [texto, setTexto] = useState('');
+  const [frase, setFrase] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -59,8 +74,7 @@ export default function ControleClient() {
       </div>
     </section>
 
-    <section className="surface mb-4 p-4" aria-label="Cenas">
-      <p className="kicker mb-3">Fixar uma cena</p>
+    <Bloco titulo="Cenas" aberto>
       <div className="grid gap-2">
         {CENAS.map((c) => <button key={c} disabled={busy} onClick={() => void enviar({ acao: 'cena', cena: c })}
           className={`btn min-h-14 justify-between px-5 ${fixa === c ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={fixa === c}>
@@ -70,19 +84,38 @@ export default function ControleClient() {
           <span>Voltar ao ciclo automático</span><RotateCw size={16} />
         </button>
       </div>
-      <p className="mt-3 text-xs text-marfim-3">Jogos ao vivo (quiz, enquete, bingo, amigo oculto) passam na frente de qualquer cena.</p>
-    </section>
+      <p className="mt-3 text-xs text-marfim-3">Jogos ao vivo (quiz, enquete, bingo, amigo oculto e jogos da noite) passam na frente de qualquer cena. A virada da meia-noite também.</p>
+    </Bloco>
 
-    <section className="surface p-4" aria-label="Aviso">
-      <p className="kicker mb-3">Mostrar aviso na TV</p>
+    <Bloco titulo="Brinde">
+      <form onSubmit={(ev) => { ev.preventDefault(); void enviar({ acao: 'brinde', frase: frase.trim() }, 'Hora do brinde na TV!').then(() => setFrase('')); }}>
+        <label className="block text-sm text-marfim-2">Frase do brinde (opcional)
+          <textarea className="field mt-2 min-h-20" maxLength={120} value={frase} onChange={(ev) => setFrase(ev.target.value)} placeholder="Ao amor desta família!" />
+        </label>
+        <button className="btn btn-primary mt-3 min-h-14 w-full" disabled={busy}><Wine size={18} /> Hora do brinde!</button>
+      </form>
+    </Bloco>
+
+    <Bloco titulo="Aviso na TV">
       <form onSubmit={(ev) => { ev.preventDefault(); const t = texto.trim(); if (t) void enviar({ acao: 'aviso', texto: t }, 'Aviso enviado. Fica 15 segundos na TV.').then(() => setTexto('')); }}>
         <label className="block text-sm text-marfim-2">Texto curto
           <textarea className="field mt-2 min-h-24" maxLength={120} value={texto} onChange={(ev) => setTexto(ev.target.value)} placeholder="A ceia está servida!" />
         </label>
         <div className="mt-1 text-right text-xs text-marfim-3">{texto.length}/120</div>
-        <button className="btn btn-primary mt-2 w-full" disabled={busy || !texto.trim()}><Megaphone size={18} /> Mostrar na TV</button>
+        <button className="btn btn-primary mt-2 min-h-14 w-full" disabled={busy || !texto.trim()}><Megaphone size={18} /> Mostrar na TV</button>
       </form>
-    </section>
+    </Bloco>
+
+    <Bloco titulo="Música"><MusicaControle /></Bloco>
+
+    <Bloco titulo="Ao vivo"><ModeracaoAoVivo /></Bloco>
+
+    <Bloco titulo="Roteiro da noite"><RoteiroControle /></Bloco>
+
+    <div className="mb-4 grid gap-2">
+      <Link href="/festa/jogos-novos" className="btn btn-ghost min-h-14 justify-between px-5"><span>Jogos da noite</span><Gamepad2 size={18} /></Link>
+      <Link href="/telao/karaoke" className="btn btn-ghost min-h-14 justify-between px-5"><span>Karaokê</span><MicVocal size={18} /></Link>
+    </div>
 
     {msg && <p role="status" className="mt-4 text-center text-sm text-champagne">{msg}</p>}
     <Link href="/telao" className="btn btn-quiet mt-6 w-full">Abrir o telão neste aparelho</Link>

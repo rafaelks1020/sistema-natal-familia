@@ -1,9 +1,11 @@
 // Tipos do telão: sem acesso ao banco, servem para o servidor e para o navegador.
 import type { Slide } from '@/app/api/telao/data';
+import type { JogoNovo } from '@/app/api/telao/estado/_jogos_novos';
+import type { ItemRoteiro } from './roteiro';
 
-export type { Slide };
+export type { Slide, JogoNovo, ItemRoteiro };
 
-export const CENAS = ['fotos', 'tocando', 'contagem', 'recados', 'advento'] as const;
+export const CENAS = ['fotos', 'tocando', 'contagem', 'recados', 'advento', 'virada', 'ceia', 'linha', 'lareira', 'papainoel', 'brinde', 'karaoke'] as const;
 export type Cena = (typeof CENAS)[number];
 
 export const NOMES_CENA: Record<Cena, string> = {
@@ -12,7 +14,17 @@ export const NOMES_CENA: Record<Cena, string> = {
   contagem: 'Contagem regressiva',
   recados: 'Recados do mural',
   advento: 'Advento do dia',
+  virada: 'Virada da meia-noite',
+  ceia: 'A ceia está servida',
+  linha: 'Natal através dos anos',
+  lareira: 'Lareira',
+  papainoel: 'Papai Noel a caminho',
+  brinde: 'Hora do brinde',
+  karaoke: 'Karaokê da música',
 };
+
+/** Frase da cena de brinde quando ninguém escreveu uma. */
+export const FRASE_BRINDE_PADRAO = 'Ao amor desta família!';
 
 export const AVISO_SEGUNDOS = 15;
 
@@ -23,7 +35,8 @@ export function ehCena(valor: unknown): valor is Cena {
 export interface ComandoTelao {
   /** comando_em em ISO: identifica o comando para executar uma vez só. */
   id: string;
-  tipo: 'proxima' | 'anterior' | 'aviso';
+  tipo: 'proxima' | 'anterior' | 'aviso' | 'brinde';
+  /** Aviso: o texto. Brinde: a frase. */
   texto: string;
   idade_ms: number;
 }
@@ -32,6 +45,18 @@ export interface ControleTelao {
   cena_fixa: Cena | null;
   pausado: boolean;
   comando: ComandoTelao | null;
+}
+
+export interface PratoCeia {
+  nome: string;
+  categoria: string | null;
+  quem: string;
+}
+
+export interface FotoOficial {
+  ano: number;
+  url: string;
+  legenda: string | null;
 }
 
 export interface EventoTelao {
@@ -126,6 +151,8 @@ export interface EstadoTelao {
   agora: string;
   ano: number;
   meId: number;
+  /** Quem abre o telão é admin: só ele controla o Spotify do telão. */
+  souAdmin: boolean;
   controle: ControleTelao;
   evento: EventoTelao;
   /** Muda quando entra ou sai foto ou recado: o telão busca a lista de novo. */
@@ -133,13 +160,21 @@ export interface EstadoTelao {
   /** null = o Spotify não respondeu agora (mantém o que já estava na tela). */
   tocando: TocandoTelao | null;
   jogo: Jogo | null;
+  /** Jogos novos em tela grande (mímica, bebê, roleta, times). */
+  jogoNovo: JogoNovo | null;
+  /** Roteiro da noite do ano (leve: poucas linhas). */
+  roteiro: ItemRoteiro[];
   fotos?: Slide[];
   recados?: Recado[];
   /** null = fora de 1 a 24/12. */
   advento?: AdventoHoje | null;
   placar?: PlacarItem[];
   presentes?: { total: number; nomes: string[] };
+  pratos?: PratoCeia[];
+  fotosOficiais?: FotoOficial[];
+  /** Quem já entrou hoje (nomes para a virada). */
+  nomesPresentes?: string[];
 }
 
-export const SECOES = ['fotos', 'recados', 'advento', 'placar', 'presentes'] as const;
+export const SECOES = ['fotos', 'recados', 'advento', 'placar', 'presentes', 'ceia', 'linha', 'nomes'] as const;
 export type Secao = (typeof SECOES)[number];

@@ -7,7 +7,8 @@ import { LIMITE_POR_MOMENTO, MOMENTO_IDS, MOMENTOS, nomePlaylist, type Momento }
 import type { SessionUser } from '@/app/lib/session';
 
 export const REDIRECT_URI = 'https://natalemfamilia.com.br/api/spotify/callback';
-export const SCOPES = 'playlist-modify-private playlist-modify-public playlist-read-private user-read-currently-playing';
+export const SCOPES = 'playlist-modify-private playlist-modify-public playlist-read-private user-read-currently-playing'
+  + ' streaming user-read-email user-read-private user-modify-playback-state user-read-playback-state';
 export const configured = () => Boolean(process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET);
 export type SpotifyTrack = { uri: string; name: string; artists: { name: string }[]; album: { images: { url: string }[] } };
 export type Track = { id: number; user_id: number; track_uri: string; nome: string; artista: string; capa_url: string | null; autor: string; created_at: string;
@@ -387,4 +388,134 @@ export async function tocando(): Promise<Tocando> {
   }
   cacheTocando = { em: Date.now(), valor };
   return valor;
+}
+
+// ---------- Player do telão (Web Playback SDK no navegador + Web API /me/player) ----------
+
+export type PrecisaReconectar = { precisa_reconectar: true };
+const RECONECTAR: PrecisaReconectar = { precisa_reconectar: true };
+const ESCOPOS_PLAYER = ['streaming', 'user-read-playback-state', 'user-modify-playback-state'];
+const SEM_TELAO = 'O telão não está conectado. Abra o telão no notebook e toque em Ligar a música.';
+const ID_DEVICE = /^[a-zA-Z0-9_-]{8,80}$/;
+
+/** Conectada com todos os escopos do player. Conexão antiga (sem registro de escopos) também pede reconexão. */
+function escopoPlayerOk(s: Record<string, string>): boolean {
+  if (!configured() || !s.spotify_refresh_token) return false;
+  const tem = (s.spotify_scope || '').split(' ');
+  return ESCOPOS_PLAYER.every(e => tem.includes(e));
+}
+
+async function deviceTelao(): Promise<string | null> {
+  const { rows } = await query<{ value: string }>(`SELECT value FROM app_settings WHERE key='spotify_telao_device'`);
+  return rows[0]?.value && ID_DEVICE.test(rows[0].value) ? rows[0].value : null;
+}
+
+/** Guarda o aparelho Spotify Connect do telão (o device_id muda a cada vez que o telão é aberto). */
+export async function registrarTelao(deviceId: unknown) {
+  if (typeof deviceId !== 'string' || !ID_DEVICE.test(deviceId)) throw new HttpError(400, 'Aparelho do telão inválido.');
+  await save({ spotify_telao_device: deviceId });
+  return { ok: true as const, device_id: deviceId };
+}
+
+/** Token da conta do organizador para o Web Playback SDK. Só chamar a partir de rota de admin. Renova se faltar menos de 5 min. */
+export async function tokenDoPlayer(): Promise<{ access_token: string; expira_em: number } | PrecisaReconectar> {
+  const antes = await settings();
+  if (!escopoPlayerOk(antes)) return RECONECTAR;
+  if (!(Number(antes.spotify_access_expires) - Date.now() > 5 * 60 * 1000)) {
+    await query(`DELETE FROM app_settings WHERE key = 'spotify_access_expires'`);
+  }
+  const access_token = await token();
+  const depois = await settings();
+  return { access_token, expira_em: Number(depois.spotify_access_expires) || Date.now() + 55 * 60 * 1000 };
+}
+
+type RespostaPlayer = { status: number; data: any };
+
+/** Chamada à Web API do player sem converter erro em exceção, para tratar 403/404 de cada comando. */
+async function playerApi(path: string, method = 'GET', body?: object): Promise<RespostaPlayer> {
+  const response = await safeFetch(`https://api.spotify.com/v1${path}`, {
+    method, headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  if (response.status === 401) await query(`DELETE FROM app_settings WHERE key = 'spotify_access_expires'`);
+  let data: any = null;
+  if (response.status !== 204) { try { data = await response.json(); } catch { /* corpo vazio */ } }
+  return { status: response.status, data };
+}
+
+export type AcaoPlayer = 'tocar' | 'pausar' | 'continuar' | 'proxima' | 'anterior' | 'volume' | 'aleatorio' | 'transferir';
+export type OpcoesPlayer = { momento?: Momento; valor?: number; ligado?: boolean; device_id?: string };
+
+/** Comando para o telão. Sem momento, 'tocar' usa a playlist geral (a da festa). Escopo faltando ou 401/403 devolve { precisa_reconectar: true }. */
+export async function controlarPlayer(acao: AcaoPlayer, opts: OpcoesPlayer = {}): Promise<{ ok: true } | PrecisaReconectar> {
+  const s = await settings();
+  if (!escopoPlayerOk(s)) return RECONECTAR;
+  const device = opts.device_id || await deviceTelao();
+  if (!device) throw new HttpError(acao === 'transferir' ? 400 : 409, acao === 'transferir' ? 'Aparelho do telão inválido.' : SEM_TELAO);
+  const com = (extra = '') => `?${[extra, `device_id=${encodeURIComponent(device)}`].filter(Boolean).join('&')}`;
+  let r: RespostaPlayer;
+  switch (acao) {
+    case 'transferir': r = await playerApi('/me/player', 'PUT', { device_ids: [device], play: false }); break;
+    case 'tocar': {
+      const id = await ensurePlaylist(opts.momento ?? 'festa');
+      r = await playerApi(`/me/player/play${com()}`, 'PUT', { context_uri: `spotify:playlist:${id}` });
+      break;
+    }
+    case 'pausar': r = await playerApi(`/me/player/pause${com()}`, 'PUT'); break;
+    case 'continuar': r = await playerApi(`/me/player/play${com()}`, 'PUT'); break;
+    case 'proxima': r = await playerApi(`/me/player/next${com()}`, 'POST'); break;
+    case 'anterior': r = await playerApi(`/me/player/previous${com()}`, 'POST'); break;
+    case 'volume': {
+      const v = Math.round(Number(opts.valor));
+      if (!Number.isFinite(v)) throw new HttpError(400, 'Volume inválido.');
+      r = await playerApi(`/me/player/volume${com(`volume_percent=${Math.min(100, Math.max(0, v))}`)}`, 'PUT');
+      break;
+    }
+    case 'aleatorio': r = await playerApi(`/me/player/shuffle${com(`state=${opts.ligado ? 'true' : 'false'}`)}`, 'PUT'); break;
+  }
+  if (r.status >= 200 && r.status < 300) return { ok: true };
+  const motivo = String(r.data?.error?.reason || '');
+  const mensagem = String(r.data?.error?.message || '');
+  if (r.status === 401) return RECONECTAR;
+  if (r.status === 403) {
+    if (motivo === 'PREMIUM_REQUIRED') throw new HttpError(403, 'A conta Spotify de quem organiza precisa ser Premium para tocar no telão.');
+    if (/restriction/i.test(mensagem)) return { ok: true }; // comando que o Spotify não permite agora (ex.: voltar na primeira faixa)
+    return RECONECTAR;
+  }
+  if (r.status === 404 || r.status === 400) {
+    if (motivo === 'NO_ACTIVE_DEVICE' || /device/i.test(mensagem)) throw new HttpError(409, SEM_TELAO);
+    if (acao === 'tocar') throw new HttpError(409, 'Não foi possível tocar este momento. A playlist pode estar vazia.');
+  }
+  throw friendly(r.status);
+}
+
+export type FaixaPlayer = { uri: string | null; nome: string; artista: string; capa: string | null; duracao_ms: number; posicao_ms: number };
+export type EstadoPlayer = PrecisaReconectar | { telao_conectado: boolean; device: { id: string; nome: string } | null; tocando: boolean;
+  volume: number | null; aleatorio: boolean; faixa: FaixaPlayer | null };
+
+/** Estado do player: se o telão está online, o que toca nele, volume e aleatório. */
+export async function lerPlayer(): Promise<EstadoPlayer> {
+  const s = await settings();
+  if (!escopoPlayerOk(s)) return RECONECTAR;
+  const device = await deviceTelao();
+  const [atual, lista] = await Promise.all([
+    playerApi(`/me/player?${new URLSearchParams({ market: 'BR', additional_types: 'track' })}`),
+    playerApi('/me/player/devices'),
+  ]);
+  for (const r of [atual, lista]) {
+    if (r.status === 401 || r.status === 403) return RECONECTAR;
+    if (r.status >= 400) throw friendly(r.status);
+  }
+  const aparelho = device ? (lista.data?.devices as { id: string; name: string; volume_percent: number | null }[] | undefined)?.find(d => d.id === device) : undefined;
+  const noTelao = Boolean(device && atual.status === 200 && atual.data?.device?.id === device);
+  const item = noTelao ? atual.data?.item : null;
+  return {
+    telao_conectado: Boolean(aparelho),
+    device: aparelho ? { id: aparelho.id, nome: aparelho.name } : null,
+    tocando: noTelao && Boolean(atual.data?.is_playing),
+    volume: aparelho?.volume_percent ?? null,
+    aleatorio: noTelao && Boolean(atual.data?.shuffle_state),
+    faixa: item ? { uri: item.uri || null, nome: item.name || '', artista: ((item.artists || []) as { name: string }[]).map(a => a.name).join(', '),
+      capa: item.album?.images?.[0]?.url || null, duracao_ms: item.duration_ms || 0, posicao_ms: atual.data?.progress_ms || 0 } : null,
+  };
 }

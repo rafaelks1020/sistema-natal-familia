@@ -4,7 +4,7 @@ import { getEstado } from './_data';
 
 export const dynamic = 'force-dynamic';
 
-/** Estado do telão. Parte leve sempre; listas pesadas só se pedidas: ?inclui=fotos,recados,advento,placar,presentes */
+/** Estado do telão. Parte leve sempre; listas pesadas só se pedidas: ?inclui=fotos,recados,advento,placar,presentes,ceia,linha,nomes */
 export const GET = route(async (req) => {
   const me = await requireUser();
   const pedido = new URL(req.url).searchParams.get('inclui') ?? '';

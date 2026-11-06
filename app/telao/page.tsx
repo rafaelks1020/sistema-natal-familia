@@ -7,6 +7,6 @@ export const dynamic = 'force-dynamic';
 export default async function ScreenPage() {
   const me = await getSessionUser();
   if (!me) redirect('/entrar');
-  const initial = await getEstado(me, new Set(['fotos', 'recados', 'advento']));
+  const initial = await getEstado(me, new Set(['fotos', 'recados', 'advento', 'ceia', 'linha', 'nomes']));
   return <ToastProvider><ScreenClient initial={initial} /></ToastProvider>;
 }

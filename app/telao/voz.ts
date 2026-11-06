@@ -1,6 +1,15 @@
 // Comandos de voz do telão: texto reconhecido -> ação. Funções puras, sem DOM, testadas em voz.test.mjs.
+import type { Cena } from './tipos';
 
-export type CenaVoz = 'fotos' | 'tocando' | 'contagem' | 'recados' | 'advento';
+export type CenaVoz = Cena;
+
+export type AcaoMusicaVoz =
+  | 'proxima'
+  | 'anterior'
+  | 'pausar'
+  | 'continuar'
+  | 'mais_alto'
+  | 'mais_baixo';
 
 export type AcaoVoz =
   | { tipo: 'proxima' }
@@ -9,16 +18,45 @@ export type AcaoVoz =
   | { tipo: 'continua' }
   | { tipo: 'ciclo' }
   | { tipo: 'cena'; cena: CenaVoz }
+  | { tipo: 'musica'; acao: AcaoMusicaVoz }
+  | { tipo: 'fotos_ano'; ano: number }
   | { tipo: 'placar' }
   | { tipo: 'presentes' }
   | { tipo: 'ajuda' };
+
+export const AJUDA_VOZ: readonly string[] = [
+  'próxima',
+  'volta',
+  'pausa',
+  'continua',
+  'mostra as fotos',
+  'mostra as fotos de 2025',
+  'mostra a música',
+  'próxima música',
+  'pausa a música',
+  'toca a música',
+  'aumenta o som',
+  'abaixa',
+  'quanto falta',
+  'mostra a ceia',
+  'linha do tempo',
+  'lareira',
+  'cadê o Papai Noel',
+  'hora do brinde',
+  'karaokê',
+  'mostra o placar',
+  'quem está aqui',
+];
+
+export const TEXTO_AJUDA_VOZ =
+  'Diga Natal e depois: próxima, volta, pausa, mostra as fotos, fotos de um ano, mostra a música, próxima música, pausa ou toca a música, aumenta o som, abaixa, mostra a ceia, linha do tempo, lareira, cadê o Papai Noel, hora do brinde, karaokê, quanto falta, mostra o placar ou quem está aqui.';
 
 /** Minúsculas, sem acento, sem pontuação, espaços únicos. */
 export function normalizar(texto: string): string {
   return texto
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -28,7 +66,14 @@ const ATIVACAO = /\b(natal|natau|nathal)\b/;
 const VERBO_MOSTRAR = /\b(mostra|mostre|mostrar|exibe|exiba|abre|abra|coloca|coloque|ver|veja|quero|vai para|vai pra|ir para|ir pra|volta para|volta pra|voltar para|voltar pra)\b/;
 
 const CENAS: ReadonlyArray<[CenaVoz, RegExp]> = [
-  ['contagem', /\b(quanto falta|falta quanto|contagem|relogio|ceia|meia noite|cronometro)\b/],
+  ['contagem', /\b(quanto falta|falta quanto|contagem|relogio|meia noite|cronometro)\b/],
+  ['virada', /\b(virada|contagem final)\b/],
+  ['ceia', /\b(ceia|cardapio|jantar|pratos)\b/],
+  ['linha', /\b(linha do tempo|retrospectiva|historia da familia)\b/],
+  ['lareira', /\b(lareira|fogueira)\b/],
+  ['papainoel', /\b(papai noel|cade o noel|radar do noel|noel)\b/],
+  ['brinde', /\b(brinde|brindar|hora do brinde|tim tim)\b/],
+  ['karaoke', /\b(karaoke|cantar junto|letra da musica)\b/],
   ['tocando', /\b(musica|musicas|tocando|spotify|cancao|playlist)\b/],
   ['fotos', /\b(foto|fotos|imagem|imagens|slideshow|album)\b/],
   ['recados', /\b(recado|recados|mural|mensagem|mensagens)\b/],
@@ -37,6 +82,33 @@ const CENAS: ReadonlyArray<[CenaVoz, RegExp]> = [
 
 function cenaDe(frase: string): CenaVoz | null {
   for (const [cena, regra] of CENAS) if (regra.test(frase)) return cena;
+  return null;
+}
+
+function musicaDe(pedido: string): AcaoMusicaVoz | null {
+  if (/\b(aumenta|aumentar|mais alto|sobe o som|subir o som|aumenta o som|aumenta o volume)\b/.test(pedido)) {
+    return 'mais_alto';
+  }
+  if (/\b(abaixa|abaixar|baixa o som|baixar o som|diminui|diminuir|mais baixo|abaixa o som|abaixa o volume)\b/.test(pedido)) {
+    return 'mais_baixo';
+  }
+  const falaMusica = /\b(musica|musicas|cancao|faixa|som|spotify)\b/.test(pedido);
+  if (!falaMusica) return null;
+  if (/\b(volta para|volta pra|voltar para|voltar pra|ir para|ir pra|vai para|vai pra)\b/.test(pedido)) {
+    return null;
+  }
+  if (/\b(proxima|proximo|pula|pular|passa|passar|avanca|avancar|seguinte|outra)\b/.test(pedido)) {
+    return 'proxima';
+  }
+  if (/\b(anterior|volta|voltar|atras)\b/.test(pedido)) {
+    return 'anterior';
+  }
+  if (/\b(pausa|pausar|pause|para|parar|pare|silencia|muta)\b/.test(pedido)) {
+    return 'pausar';
+  }
+  if (/\b(toca|tocar|toque|continua|continuar|continue|play|retoma|retomar|solta|soltar|despausa)\b/.test(pedido)) {
+    return 'continuar';
+  }
   return null;
 }
 
@@ -56,8 +128,20 @@ export function interpretarVoz(texto: string): AcaoVoz | null {
   if (/\b(automatico|automatica|ciclo|normal|tudo de novo|modo padrao)\b/.test(pedido)) return { tipo: 'ciclo' };
   if (/\b(ajuda|comandos|o que voce faz|o que voce sabe)\b/.test(pedido)) return { tipo: 'ajuda' };
 
+  // Comandos de música vêm antes de cenas e navegação para "próxima música" não virar "próxima" cena.
+  const acaoMusica = musicaDe(pedido);
+  if (acaoMusica) return { tipo: 'musica', acao: acaoMusica };
+
+  // Fotos filtradas por ano ("mostra as fotos de 2025").
+  if (/\b(foto|fotos|imagem|imagens|album|lembranca|lembrancas)\b/.test(pedido)) {
+    const mAno = /\b(19\d{2}|20\d{2})\b/.exec(pedido);
+    if (mAno) return { tipo: 'fotos_ano', ano: Number(mAno[1]) };
+  }
+
   const cena = cenaDe(pedido);
-  if (cena && (VERBO_MOSTRAR.test(pedido) || !/\b(proxima|proximo|volta|voltar|pausa|pausar|continua|continuar)\b/.test(pedido))) return { tipo: 'cena', cena };
+  if (cena && (VERBO_MOSTRAR.test(pedido) || !/\b(proxima|proximo|volta|voltar|pausa|pausar|continua|continuar)\b/.test(pedido))) {
+    return { tipo: 'cena', cena };
+  }
 
   if (/\b(pausa|pausar|pause|pare|parar|congela|segura|espera)\b/.test(pedido) || pedido === 'para') return { tipo: 'pausa' };
   if (/\b(continua|continuar|continue|retoma|retomar|segue|seguir|play|solta|despausa)\b/.test(pedido)) return { tipo: 'continua' };

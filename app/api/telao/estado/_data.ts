@@ -6,6 +6,9 @@ import type { SessionUser } from '@/app/lib/session';
 import { loadLive } from '@/app/api/secret-santa/features';
 import { tocando as lerTocandoDoSpotify } from '@/app/api/spotify/_service';
 import { getScreen } from '../data';
+import { ordenarRoteiro, type ItemRoteiro } from '@/app/telao/roteiro';
+import { lerFotosOficiais, lerNomesPresentes, lerPratosCeia } from './_extras';
+import { lerJogoNovo } from './_jogos_novos';
 import {
   ehCena, type AdventoHoje, type ControleTelao, type EstadoTelao, type EventoTelao, type Jogo, type JogoAmigo, type JogoBingo,
   type JogoEnquete, type JogoQuiz, type PlacarItem, type Recado, type Secao, type TocandoTelao,
@@ -36,11 +39,24 @@ async function lerControle(ano: number): Promise<ControleTelao> {
       const id = new Date(r.comando_em).toISOString();
       if (r.comando === 'proxima' || r.comando === 'anterior') comando = { id, tipo: r.comando, texto: '', idade_ms };
       else if (r.comando.startsWith('aviso:')) comando = { id, tipo: 'aviso', texto: r.comando.slice(6).slice(0, 160), idade_ms };
+      else if (r.comando.startsWith('brinde:')) comando = { id, tipo: 'brinde', texto: r.comando.slice(7).slice(0, 160), idade_ms };
     }
     return { cena_fixa: ehCena(r.cena_fixa) ? r.cena_fixa : null, pausado: Boolean(r.pausado), comando };
   } catch (e) {
     // Migração 032 ainda não aplicada: o telão segue no ciclo automático.
     if (semTabela(e)) return vazio;
+    throw e;
+  }
+}
+
+async function lerRoteiro(ano: number): Promise<ItemRoteiro[]> {
+  try {
+    const { rows } = await query<ItemRoteiro>(
+      `SELECT id::int AS id, to_char(hora, 'HH24:MI') AS hora, acao, texto FROM telao_roteiro WHERE ano = $1`, [ano]);
+    return ordenarRoteiro(rows);
+  } catch (e) {
+    // Migração 035 ainda não aplicada: o telão segue sem roteiro.
+    if (semTabela(e)) return [];
     throw e;
   }
 }
@@ -243,15 +259,17 @@ async function lerPresentes(me: SessionUser): Promise<{ total: number; nomes: st
   }
 }
 
-type Base = Omit<EstadoTelao, 'fotos' | 'recados' | 'advento' | 'placar' | 'presentes'>;
+type Base = Omit<EstadoTelao, 'fotos' | 'recados' | 'advento' | 'placar' | 'presentes' | 'pratos' | 'fotosOficiais' | 'nomesPresentes'>;
 const cache = new Map<number, { em: number; promessa: Promise<Base> }>();
 
 async function montarBase(me: SessionUser): Promise<Base> {
   const ano = edicaoAtual();
-  const [controle, evento, marca, tocando, jogo] = await Promise.all([
+  const [controle, evento, marca, tocando, jogo, jogoNovo, roteiro] = await Promise.all([
     lerControle(ano), lerEvento(ano), lerMarca(ano), lerTocando(), lerJogo(me, ano),
+    lerJogoNovo(me, ano).catch((e) => { console.error('telao: jogo novo', e); return null; }),
+    lerRoteiro(ano).catch((e) => { console.error('telao: roteiro', e); return [] as ItemRoteiro[]; }),
   ]);
-  return { agora: new Date().toISOString(), ano, meId: me.id, controle, evento, marca, tocando, jogo };
+  return { agora: new Date().toISOString(), ano, meId: me.id, souAdmin: me.is_admin, controle, evento, marca, tocando, jogo, jogoNovo, roteiro };
 }
 
 /** Parte leve (consultada a cada 3 s). Guardada por 2 s por pessoa: várias TVs e celulares não multiplicam as consultas. */
@@ -272,13 +290,17 @@ export function limparCacheTelao() { cache.clear(); }
 export async function getEstado(me: SessionUser, inclui: ReadonlySet<Secao>): Promise<EstadoTelao> {
   const b = await base(me);
   const ano = b.ano;
-  const [fotos, recados, advento, placar, presentes] = await Promise.all([
+  const [fotos, recados, advento, placar, presentes, pratos, fotosOficiais, nomesPresentes] = await Promise.all([
     inclui.has('fotos') ? getScreen(me).then((s) => s.fotos.slice(0, 60)) : undefined,
     inclui.has('recados') ? lerRecados(me, ano) : undefined,
     inclui.has('advento') ? lerAdvento(ano) : undefined,
     inclui.has('placar') ? placarQuiz(me, ano, null, 'preparando', 8).catch((e) => { if (semTabela(e)) return []; throw e; }) : undefined,
     inclui.has('presentes') ? lerPresentes(me) : undefined,
+    inclui.has('ceia') ? lerPratosCeia(ano, me.id).catch((e) => { console.error('telao: pratos', e); return []; }) : undefined,
+    inclui.has('linha') ? lerFotosOficiais(me.id).catch((e) => { console.error('telao: fotos oficiais', e); return []; }) : undefined,
+    inclui.has('nomes') ? lerNomesPresentes(ano, me.id).catch((e) => { console.error('telao: nomes', e); return []; }) : undefined,
   ]);
-  return { ...b, agora: new Date().toISOString(), ...(fotos && { fotos }), ...(recados && { recados }), ...(advento !== undefined && { advento }), ...(placar && { placar }), ...(presentes && { presentes }) };
+  return { ...b, agora: new Date().toISOString(), ...(fotos && { fotos }), ...(recados && { recados }), ...(advento !== undefined && { advento }), ...(placar && { placar }), ...(presentes && { presentes }),
+    ...(pratos && { pratos }), ...(fotosOficiais && { fotosOficiais }), ...(nomesPresentes && { nomesPresentes }) };
 }
 

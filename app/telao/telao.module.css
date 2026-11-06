@@ -218,3 +218,8 @@
 @media (prefers-reduced-motion: reduce) {
   .kbA, .kbB, .tocFundo, .felizNatal, .bingoGrito, .aneis i { animation: none; }
 }
+
+.qrEscondido { opacity: 0; }
+.qrVivo { position: absolute; z-index: 6; left: 3.4vmin; bottom: 3.4vmin; width: 13vmin; padding: 1vmin; border-radius: 1.6vmin; background: rgba(23, 27, 24, 0.78); border: 0.2vmin solid rgba(243, 235, 220, 0.2); backdrop-filter: blur(1vmin); display: flex; flex-direction: column; gap: 0.8vmin; text-align: center; pointer-events: none; transition: opacity 0.6s ease; }
+.qrVivo img { width: 100%; aspect-ratio: 1; border-radius: 0.8vmin; display: block; }
+.qrVivoTexto { font-size: 1.5vmin; line-height: 1.2; font-weight: 800; }
