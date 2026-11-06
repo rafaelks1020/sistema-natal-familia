@@ -38,6 +38,18 @@ export default function AdminHome() {
     <main className="mx-auto max-w-xl pb-10">
       <PageHeader kicker="Cuidar de tudo" title="Painel admin" back="/organizar" />
       <div className="space-y-10 px-5">
+        <nav aria-label="Ferramentas do painel" className="grid grid-cols-2 gap-2">
+          {[
+            ['/admin/estatisticas', 'Gráficos'],
+            ['/admin/relatorio', 'Relatório da ceia'],
+            ['/admin/avisos', 'Aviso agendado'],
+            ['/admin/lembretes', 'Lembretes'],
+          ].map(([href, rotulo]) => (
+            <Link key={href} href={href} className="flex min-h-14 items-center justify-center rounded-2xl border border-linha px-3 text-center text-sm focus-visible:outline-2 focus-visible:outline-champagne">
+              {rotulo}
+            </Link>
+          ))}
+        </nav>
         {falhou ? (
           <button className="btn btn-ghost w-full" onClick={() => { setFalhou(false); setTentativa((v) => v + 1); }}>Tentar novamente</button>
         ) : !resumo ? <Loading /> : (

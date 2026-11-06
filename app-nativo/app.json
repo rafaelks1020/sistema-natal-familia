@@ -21,7 +21,13 @@
         "NSUserNotificationUsageDescription": "Receba avisos da ceia e novidades da família.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "2"
+      "buildNumber": "2",
+      "appleTeamId": "6XKJ3V7VW5",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.br.com.natalemfamilia.app"
+        ]
+      }
     },
     "android": {
       "package": "br.com.natalemfamilia.app",
@@ -120,6 +126,36 @@
           "microphonePermission": "O Natal em Família usa o microfone para gravar receitas e histórias da família.",
           "enableBackgroundPlayback": false,
           "enableBackgroundRecording": false
+        }
+      ],
+      "@bacons/apple-targets",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "NatalPequeno",
+              "label": "Natal em Família (2x2)",
+              "description": "Dias que faltam para a ceia",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "resizeMode": "none",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "NatalGrande",
+              "label": "Natal em Família (4x2)",
+              "description": "Dias, horas e o título da ceia",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "none",
+              "updatePeriodMillis": 1800000
+            }
+          ]
         }
       ]
     ],

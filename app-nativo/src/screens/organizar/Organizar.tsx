@@ -1,7 +1,7 @@
 import { Reports } from '../moderacao/Reports';
 import { useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -68,6 +68,7 @@ function Conteudo({ evento, erroEvento, familia, erroFamilia, onEvento, onFamili
   const semLogin = membros.filter((membro) => !membro.has_login && membro.participant_id !== null);
   const vinculaveis = acessos.filter((membro) => membro.can_link);
   return <View style={styles.corpo}>
+    <Button onPress={() => router.push('/admin' as Href)} icon={<ShieldCheck size={16} color={theme.colors.ivory} strokeWidth={1.5} />}>Painel admin</Button>
     <Reports />
     <Text variant="muted" style={styles.intro}>Os preparativos ficam mais leves quando a família cuida junto.</Text>
     <Secao indice="01" kicker="A nossa noite" titulo="Detalhes da ceia">

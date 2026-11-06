@@ -27,7 +27,8 @@ export const GET = route(async req => {
     const old = await query<{ value: string }>(`SELECT value FROM app_settings WHERE key='spotify_owner_id'`);
     if (old.rows[0]?.value && old.rows[0].value !== owner.id) throw new HttpError(400, 'Reconecte a mesma conta Spotify usada na playlist.');
     await save({ spotify_owner_id: owner.id, spotify_refresh_token: data.refresh_token,
-      spotify_access_token: data.access_token, spotify_access_expires: String(Date.now() + data.expires_in * 1000), spotify_api_bloqueada: '0' });
+      spotify_access_token: data.access_token, spotify_access_expires: String(Date.now() + data.expires_in * 1000), spotify_api_bloqueada: '0',
+      spotify_scope: data.scope || '' });
     await ensurePlaylist();
   } catch (error) {
     status = error instanceof SpotifyForbidden ? 'O Spotify não liberou a busca automática. Use o link da playlist e os pedidos da família.'

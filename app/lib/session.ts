@@ -1,8 +1,9 @@
 import { cache } from 'react';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { cookies, headers } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { query } from './db';
+import { hojeSP } from './edicao';
 
 // Sessão assinada (HMAC-SHA256) num cookie httpOnly. O servidor é a única fonte de verdade
 // sobre quem é o usuário: nenhuma rota confia em user_id vindo do corpo da requisição.
@@ -71,6 +72,48 @@ export function clearSessionCookie(res: NextResponse): void {
   res.cookies.set(SESSION_COOKIE, '', { httpOnly: true, path: '/', maxAge: 0 });
 }
 
+// Uma tentativa por pessoa por dia, por instância. O INSERT só grava se o dia ainda não existe.
+const vistosHoje = new Map<number, string>();
+const visitaEmCurso = new Set<number>();
+let visitasOffAte = 0;
+
+function registrarVisita(userId: number): void {
+  if (Date.now() < visitasOffAte) return;
+  const dia = hojeSP();
+  if (vistosHoje.get(userId) === dia || visitaEmCurso.has(userId)) return;
+  visitaEmCurso.add(userId);
+  const gravar = async () => {
+    try {
+      await query(
+        `WITH nova AS (
+           INSERT INTO family_daily_visits (user_id, dia, primeira, ultima)
+           VALUES ($1, $2::date, NOW(), NOW())
+           ON CONFLICT (user_id, dia) DO NOTHING
+           RETURNING user_id
+         )
+         UPDATE family_users SET last_seen_at = NOW()
+          WHERE id IN (SELECT user_id FROM nova)`,
+        [userId, dia],
+      );
+      vistosHoje.set(userId, dia);
+      if (vistosHoje.size > 300) {
+        for (const [id, d] of vistosHoje) if (d !== dia) vistosHoje.delete(id);
+      }
+    } catch (err) {
+      const code = (err as { code?: string } | null)?.code;
+      if (code === '42P01' || code === '42703') visitasOffAte = Date.now() + 60 * 60 * 1000;
+      else console.error('[sessao] visita:', err instanceof Error ? err.message : 'falha');
+    } finally {
+      visitaEmCurso.delete(userId);
+    }
+  };
+  try {
+    after(gravar);
+  } catch {
+    void gravar();
+  }
+}
+
 /**
  * Usuário logado (uma leitura do banco por renderização, para is_admin valer na hora) ou null.
  * Site: cookie httpOnly. App nativo: "Authorization: Bearer <token>" (mesmo token assinado).
@@ -88,5 +131,8 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
       WHERE u.id = $1 AND u.session_version = $2`,
     [session.uid, session.v],
   );
-  return rows[0] ?? null;
+  const user = rows[0];
+  if (!user) return null;
+  registrarVisita(user.id);
+  return user;
 });

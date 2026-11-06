@@ -28,6 +28,7 @@ import { Skeleton } from '../ui/Skeleton';
 import { Surface } from '../ui/Surface';
 import { Text } from '../ui/Text';
 import { useToast } from '../ui/Toast';
+import { syncWidget } from '../widget/sync';
 
 function optimisticAttendance(previous: Attendance, status: AttendanceStatus, user: User): Attendance {
   if (user.participant_id === null) return previous;
@@ -49,6 +50,7 @@ export default function Home() {
   const heroHeight = Math.max(500, Math.min(height * 0.73, 740));
   const home = useQuery({ queryKey: queryKeys.home, queryFn: ({ signal }) => api<HomeData>('/api/home', { signal }) });
   useEffect(() => { if (home.error) toast(home.error.message, 'error'); }, [home.error, toast]);
+  useEffect(() => { if (home.data) void syncWidget(home.data.settings); }, [home.data?.settings.event_date, home.data?.settings.event_title]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!celebrate) return; const timer = setTimeout(() => setCelebrate(false), 3500); return () => clearTimeout(timer); }, [celebrate]);
   const mutation = useMutation({
     mutationFn: ({ status, generation }: { status: AttendanceStatus; generation: number }) => {

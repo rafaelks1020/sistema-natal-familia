@@ -12,6 +12,7 @@ import Gift from 'lucide-react-native/icons/gift';
 import Headphones from 'lucide-react-native/icons/headphones';
 import Hourglass from 'lucide-react-native/icons/hourglass';
 import Images from 'lucide-react-native/icons/images';
+import Mail from 'lucide-react-native/icons/mail';
 import Mic from 'lucide-react-native/icons/mic';
 import PartyPopper from 'lucide-react-native/icons/party-popper';
 import Receipt from 'lucide-react-native/icons/receipt';
@@ -38,6 +39,7 @@ const GRUPOS: { titulo: string; itens: Item[] }[] = [
     { rota: '/caronas', titulo: 'Caronas e hospedagem', texto: 'Quem dá carona e quem tem quarto sobrando', icon: Car },
     { rota: '/contas-da-ceia', titulo: 'Contas da ceia', texto: 'Quem pagou o quê e o acerto pelo Pix', icon: Receipt },
     { rota: '/playlist', titulo: 'Playlist da família', texto: 'As músicas da noite no Spotify', icon: Headphones },
+    { rota: '/cartao', titulo: 'Cartão de Natal', texto: 'Sua foto num cartão para mandar no WhatsApp', icon: Mail },
     { rota: '/convidar', titulo: 'Convidar parente', texto: 'Chamou gente nova? Peça o convite aqui', icon: UserPlus },
   ] },
   { titulo: 'Na noite de Natal', itens: [

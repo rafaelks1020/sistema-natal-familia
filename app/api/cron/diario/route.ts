@@ -5,7 +5,7 @@ import { conciliar } from '@/app/lib/pagamentos';
 
 // Cron diário da Vercel (vercel.json, 12h UTC = 9h de São Paulo).
 // Baixa Pix pagos e roda as tarefas das novidades (cada uma é idempotente).
-const TAREFAS = ['contagem', 'advento', 'vaquinha-meta', 'capsula'] as const;
+const TAREFAS = ['contagem', 'advento', 'vaquinha-meta', 'capsula', 'resumo-semanal', 'lembretes'] as const;
 export const maxDuration = 60;
 
 export async function GET(req: Request) {

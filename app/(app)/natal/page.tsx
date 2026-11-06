@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
-  ArrowUpRight, BookOpen, CalendarDays, Camera, Car, Dices, Flame, Gift, Hourglass, Images, Mic, Music,
+  ArrowUpRight, BookOpen, Mail, CalendarDays, Camera, Car, Dices, Flame, Gift, Hourglass, Images, Mic, Music,
   PartyPopper, Receipt, Sparkles, TreePine, Trophy, Tv, UserPlus, Users, Utensils, Vote,
 } from 'lucide-react';
 import PageHeader from '@/app/ui/PageHeader';
@@ -16,6 +16,7 @@ const GRUPOS: { titulo: string; itens: Item[] }[] = [
     { href: '/caronas', titulo: 'Caronas e hospedagem', texto: 'Quem dá carona e quem tem quarto sobrando', icon: Car },
     { href: '/contas-da-ceia', titulo: 'Contas da ceia', texto: 'Quem pagou o quê e o acerto pelo Pix', icon: Receipt },
     { href: '/playlist', titulo: 'Playlist da família', texto: 'As músicas da noite no Spotify', icon: Music },
+    { href: '/cartao', titulo: 'Cartão de Natal', texto: 'Sua foto num cartão para mandar no WhatsApp', icon: Mail },
     { href: '/convidar', titulo: 'Convidar parente', texto: 'Chamou gente nova? Peça o convite aqui', icon: UserPlus },
   ] },
   { titulo: 'Na noite de Natal', itens: [
