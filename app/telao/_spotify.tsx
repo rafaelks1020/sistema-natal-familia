@@ -186,15 +186,15 @@ export function useSpotifyTelao({ ativo }: { ativo: boolean }) {
   };
 }
 
-/** Botão grande, uma vez só: o gesto que o Chrome exige para liberar o áudio. */
+/** Pílula compacta no topo, uma vez só: o gesto que o Chrome exige para liberar o áudio. */
 export function AtivarSomTelao({ onAtivar }: { onAtivar: () => void }) {
   return <div className={styles.ativar}>
-    <button type="button" className={styles.ativarBtn} onClick={onAtivar}><Music2 aria-hidden="true" /> Ligar a música no telão</button>
-    <p className={styles.ativarDica}>Um toque libera o som do Spotify neste aparelho.</p>
+    <button type="button" className={styles.ativarBtn} onClick={onAtivar}><Music2 aria-hidden="true" /> Ligar a música</button>
+    <p className={styles.ativarDica}>Um toque libera o som do Spotify.</p>
   </div>;
 }
 
-/** Aviso discreto quando a conexão com o Spotify precisa ser refeita por quem organiza. */
+/** Aviso discreto, no topo, quando a conexão com o Spotify precisa ser refeita por quem organiza. */
 export function AvisoReconectarTelao() {
   return <p className={styles.aviso} role="status">Para tocar música aqui, quem organiza precisa reconectar o Spotify na página da playlist.</p>;
 }

@@ -133,10 +133,12 @@
 .topo { position: absolute; z-index: 6; top: 0; left: 0; right: 0; display: flex; align-items: flex-start; justify-content: space-between; padding: 3.2vmin 4vmin; pointer-events: none; }
 .marca { font-size: 2vmin; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: #bfa577; text-shadow: 0 0.2vmin 1vmin rgba(0, 0, 0, 0.7); }
 .relogio { font-size: 3.6vmin; font-weight: 700; font-variant-numeric: tabular-nums; text-shadow: 0 0.2vmin 1vmin rgba(0, 0, 0, 0.7); }
-.qr { position: absolute; z-index: 6; right: 3.4vmin; bottom: 3.4vmin; width: 21vmin; padding: 1.4vmin; border-radius: 2vmin; background: rgba(23, 27, 24, 0.78); border: 0.2vmin solid rgba(243, 235, 220, 0.2); backdrop-filter: blur(1vmin); display: flex; flex-direction: column; gap: 1vmin; text-align: center; pointer-events: none; }
-.qr img { width: 100%; aspect-ratio: 1; border-radius: 1vmin; display: block; }
-.qrTexto { font-size: 2vmin; line-height: 1.2; font-weight: 800; }
-.qrLink { font-size: 1.6vmin; font-weight: 700; color: #bfa577; word-break: break-all; }
+.qr, .qrVivo { position: absolute; z-index: 6; bottom: 3.4vmin; width: 21vmin; padding: 1.2vmin; border-radius: 2vmin; background: rgba(23, 27, 24, 0.94); border: 0.2vmin solid rgba(243, 235, 220, 0.2); backdrop-filter: blur(1vmin); display: flex; flex-direction: column; gap: 0.9vmin; text-align: center; pointer-events: none; transition: opacity 0.6s ease; }
+.qr { right: 3.4vmin; }
+.qrVivo { left: 3.4vmin; }
+.qr img, .qrVivo img { width: 100%; aspect-ratio: 1; border-radius: 1vmin; display: block; }
+.qrTexto, .qrVivoTexto { font-size: 2vmin; line-height: 1.2; font-weight: 800; margin: 0; text-wrap: balance; }
+.qrLink { display: flex; flex-direction: column; align-items: center; margin: 0; font-size: 1.4vmin; line-height: 1.25; font-weight: 700; letter-spacing: -0.01em; color: #bfa577; white-space: nowrap; }
 .selo2 { position: absolute; z-index: 7; top: 3vmin; left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 1vmin; padding: 0.8vmin 2vmin; border-radius: 999px; background: rgba(23, 27, 24, 0.85); border: 0.2vmin solid #bfa577; font-size: 2vmin; font-weight: 700; color: #bfa577; }
 .reconectando { position: absolute; z-index: 7; top: 9vmin; right: 4vmin; font-size: 1.8vmin; font-weight: 600; color: #bfa577; }
 .ouvindo { position: absolute; z-index: 7; top: 8vmin; left: 4vmin; display: inline-flex; align-items: center; gap: 1vmin; padding: 0.7vmin 1.8vmin; border-radius: 999px; background: rgba(23, 27, 24, 0.7); font-size: 1.8vmin; font-weight: 700; color: #cfc6b6; }
@@ -220,6 +222,3 @@
 }
 
 .qrEscondido { opacity: 0; }
-.qrVivo { position: absolute; z-index: 6; left: 3.4vmin; bottom: 3.4vmin; width: 13vmin; padding: 1vmin; border-radius: 1.6vmin; background: rgba(23, 27, 24, 0.78); border: 0.2vmin solid rgba(243, 235, 220, 0.2); backdrop-filter: blur(1vmin); display: flex; flex-direction: column; gap: 0.8vmin; text-align: center; pointer-events: none; transition: opacity 0.6s ease; }
-.qrVivo img { width: 100%; aspect-ratio: 1; border-radius: 0.8vmin; display: block; }
-.qrVivoTexto { font-size: 1.5vmin; line-height: 1.2; font-weight: 800; }

@@ -24,7 +24,7 @@ export function LinhaDoTempoCena({ fotos, agora }: LinhaDoTempoCenaProps) {
   const deslocamentoVmin = total > 2 ? Math.max(0, indiceAtivo - 1) * 60 : 0;
 
   return (
-    <div className={`${styles.cena} ${styles.linhaCena}`}>
+    <div className={`${styles.cena} ${styles.linhaCena} ${total === 0 ? styles.linhaVazia : ''}`}>
       <header className={styles.linhaCabecalho}>
         <p className={styles.kicker}>Nossa história</p>
         <h2 className={styles.titulo}>Natal através dos anos</h2>

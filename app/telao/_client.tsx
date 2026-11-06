@@ -622,12 +622,13 @@ export default function ScreenClient({ initial }: { initial: EstadoTelao }) {
     <aside className={`${styles.qr} ${playerVisivel ? styles.qrEscondido : ''}`} aria-label="Código para enviar fotos">
       {qr && <img src={qr} alt="QR code para o mural da família" />}
       <p className={styles.qrTexto}>Aponte o celular e mande sua foto</p>
-      <p className={styles.qrLink}>natalemfamilia.com.br/mural</p>
+      <p className={styles.qrLink}><span>natalemfamilia.com.br</span><span>/mural</span></p>
     </aside>
 
     {(cenaAtual === 'lareira' || ocioso) && qrVivo && <aside className={`${styles.qrVivo} ${playerVisivel ? styles.qrEscondido : ''}`} aria-label="Código para mandar reações e recados">
       <img src={qrVivo} alt="QR code para reações e recados ao vivo" />
       <p className={styles.qrVivoTexto}>Mande reações e recados</p>
+      <p className={styles.qrLink}><span>natalemfamilia.com.br</span><span>/ao-vivo</span></p>
     </aside>}
 
     {sp.precisaClique && <AtivarSomTelao onAtivar={() => void sp.ativar()} />}

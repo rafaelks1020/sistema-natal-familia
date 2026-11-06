@@ -34,7 +34,7 @@ export function CeiaCena({ pratos }: CeiaCenaProps) {
   })).filter((g) => g.itens.length > 0);
 
   return (
-    <div className={`${styles.cena} ${styles.ceiaCena}`}>
+    <div className={`${styles.cena} ${styles.ceiaCena} ${grupos.length === 0 ? styles.ceiaVazia : ''}`}>
       <header className={styles.ceiaCabecalho}>
         <p className={styles.kicker}>Mesa da família</p>
         <h2 className={styles.titulo}>A ceia está servida</h2>

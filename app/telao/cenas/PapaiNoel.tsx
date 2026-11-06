@@ -1,6 +1,7 @@
 'use client';
 
 import styles from './cenas.module.css';
+import { MUNDO_PONTOS } from './mundo-pontos';
 
 export interface PapaiNoelCenaProps {
   agora: number;
@@ -13,12 +14,13 @@ interface EstadoRota {
   pos: { x: number; y: number };
 }
 
+/** Rota no mapa de pontos (viewBox 360 x 152: x = longitude + 180, y = 90 - latitude). */
 const PONTOS_ROTA: { x: number; y: number }[] = [
-  { x: 500, y: 55 },  // Polo Norte
-  { x: 780, y: 155 }, // Ásia
-  { x: 540, y: 165 }, // Europa
-  { x: 525, y: 275 }, // África
-  { x: 335, y: 325 }, // Brasil
+  { x: 232, y: 6 },   // Polo Norte
+  { x: 290, y: 50 },  // Ásia
+  { x: 192, y: 42 },  // Europa
+  { x: 206, y: 92 },  // África
+  { x: 128, y: 102 }, // Brasil
 ];
 
 function interpolarRota(p: number): { x: number; y: number } {
@@ -31,10 +33,26 @@ function interpolarRota(p: number): { x: number; y: number } {
   const a = PONTOS_ROTA[idx];
   const b = PONTOS_ROTA[idx + 1];
   return {
-    x: Math.round(a.x + (b.x - a.x) * frac),
-    y: Math.round(a.y + (b.y - a.y) * frac),
+    x: Math.round((a.x + (b.x - a.x) * frac) * 10) / 10,
+    y: Math.round((a.y + (b.y - a.y) * frac) * 10) / 10,
   };
 }
+
+/** Pontos da rota já percorrida, terminando na posição atual do trenó. */
+function rastroAte(progresso: number, pos: { x: number; y: number }): string {
+  const segs = PONTOS_ROTA.length - 1;
+  const feitos = Math.floor(Math.min(1, Math.max(0, progresso)) * segs);
+  const pts = PONTOS_ROTA.slice(0, feitos + 1).map((p) => `${p.x},${p.y}`);
+  pts.push(`${pos.x},${pos.y}`);
+  return pts.join(' ');
+}
+
+// Mapa de pontos desenhado uma vez (2400+ círculos): fora do render do relógio.
+const MAPA_PONTOS = (
+  <g fill="#607568" opacity="0.62">
+    {MUNDO_PONTOS.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="0.62" />)}
+  </g>
+);
 
 function calcularEstadoNoel(agora: number): EstadoRota {
   const partes = new Intl.DateTimeFormat('en-US', {
@@ -93,7 +111,8 @@ function calcularEstadoNoel(agora: number): EstadoRota {
 }
 
 export function PapaiNoelCena({ agora }: PapaiNoelCenaProps) {
-  const { frase, milhoes, pos } = calcularEstadoNoel(agora);
+  const { frase, milhoes, pos, progresso } = calcularEstadoNoel(agora);
+  const rastro = rastroAte(progresso, pos);
 
   return (
     <div className={`${styles.cena} ${styles.noelCena}`}>
@@ -101,59 +120,60 @@ export function PapaiNoelCena({ agora }: PapaiNoelCenaProps) {
       <h2 className={styles.titulo}>{frase}</h2>
 
       <div className={styles.noelMapaBox}>
-        <svg viewBox="0 0 1000 460" className={styles.noelSvg} aria-label="Mapa da viagem do Papai Noel">
-          {/* Linhas de latitude e longitude sutis */}
-          <g stroke="rgba(243, 235, 220, 0.07)" strokeWidth="1" fill="none">
-            <line x1="0" y1="115" x2="1000" y2="115" />
-            <line x1="0" y1="230" x2="1000" y2="230" />
-            <line x1="0" y1="345" x2="1000" y2="345" />
-            <line x1="250" y1="0" x2="250" y2="460" />
-            <line x1="500" y1="0" x2="500" y2="460" />
-            <line x1="750" y1="0" x2="750" y2="460" />
-          </g>
+        <svg viewBox="0 0 360 152" className={styles.noelSvg} aria-label="Mapa da viagem do Papai Noel">
+          <defs>
+            <filter id="noelBrilho" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="1.6" />
+            </filter>
+          </defs>
 
-          {/* Continentes estilizados em silhueta */}
-          <g fill="#25322b" stroke="rgba(191, 165, 119, 0.35)" strokeWidth="2">
-            {/* América do Norte */}
-            <path d="M 110 85 L 250 75 L 285 145 L 235 215 L 175 210 L 125 155 Z" />
-            {/* América do Sul (com destaque suave no Brasil) */}
-            <path d="M 255 240 L 355 265 L 375 335 L 315 425 L 265 390 L 245 295 Z" />
-            {/* Europa */}
-            <path d="M 455 95 L 575 85 L 595 165 L 485 185 L 445 145 Z" />
-            {/* África */}
-            <path d="M 460 200 L 580 205 L 605 295 L 545 385 L 485 345 L 450 255 Z" />
-            {/* Ásia */}
-            <path d="M 595 85 L 865 95 L 895 215 L 765 265 L 635 225 L 595 155 Z" />
-            {/* Oceania */}
-            <path d="M 770 315 L 885 310 L 900 385 L 790 395 Z" />
-          </g>
+          {MAPA_PONTOS}
 
-          {/* Trilha pontilhada da viagem */}
+          {/* Rota completa, tracejada */}
           <polyline
             points={PONTOS_ROTA.map((p) => `${p.x},${p.y}`).join(' ')}
             fill="none"
             stroke="#bfa577"
-            strokeWidth="3"
-            strokeDasharray="8 8"
-            opacity="0.75"
+            strokeWidth="0.6"
+            strokeDasharray="1.6 2.2"
+            strokeLinecap="round"
+            opacity="0.5"
           />
 
-          {/* Marcador do Polo Norte */}
-          <circle cx="500" cy="55" r="7" fill="#f3ebdc" />
-          <text x="515" y="60" fill="#cfc6b6" fontSize="18" fontWeight="700">Polo Norte</text>
+          {/* Rastro brilhante já percorrido */}
+          <polyline points={rastro} fill="none" stroke="#c5292d" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.55" filter="url(#noelBrilho)" />
+          <polyline points={rastro} fill="none" stroke="#f3ebdc" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
 
-          {/* Marcador do Brasil */}
-          <circle cx="335" cy="325" r="8" fill="#607568" stroke="#bfa577" strokeWidth="2.5" />
-          <text x="350" y="332" fill="#bfa577" fontSize="19" fontWeight="800">Brasil</text>
+          {/* Polo Norte */}
+          <circle cx={PONTOS_ROTA[0].x} cy={PONTOS_ROTA[0].y} r="2.2" fill="#f3ebdc" />
+          <text x={PONTOS_ROTA[0].x + 5} y={PONTOS_ROTA[0].y + 3} fill="#cfc6b6" fontSize="8" fontWeight="700">Polo Norte</text>
 
-          {/* Trenó do Papai Noel */}
+          {/* Brasil */}
+          <circle cx={PONTOS_ROTA[4].x} cy={PONTOS_ROTA[4].y} r="5" fill="rgba(191, 165, 119, 0.2)" />
+          <circle cx={PONTOS_ROTA[4].x} cy={PONTOS_ROTA[4].y} r="2.4" fill="#607568" stroke="#bfa577" strokeWidth="0.9" />
+          <text x={PONTOS_ROTA[4].x - 6} y={PONTOS_ROTA[4].y + 3} fill="#bfa577" fontSize="9" fontWeight="800" textAnchor="end">Brasil</text>
+
+          {/* Trenó com renas */}
           <g className={styles.noelTreno} transform={`translate(${pos.x}, ${pos.y})`}>
-            <circle cx="0" cy="0" r="22" fill="rgba(197, 41, 45, 0.32)" />
-            <circle cx="0" cy="0" r="13" fill="#c5292d" stroke="#f3ebdc" strokeWidth="2.5" />
-            <path
-              d="M -8 4 L 8 4 L 12 -2 L -6 -2 Z"
-              fill="#bfa577"
-            />
+            <circle r="12" fill="rgba(197, 41, 45, 0.28)" />
+            <g transform="translate(0 -2) scale(0.95)">
+              {/* renas (voltadas para a esquerda) */}
+              <g stroke="#bfa577" strokeWidth="0.9" strokeLinecap="round" fill="none">
+                <path d="M -19 -3 L -9 -3" />
+                <path d="M -21 -6 L -23 -9 M -22 -7.5 L -24.5 -7 M -20 -6 L -19 -9.5" />
+              </g>
+              <ellipse cx="-13" cy="-1" rx="5.2" ry="2.8" fill="#bfa577" />
+              <circle cx="-18.6" cy="-4" r="2" fill="#bfa577" />
+              <circle cx="-20.4" cy="-3.7" r="0.8" fill="#c5292d" />
+              <path d="M -15 1 L -15.6 5 M -11 1 L -10.4 5" stroke="#bfa577" strokeWidth="0.9" strokeLinecap="round" />
+              {/* trenó */}
+              <path d="M -6 -2 L 12 -2 Q 14 -2 13.6 1 L 12 5 L -4 5 Q -7 3 -6 -2 Z" fill="#c5292d" stroke="#f3ebdc" strokeWidth="0.7" />
+              <path d="M -8 7 Q -8 6 -6 6 L 15 6 Q 17.5 6 17 3.5" fill="none" stroke="#bfa577" strokeWidth="1.1" strokeLinecap="round" />
+              <circle cx="3" cy="-4.5" r="2.4" fill="#f3ebdc" />
+              <path d="M 0.8 -5.4 Q 3 -9.6 6.4 -6.6 L 5.2 -4.6 Z" fill="#c5292d" />
+              <circle cx="6.8" cy="-6.3" r="0.9" fill="#f3ebdc" />
+              <rect x="7" y="-3" width="4.2" height="3.4" rx="0.6" fill="#607568" stroke="#f3ebdc" strokeWidth="0.4" />
+            </g>
           </g>
         </svg>
       </div>

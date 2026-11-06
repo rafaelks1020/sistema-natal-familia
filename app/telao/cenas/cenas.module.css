@@ -10,7 +10,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 11vmin 6vmin 8vmin;
+  padding: 11vmin 6vmin 14vmin;
   text-align: center;
 }
 
@@ -63,6 +63,16 @@
   background: #1d221f;
   border: 0.25vmin solid rgba(191, 165, 119, 0.35);
   box-shadow: 0 2vmin 6vmin rgba(0, 0, 0, 0.45);
+}
+
+.viradaHoras {
+  display: block;
+  margin-top: 1.6vmin;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 3.4vmin;
+  color: #bfa577;
+  letter-spacing: 0.02em;
 }
 
 .viradaDez {
@@ -202,6 +212,11 @@
   color: #bfa577;
 }
 
+.ceiaCena.ceiaVazia,
+.linhaCena.linhaVazia {
+  justify-content: center;
+}
+
 /* ---------- Linha do Tempo ---------- */
 .linhaCena {
   justify-content: flex-start;
@@ -294,7 +309,7 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: radial-gradient(90% 65% at 50% 88%, rgba(197, 41, 45, 0.24) 0%, rgba(191, 165, 119, 0.08) 38%, #171b18 75%);
+  background: radial-gradient(110% 80% at 50% 100%, #2a1713 0%, #1b1613 42%, #171b18 78%);
   color: #f3ebdc;
 }
 
@@ -304,126 +319,108 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 1;
+  z-index: 4;
 }
 
-.lareiraCentro {
+.lareiraTopo {
   position: absolute;
-  left: 50%;
-  bottom: 10vmin;
-  transform: translateX(-50%);
-  z-index: 2;
+  top: 11vmin;
+  left: 0;
+  right: 0;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 1.2vmin;
+  text-align: center;
 }
 
-.lareiraMoldura {
-  width: 68vmin;
-  height: 46vmin;
-  border-radius: 34vmin 34vmin 2vmin 2vmin;
-  background: radial-gradient(75% 80% at 50% 85%, #3a1714 0%, #151816 78%);
-  border: 0.5vmin solid rgba(191, 165, 119, 0.38);
-  box-shadow: 0 0 12vmin rgba(197, 41, 45, 0.35), inset 0 0 8vmin rgba(0, 0, 0, 0.8);
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding-bottom: 4vmin;
-}
-
-.chamas {
-  position: relative;
-  width: 36vmin;
-  height: 28vmin;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.chama {
-  position: absolute;
-  bottom: 2vmin;
-  border-radius: 50% 50% 35% 35% / 60% 60% 30% 30%;
-  filter: blur(0.4vmin);
-  transform-origin: bottom center;
-}
-
-.chamaMaior {
-  width: 22vmin;
-  height: 25vmin;
-  background: linear-gradient(180deg, #f3ebdc 0%, #e8a948 38%, #c5292d 90%);
-  animation: chamaOscila 2.4s ease-in-out infinite alternate;
-}
-
-.chamaEsquerda {
-  left: 3vmin;
-  width: 15vmin;
-  height: 18vmin;
-  background: linear-gradient(180deg, #f3ebdc 0%, #bfa577 35%, #c5292d 95%);
-  animation: chamaOscila 1.9s ease-in-out -0.7s infinite alternate-reverse;
-}
-
-.chamaDireita {
-  right: 3vmin;
-  width: 15vmin;
-  height: 19vmin;
-  background: linear-gradient(180deg, #f3ebdc 0%, #e8a948 40%, #a82024 95%);
-  animation: chamaOscila 2.1s ease-in-out -1.2s infinite alternate;
-}
-
-.lenha {
-  position: absolute;
-  bottom: 2.2vmin;
-  width: 40vmin;
-  height: 4.2vmin;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #2b1d16, #472e21 50%, #2b1d16);
-  box-shadow: 0 -0.6vmin 2.4vmin rgba(197, 41, 45, 0.55);
-}
-
-.lareiraRodape {
-  position: absolute;
-  left: 6vmin;
-  bottom: 5vmin;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.4vmin;
+.lareiraSaudacao {
+  font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: 4.4vmin;
+  line-height: 1;
+  color: #bfa577;
+  margin: 0;
+  text-shadow: 0 0 3vmin rgba(197, 41, 45, 0.5);
 }
 
 .lareiraRelogio {
   font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif;
-  font-size: 5.2vmin;
-  font-weight: 700;
-  color: rgba(243, 235, 220, 0.82);
-  font-variant-numeric: tabular-nums;
+  font-size: 13vmin;
+  font-weight: 800;
+  color: #f3ebdc;
+  font-variant-numeric: lining-nums tabular-nums;
   line-height: 1;
+  text-shadow: 0 0 5vmin rgba(232, 169, 72, 0.35), 0 0.6vmin 2.4vmin rgba(0, 0, 0, 0.6);
 }
 
-.lareiraSaudacao {
-  font-size: 2.2vmin;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: #bfa577;
-  margin: 0;
+.lareiraChao {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 14vmin;
+  z-index: 1;
+  background: linear-gradient(180deg, #1d1411 0%, #110c0a 100%);
 }
+
+.lareiraBrilhoChao {
+  position: absolute;
+  left: 50%;
+  bottom: -6vmin;
+  width: 150vmin;
+  height: 40vmin;
+  transform: translateX(-50%);
+  z-index: 2;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(255, 140, 50, 0.5) 0%, rgba(197, 41, 45, 0.2) 45%, rgba(197, 41, 45, 0) 72%);
+  animation: brilhoPulsa 3.1s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.lareiraSvg {
+  position: absolute;
+  left: 50%;
+  bottom: 3vmin;
+  height: 64vmin;
+  aspect-ratio: 800 / 570;
+  transform: translateX(-50%);
+  z-index: 3;
+  overflow: visible;
+}
+
+.chama {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: chamaA var(--dur, 1.6s) ease-in-out var(--atraso, 0s) infinite;
+}
+
+.chamaB { animation-name: chamaB; }
+
+.brilhoFace { animation: brilhoPulsa 2.3s ease-in-out infinite alternate; }
+
+.brasa { animation: brasaPisca 1.7s ease-in-out infinite alternate; }
+
+.meia { animation: meiaBalanca 5.5s ease-in-out var(--atraso, 0s) infinite alternate; }
 
 /* ---------- Papai Noel ---------- */
 .noelCena {
-  gap: 2.4vmin;
+  gap: 2.2vmin;
   padding-top: 10vmin;
+}
+
+.noelCena .titulo {
+  font-size: 6vmin;
+  max-width: 140vmin;
 }
 
 .noelMapaBox {
   position: relative;
   width: 100%;
-  max-width: 148vmin;
-  aspect-ratio: 2.1 / 1;
-  max-height: 50vmin;
+  max-width: 100vmin;
+  aspect-ratio: 360 / 152;
+  max-height: 42vmin;
   border-radius: 2.6vmin;
   background: radial-gradient(100% 100% at 50% 50%, #1f2823 0%, #141916 100%);
   border: 0.25vmin solid rgba(191, 165, 119, 0.35);
@@ -552,10 +549,33 @@
   to { transform: scale(1.07) translate(-1.2%, -0.8%); }
 }
 
-@keyframes chamaOscila {
-  0% { transform: scaleX(0.94) scaleY(0.95) rotate(-2deg); }
-  50% { transform: scaleX(1.04) scaleY(1.05) rotate(1.5deg); }
-  100% { transform: scaleX(0.97) scaleY(1.02) rotate(-1deg); }
+@keyframes chamaA {
+  0%, 100% { transform: scale(1, 1) skewX(0deg); }
+  22% { transform: scale(0.92, 1.1) skewX(-5deg); }
+  47% { transform: scale(1.07, 0.93) skewX(4deg); }
+  71% { transform: scale(0.96, 1.07) skewX(-3deg); }
+}
+
+@keyframes chamaB {
+  0%, 100% { transform: scale(1, 1) skewX(0deg); }
+  30% { transform: scale(1.06, 0.94) skewX(5deg); }
+  55% { transform: scale(0.9, 1.12) skewX(-4deg); }
+  80% { transform: scale(1.02, 1.02) skewX(2deg); }
+}
+
+@keyframes brilhoPulsa {
+  from { opacity: 0.72; }
+  to { opacity: 1; }
+}
+
+@keyframes brasaPisca {
+  from { opacity: 0.35; }
+  to { opacity: 0.95; }
+}
+
+@keyframes meiaBalanca {
+  from { transform: rotate(-2.2deg); }
+  to { transform: rotate(2.2deg); }
 }
 
 @keyframes tilintarEsq {
@@ -573,6 +593,14 @@
   .linhaCard { width: 72vmin; }
   .viradaDez { font-size: 38vmin; }
   .felizNatalGigante { font-size: 15vmin; }
+  .lareiraSvg { height: auto; width: 96vw; }
+}
+
+/* Cantos inferiores livres para os QR codes (paisagem). */
+@media (orientation: landscape) {
+  .ceiaColunas,
+  .linhaJanela { width: calc(100% - 52vmin); align-self: center; }
+  .linhaJanela { mask-image: linear-gradient(90deg, transparent 0%, #000 6%, #000 94%, transparent 100%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -580,9 +608,11 @@
   .felizNatalGigante,
   .nomesTrilho,
   .linhaFoto,
-  .chamaMaior,
-  .chamaEsquerda,
-  .chamaDireita,
+  .chama,
+  .brilhoFace,
+  .lareiraBrilhoChao,
+  .brasa,
+  .meia,
   .brindeNumero,
   .tacaEsq,
   .tacaDir {

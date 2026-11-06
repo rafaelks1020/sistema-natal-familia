@@ -17,12 +17,18 @@
 .pProgresso { position: absolute; left: 2.6vmin; right: 2.6vmin; bottom: 0.7vmin; height: 0.5vmin; border-radius: 999px; background: rgba(243, 235, 220, 0.15); overflow: hidden; }
 .pProgressoPreench { height: 100%; width: 100%; transform-origin: left; background: linear-gradient(90deg, #bfa577, #f3ebdc); transition: transform 0.5s linear; }
 
-.ativar { position: fixed; z-index: 40; left: 50%; bottom: 8vmin; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 1.6vmin; animation: surge 1s ease both; }
-.ativarBtn { display: inline-flex; align-items: center; gap: 2vmin; padding: 3vmin 6.4vmin; border-radius: 999px; background: #c5292d; color: #f3ebdc; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; font-size: 4vmin; font-weight: 800; border: 0; cursor: pointer; box-shadow: 0 1.4vmin 6vmin rgba(197, 41, 45, 0.6); animation: respira 4.5s ease-in-out infinite; transition: background 0.6s ease; }
+.ativar { position: fixed; z-index: 40; top: 2.9vmin; left: 50%; transform: translateX(-50%); display: flex; flex-direction: row; align-items: center; gap: 2vmin; white-space: nowrap; animation: surge 1s ease both; }
+.ativarBtn { display: inline-flex; align-items: center; gap: 1.2vmin; height: 5.2vmin; padding: 0 2.8vmin 0 2.2vmin; border-radius: 999px; background: #c5292d; color: #f3ebdc; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; font-size: 2.2vmin; font-weight: 800; border: 0; cursor: pointer; box-shadow: 0 0.6vmin 2.4vmin rgba(197, 41, 45, 0.5); animation: respira 4.5s ease-in-out infinite; transition: background 0.6s ease; }
 .ativarBtn:hover { background: #d33236; }
-.ativarBtn svg { width: 4.6vmin; height: 4.6vmin; }
-.ativarDica { font-size: 2.2vmin; color: #cfc6b6; text-shadow: 0 0.3vmin 1.4vmin rgba(0, 0, 0, 0.8); }
-.aviso { position: fixed; z-index: 40; left: 50%; bottom: 4vmin; transform: translateX(-50%); max-width: 120vmin; padding: 1.8vmin 3.2vmin; border-radius: 2vmin; background: rgba(23, 27, 24, 0.9); border: 0.2vmin solid rgba(197, 41, 45, 0.6); color: #f3ebdc; font-size: 2.6vmin; text-align: center; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; }
+.ativarBtn svg { width: 2.6vmin; height: 2.6vmin; }
+.ativarDica { margin: 0; font-size: 1.6vmin; font-weight: 600; color: #cfc6b6; text-shadow: 0 0.3vmin 1.4vmin rgba(0, 0, 0, 0.8); }
+.aviso { position: fixed; z-index: 40; top: 2.9vmin; left: 50%; transform: translateX(-50%); width: max-content; max-width: 66vmin; padding: 0.9vmin 2.4vmin; border-radius: 2.6vmin; background: rgba(23, 27, 24, 0.92); border: 0.2vmin solid rgba(197, 41, 45, 0.6); color: #f3ebdc; font-size: 1.6vmin; line-height: 1.3; font-weight: 600; text-align: center; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; }
+
+@media (orientation: portrait) {
+  .ativar { top: 9vmin; }
+  .ativarDica { display: none; }
+  .aviso { top: 9vmin; max-width: 90vmin; }
+}
 
 /* ---------- karaokê ---------- */
 .kara { position: absolute; inset: 0; overflow: hidden; background: #171b18; color: #f3ebdc; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; }

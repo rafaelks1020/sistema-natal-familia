@@ -89,6 +89,25 @@ export function ViradaCena({ agora, meiaNoite, nomes }: ViradaCenaProps) {
     );
   }
 
+  const DIA_MS = 86_400_000;
+  if (resto > DIA_MS) {
+    const dias = Math.floor(resto / DIA_MS);
+    const horas = Math.floor((resto % DIA_MS) / 3_600_000);
+    const rotuloDias = `${dias} ${dias === 1 ? 'dia' : 'dias'}`;
+    return (
+      <div className={styles.cena}>
+        <div className={styles.viradaAntes}>
+          <p className={styles.kicker}>Contagem da virada</p>
+          <h2 className={styles.titulo}>{dias === 1 ? 'Falta' : 'Faltam'} {rotuloDias} para a noite de Natal</h2>
+          <div className={styles.viradaRelogio} role="timer">
+            {rotuloDias}
+            <span className={styles.viradaHoras}>e {horas} {horas === 1 ? 'hora' : 'horas'}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const totalSeg = Math.max(0, Math.floor(resto / 1000));
   const hh = dois(Math.floor(totalSeg / 3600));
   const mm = dois(Math.floor((totalSeg % 3600) / 60));
@@ -97,8 +116,8 @@ export function ViradaCena({ agora, meiaNoite, nomes }: ViradaCenaProps) {
   return (
     <div className={styles.cena}>
       <div className={styles.viradaAntes}>
-        <p className={styles.kicker}>Contagem da virada</p>
-        <h2 className={styles.titulo}>Faltam {hh}:{mm}:{ss} para a meia-noite</h2>
+        <p className={styles.kicker}>A virada se aproxima</p>
+        <h2 className={styles.titulo}>Contagem para a meia-noite</h2>
         <div className={styles.viradaRelogio} role="timer">
           {hh}:{mm}:{ss}
         </div>
