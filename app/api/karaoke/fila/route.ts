@@ -3,7 +3,8 @@ import { query, transaction } from '@/app/lib/db';
 import { edicaoAtual } from '@/app/lib/edicao';
 import { dentroDoLimite } from '@/app/lib/limite';
 import { lerFaixa, parseLrc, type LinhaLetra } from '../_lrclib';
-import { buscarTermo, escolherPorDuracao, melhorKaraoke, type VideoKaraoke } from '../_youtube';
+import { buscarTermo, juntarVideos, melhorKaraoke, ordenarPorDuracao, type VideoKaraoke } from '../_youtube';
+import { candidatosValidos, listarBloqueados, MAX_CANDIDATOS, trocarVideo } from '../_trocar';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,10 +48,11 @@ function comMigracao(h: (req: Request) => Promise<Response>) {
       return await h(req);
     } catch (err) {
       const codigo = codigoPg(err);
-      if (codigo === '42703') throw new HttpError(503, 'Rode a migração 038');
-      if (codigo === '42P01') {
-        const msg = err instanceof Error ? err.message : '';
-        throw new HttpError(503, /karaoke_ajustes/.test(msg) ? 'Rode a migração 038' : 'Rode a migração 036');
+      const msg = err instanceof Error ? err.message : '';
+      if (codigo === '42703' || codigo === '42P01') {
+        if (/candidatos|videos_falhos|karaoke_videos_bloqueados/.test(msg)) throw new HttpError(503, 'Rode a migração 039');
+        if (codigo === '42703' || /karaoke_ajustes/.test(msg)) throw new HttpError(503, 'Rode a migração 038');
+        throw new HttpError(503, 'Rode a migração 036');
       }
       throw err;
     }
@@ -136,6 +138,8 @@ interface Escolha {
   lrclibId: number | null;
   letra: LinhaLetra[] | null;
   modo: 'letra' | 'video';
+  /** Vídeos para trocar se o escolhido não tocar embutido (o primeiro é o escolhido). */
+  candidatos: VideoKaraoke[];
 }
 
 const MIN_LINHAS_COM_TEXTO = 3;
@@ -144,7 +148,7 @@ const MIN_LINHAS_COM_TEXTO = 3;
  * Pelo id do LRCLIB: lê a letra e procura o vídeo instrumental no YouTube com a duração da música (até 4 s de diferença).
  * Sem vídeo compatível, ou sem letra sincronizada, usa o melhor vídeo de karaokê e o modo 'video' (letra do próprio vídeo).
  */
-async function escolherPorMusica(lrclibId: number): Promise<Escolha> {
+async function escolherPorMusica(lrclibId: number, bloqueados: Set<string>): Promise<Escolha> {
   let faixa;
   try {
     faixa = await lerFaixa(lrclibId);
@@ -163,14 +167,14 @@ async function escolherPorMusica(lrclibId: number): Promise<Escolha> {
     console.error('[karaoke] youtube:', buscas.map((b) => (b.status === 'rejected' ? b.reason : null)).find(Boolean));
     throw new HttpError(502, 'Não consegui buscar no YouTube agora. Tente de novo em instantes.');
   }
-  const vistos = new Set<string>();
-  const videos: VideoKaraoke[] = [];
-  for (const v of resultados.flat()) if (!vistos.has(v.video_id)) { vistos.add(v.video_id); videos.push(v); }
+  // Vídeos que o YouTube já recusou embutir não entram na escolha.
+  const videos = juntarVideos(resultados).filter((v) => !bloqueados.has(v.video_id));
 
-  const compativel = temLetra && faixa.duracao_s ? escolherPorDuracao(videos, faixa.duracao_s) : null;
-  const video = compativel ?? melhorKaraoke(videos);
+  const compativeis = temLetra && faixa.duracao_s ? ordenarPorDuracao(videos, faixa.duracao_s) : [];
+  const video = compativeis[0] ?? melhorKaraoke(videos);
   if (!video) throw new HttpError(404, 'Não achei um vídeo de karaokê para essa música. Tente a busca de vídeo.');
-  const letraNaTela = Boolean(compativel);
+  const letraNaTela = compativeis.length > 0;
+  const candidatos = letraNaTela ? compativeis : [video, ...videos.filter((v) => v.video_id !== video.video_id)];
   return {
     videoId: video.video_id,
     titulo: `${faixa.faixa} - ${faixa.artista}`.slice(0, 200),
@@ -181,13 +185,14 @@ async function escolherPorMusica(lrclibId: number): Promise<Escolha> {
     lrclibId: faixa.id,
     letra: letraNaTela ? linhas : null,
     modo: letraNaTela ? 'letra' : 'video',
+    candidatos: candidatos.slice(0, MAX_CANDIDATOS),
   };
 }
 
 export const POST = route(comMigracao(async (req) => {
   const me = await requireUser();
   const ano = edicaoAtual();
-  const body = await readJson<{ lrclib_id?: unknown; video_id?: unknown; titulo?: unknown; canal?: unknown; duracao_s?: unknown; dueto_user_id?: unknown }>(req);
+  const body = await readJson<{ lrclib_id?: unknown; candidatos?: unknown; video_id?: unknown; titulo?: unknown; canal?: unknown; duracao_s?: unknown; dueto_user_id?: unknown }>(req);
   const dueto = body.dueto_user_id == null || body.dueto_user_id === '' ? null : toInt(body.dueto_user_id, 'dueto_user_id');
   if (dueto === me.id) throw new HttpError(400, 'Escolha outra pessoa para o dueto.');
 
@@ -198,16 +203,25 @@ export const POST = route(comMigracao(async (req) => {
     // Confere o limite de músicas antes de gastar buscas na rede (a conferência valendo é a da transação, abaixo).
     const { rows: ja } = await query(`SELECT 1 FROM karaoke_fila WHERE ano = $1 AND user_id = $2 AND status IN ('fila', 'cantando')`, [ano, me.id]);
     if (ja.length >= MAX_PENDENTES) throw new HttpError(400, `Você já tem ${MAX_PENDENTES} músicas esperando. Espere uma delas para pedir outra.`);
-    escolha = await escolherPorMusica(lrclibId);
+    escolha = await escolherPorMusica(lrclibId, await listarBloqueados());
   } else {
     const videoId = typeof body.video_id === 'string' ? body.video_id.trim() : '';
     if (!VIDEO_ID.test(videoId)) throw new HttpError(400, 'Vídeo inválido.');
-    escolha = {
-      videoId,
+    const escolhido: VideoKaraoke = {
+      video_id: videoId,
       titulo: cleanText(body.titulo, 'o título', 200),
       canal: cleanText(body.canal, 'o canal', 120, false),
-      duracao: body.duracao_s == null || body.duracao_s === '' ? null : numeroEntre(body.duracao_s, 1, 3 * 3600, 'duracao_s'),
-      faixa: null, artista: null, lrclibId: null, letra: null, modo: 'video',
+      duracao_s: body.duracao_s == null || body.duracao_s === '' ? null : numeroEntre(body.duracao_s, 1, 3 * 3600, 'duracao_s'),
+      miniatura: '',
+    };
+    // O vídeo pedido primeiro, depois o resto dos resultados da busca (na ordem), sem os bloqueados.
+    const bloqueados = await listarBloqueados();
+    const lista = juntarVideos([[escolhido], candidatosValidos(body.candidatos)]).filter((v) => !bloqueados.has(v.video_id));
+    if (!lista.length) throw new HttpError(400, 'Esse vídeo não pode ser tocado na TV. Escolha outro.');
+    const primeiro = lista[0];
+    escolha = {
+      videoId: primeiro.video_id, titulo: primeiro.titulo, canal: primeiro.canal, duracao: primeiro.duracao_s,
+      faixa: null, artista: null, lrclibId: null, letra: null, modo: 'video', candidatos: lista.slice(0, MAX_CANDIDATOS),
     };
   }
   const miniatura = `https://i.ytimg.com/vi/${escolha.videoId}/mqdefault.jpg`;
@@ -228,9 +242,9 @@ export const POST = route(comMigracao(async (req) => {
     const { rows: aj } = await q<{ offset_ms: number }>('SELECT offset_ms FROM karaoke_ajustes WHERE video_id = $1', [escolha.videoId]);
     const offset = escolha.modo === 'letra' ? (aj[0]?.offset_ms ?? 0) : 0;
     await q(
-      `INSERT INTO karaoke_fila (ano, user_id, dueto_user_id, video_id, titulo, canal, duracao_s, miniatura, status, posicao, faixa, artista, lrclib_id, letra, offset_ms, modo)
-       SELECT $1, $2, $3, $4, $5, $6, $7, $8, 'fila', COALESCE(MAX(posicao), 0) + 1, $9, $10, $11, $12::jsonb, $13, $14 FROM karaoke_fila WHERE ano = $1`,
-      [ano, me.id, dueto, escolha.videoId, escolha.titulo, escolha.canal, escolha.duracao, miniatura, escolha.faixa, escolha.artista, escolha.lrclibId, escolha.letra ? JSON.stringify(escolha.letra) : null, offset, escolha.modo],
+      `INSERT INTO karaoke_fila (ano, user_id, dueto_user_id, video_id, titulo, canal, duracao_s, miniatura, status, posicao, faixa, artista, lrclib_id, letra, offset_ms, modo, candidatos)
+       SELECT $1, $2, $3, $4, $5, $6, $7, $8, 'fila', COALESCE(MAX(posicao), 0) + 1, $9, $10, $11, $12::jsonb, $13, $14, $15::jsonb FROM karaoke_fila WHERE ano = $1`,
+      [ano, me.id, dueto, escolha.videoId, escolha.titulo, escolha.canal, escolha.duracao, miniatura, escolha.faixa, escolha.artista, escolha.lrclibId, escolha.letra ? JSON.stringify(escolha.letra) : null, offset, escolha.modo, JSON.stringify(escolha.candidatos)],
     );
   });
   return ok(await estado(query, ano, me.id), 201);
@@ -239,12 +253,18 @@ export const POST = route(comMigracao(async (req) => {
 export const PATCH = route(comMigracao(async (req) => {
   const me = await requireAdmin();
   const ano = edicaoAtual();
-  const body = await readJson<{ id?: unknown; acao?: unknown; nota?: unknown; estrelas?: unknown; detalhes?: unknown; offset_ms?: unknown }>(req);
+  const body = await readJson<{ id?: unknown; acao?: unknown; nota?: unknown; estrelas?: unknown; detalhes?: unknown; offset_ms?: unknown; video_id_falho?: unknown; codigo?: unknown }>(req);
   const acao = typeof body.acao === 'string' ? body.acao : '';
-  const ACOES = ['subir', 'descer', 'pular', 'remover', 'comecar', 'terminar', 'offset'];
+  const ACOES = ['subir', 'descer', 'pular', 'remover', 'comecar', 'terminar', 'offset', 'trocar_video'];
   if (!ACOES.includes(acao)) throw new HttpError(400, 'Ação inválida.');
   const id = body.id == null ? null : toInt(body.id);
   if (id === null && acao !== 'comecar' && acao !== 'terminar') throw new HttpError(400, 'Campo id inválido.');
+
+  if (acao === 'trocar_video') {
+    const falho = typeof body.video_id_falho === 'string' ? body.video_id_falho.trim() : '';
+    await trocarVideo(ano, id as number, falho, Number(body.codigo));
+    return ok(await estado(query, ano, me.id, true));
+  }
 
   const pontuar: { v: { userIds: number[]; nota: number } | null } = { v: null };
 

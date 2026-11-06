@@ -21,6 +21,10 @@ const LS_VOLUME = 'karaoke.voz.volume';
 const PASSO_OFFSET_MS = 250;
 const OFFSET_MAX_MS = 30000;
 const ATRASO_GRAVAR_OFFSET_MS = 400;
+/** Erros do IFrame em que o vídeo não toca embutido: tenta outra versão em vez de pular a música. */
+const ERROS_TROCAVEIS = [100, 101, 150, 153];
+const MAX_TROCAS = 4;
+const CONTAGEM_TROCA_S = 3;
 
 const formatarOffset = (ms: number) => `${ms > 0 ? '+' : ''}${(ms / 1000).toFixed(2).replace('.', ',')} s`;
 
@@ -60,7 +64,7 @@ function gravarLS(chave: string, valor: string | null) {
   try { if (valor === null) window.localStorage.removeItem(chave); else window.localStorage.setItem(chave, valor); } catch { /* sem armazenamento */ }
 }
 
-type Fase = 'ocioso' | 'contagem' | 'cantando' | 'nota' | 'pulando';
+type Fase = 'ocioso' | 'contagem' | 'cantando' | 'nota' | 'pulando' | 'trocando';
 
 const TENTATIVAS_PATCH = 3;
 const INTERVALO_PATCH_MS = 2000;
@@ -146,12 +150,13 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const timerNota = useRef<number | undefined>(undefined);
   const timerEspera = useRef<number | undefined>(undefined);
   const timerAviso = useRef<number | undefined>(undefined);
-  const tratadores = useRef<{ finalizar: () => void; erroVideo: () => void }>({ finalizar: () => undefined, erroVideo: () => undefined });
+  const tratadores = useRef<{ finalizar: () => void; erroVideo: (codigo?: number) => void }>({ finalizar: () => undefined, erroVideo: () => undefined });
   const nivelRef = useRef<HTMLDivElement>(null);
   /** Ajuste da letra (ms) da música em andamento; vale na hora e é gravado depois de uma pequena espera. */
   const offsetRef = useRef(0);
   const timerOffset = useRef<number | undefined>(undefined);
   const relogioRef = useRef({ v: 0, w: 0, saida: 0 });
+  const trocasRef = useRef<Map<number, number>>(new Map());
 
   useEffect(() => { autoRef.current = auto; micRef.current = pitch.status === 'ativo'; });
 
@@ -203,15 +208,15 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     }, 300);
   }, [mudarFase]);
 
-  const entrarContagem = useCallback((item: ItemFila) => {
+  const entrarContagem = useCallback((item: ItemFila, segundos = CONTAGEM_S) => {
     limparTimers();
     definirEmCurso(item);
     gravandoRef.current = false;
     offsetRef.current = item.offset_ms || 0; setOffsetMs(offsetRef.current);
     relogioRef.current = { v: 0, w: 0, saida: 0 };
-    setResultado(null); setContagem(CONTAGEM_S);
+    setResultado(null); setContagem(segundos);
     mudarFase('contagem');
-    let n = CONTAGEM_S;
+    let n = segundos;
     timerContagem.current = window.setInterval(() => {
       n -= 1;
       if (n <= 0) { window.clearInterval(timerContagem.current); tocar(item); } else setContagem(n);
@@ -295,12 +300,31 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     void acaoComRetentativa({ acao: 'terminar', id: item.id, ...(r ? { nota: r.nota, estrelas: r.estrelas, detalhes: r.detalhes } : {}) });
   }, [acaoComRetentativa, mudarFase, pararGravacao, sairDaNota]);
 
-  const erroVideo = useCallback(() => {
+  const erroVideo = useCallback((codigo?: number) => {
     const item = emCursoRef.current;
-    if (!item) return;
+    if (!item || faseRef.current === 'trocando') return;
+    const trocas = trocasRef.current.get(item.id) ?? 0;
+    if (codigo !== undefined && ERROS_TROCAVEIS.includes(codigo) && trocas < MAX_TROCAS) {
+      // O dono do vídeo não deixa tocar embutido: pede outra versão ao servidor e recarrega no mesmo player.
+      console.error('karaoke: erro do YouTube', codigo, item.video_id, '- trocando de vídeo');
+      trocasRef.current.set(item.id, trocas + 1);
+      limparTimers();
+      try { playerRef.current?.stopVideo(); } catch { /* player ainda não pronto */ }
+      pararGravacao(); gravandoRef.current = false;
+      setTocando(false);
+      mudarFase('trocando');
+      void acao({ acao: 'trocar_video', id: item.id, video_id_falho: item.video_id, codigo }).then((novo) => {
+        if (faseRef.current !== 'trocando') return;
+        const novoItem = novo?.atual;
+        if (novoItem && novoItem.id === item.id && novoItem.video_id !== item.video_id) entrarContagem(novoItem, CONTAGEM_TROCA_S);
+        else { mudarFase('cantando'); tratadores.current.erroVideo(-1); } // sem outra versão: pula como nos outros erros
+      });
+      return;
+    }
+    console.error('karaoke: erro do YouTube', codigo, item.video_id);
     // Id falho nunca reabre contagem; a fase 'pulando' segura tudo até o PATCH de pular terminar.
     ignoradosRef.current.add(item.id);
-    avisar('Esse vídeo não pode ser tocado aqui. Passando para o próximo.');
+    avisar(`Esse vídeo não pode ser tocado aqui (código ${codigo ?? '?'}). Passando para o próximo.`);
     abortar();
     mudarFase('pulando');
     window.setTimeout(() => {
@@ -309,7 +333,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
         if (autoRef.current && (estadoRef.current?.fila.filter((f) => f.id !== item.id).length ?? 0) > 0) void iniciar();
       });
     }, 2500);
-  }, [abortar, acaoComRetentativa, avisar, iniciar, mudarFase]);
+  }, [abortar, acao, acaoComRetentativa, avisar, entrarContagem, iniciar, limparTimers, mudarFase, pararGravacao]);
 
   useEffect(() => { tratadores.current = { finalizar, erroVideo }; }, [finalizar, erroVideo]);
 
@@ -357,7 +381,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
             } else if (e.data === PAUSED || e.data === BUFFERING) { setTocando(false); pausarGravacao(true); }
             else if (e.data === ENDED) tratadores.current.finalizar();
           },
-          onError: () => tratadores.current.erroVideo(),
+          onError: (e) => tratadores.current.erroVideo(e.data),
         },
       });
     }).catch(() => setAviso('Não consegui carregar o player do YouTube. Confira a internet.'));
@@ -480,6 +504,12 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
       <p className={styles.titulo}>{quemCanta(item)}</p>
       <p className={styles.subtitulo}>{item.titulo}</p>
       <p className={styles.numero} key={contagem} aria-live="polite">{contagem}</p>
+    </div> : null}
+
+    {fase === 'trocando' && item ? <div className={styles.cartaz}>
+      <p className={styles.kicker}>Agora</p>
+      <p className={styles.titulo}>{quemCanta(item)}</p>
+      <p className={styles.subtitulo}>Trocando para outra versão do vídeo...</p>
     </div> : null}
 
     {fase === 'nota' && resultado ? <NotaCena item={resultado.item} r={resultado.r} /> : null}

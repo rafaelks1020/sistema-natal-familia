@@ -181,19 +181,31 @@ const canalKaraoke = (v: Pick<VideoKaraoke, 'titulo' | 'canal'>) => PALAVRAS_KAR
 export const TOLERANCIA_DURACAO_S = 4;
 
 /**
- * Vídeo cuja duração é a mais próxima da duração da música (diferença de até 4 s).
- * Entre os compatíveis, os que dizem instrumental/playback/karaokê no título vêm antes (evita pegar o clipe com a voz do artista);
- * depois vale a menor diferença de duração e, no empate, o canal que parece de karaokê. Sem compatível: null.
+ * Vídeos cuja duração está a até 4 s da duração da música, do melhor para o pior.
+ * Os que dizem instrumental/playback/karaokê no título vêm antes (evita pegar o clipe com a voz do artista);
+ * depois vale a menor diferença de duração e, no empate, o canal que parece de karaokê.
  */
-export function escolherPorDuracao(videos: readonly VideoKaraoke[], duracaoS: number): VideoKaraoke | null {
+export function ordenarPorDuracao(videos: readonly VideoKaraoke[], duracaoS: number): VideoKaraoke[] {
   const compat = videos.filter((v) => v.duracao_s !== null && Math.abs(v.duracao_s - duracaoS) <= TOLERANCIA_DURACAO_S);
-  if (!compat.length) return null;
   const nota = (v: VideoKaraoke) => [pareceKaraoke(v) ? 0 : 1, Math.abs((v.duracao_s ?? 0) - duracaoS), canalKaraoke(v) ? 0 : 1];
-  return [...compat].sort((a, b) => {
+  return compat.sort((a, b) => {
     const x = nota(a), y = nota(b);
     for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i];
     return 0;
-  })[0];
+  });
+}
+
+/** O melhor de ordenarPorDuracao, ou null se nenhum tem duração compatível. */
+export function escolherPorDuracao(videos: readonly VideoKaraoke[], duracaoS: number): VideoKaraoke | null {
+  return ordenarPorDuracao(videos, duracaoS)[0] ?? null;
+}
+
+/** Junta listas de resultados sem repetir vídeo, mantendo a ordem. */
+export function juntarVideos(listas: readonly (readonly VideoKaraoke[])[]): VideoKaraoke[] {
+  const vistos = new Set<string>();
+  const saida: VideoKaraoke[] = [];
+  for (const v of listas.flat()) if (!vistos.has(v.video_id)) { vistos.add(v.video_id); saida.push(v); }
+  return saida;
 }
 
 /** Melhor vídeo de karaokê quando nenhum tem a duração da música: o primeiro que diz karaokê/instrumental, senão o primeiro. */

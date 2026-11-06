@@ -79,7 +79,7 @@ export default function KaraokeClient() {
   }
 
   const cantar = (v: VideoKaraoke) => executar(
-    () => api<EstadoKaraoke>('/api/karaoke/fila', { method: 'POST', json: { video_id: v.video_id, titulo: v.titulo, canal: v.canal, duracao_s: v.duracao_s, dueto_user_id: dueto ? Number(dueto) : null } }),
+    () => api<EstadoKaraoke>('/api/karaoke/fila', { method: 'POST', json: { video_id: v.video_id, titulo: v.titulo, canal: v.canal, duracao_s: v.duracao_s, candidatos: resultados.filter((r) => r.video_id !== v.video_id).slice(0, 8), dueto_user_id: dueto ? Number(dueto) : null } }),
     'Você entrou na fila!',
   );
   const cantarMusica = (m: MusicaLrclib) => executar(
