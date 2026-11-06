@@ -1,0 +1,14 @@
+1. SCREEN RECORDING (iOS Simulator, latest iOS; we do not own a test iPhone): https://storage.speedupti.com.br/revisao-apple/natal-familia.mp4
+It starts at app launch and shows: registration screen (invite or family code, terms acceptance), login with the demo account, the main features, reporting a post and blocking its author (and unblocking), and the in-app account deletion screen (Profile > Delete account).
+
+2. PURPOSE AND AUDIENCE: Natal em Familia is a private family social app to organize the family Christmas. Audience: members of one extended family in Brazil (all ages). It solves scattered WhatsApp messages: one place for the photo wall and album, Secret Santa draw with wish lists, RSVP and who brings each dish, rides, a shared fund for the dinner, an Advent calendar, recipes, games for the night and family memories.
+
+3. HOW TO ACCESS: sign in with the demo account (username revisao.lojas, password in the Sign-In Information). No setup needed. Tabs: Home (with "Tudo do Natal" hub for all features), Wall, Secret Santa, Fund, Album. New members join only through an invite link sent by the family organizer or the family code; there is no public sign-up or search of strangers. Report and block are in the menu of every post, comment and user content; reports reach the organizer, who removes content within 24 hours. Account deletion: Profile > Delete account.
+
+4. EXTERNAL SERVICES: our own backend (Next.js on Vercel, PostgreSQL); Vercel Blob for photos and audio; Apple Push Notification service and Firebase Cloud Messaging for notifications; C6 Bank API to generate Pix payment slips for the family dinner fund (a real-world shared expense between relatives, not digital content, so In-App Purchase does not apply); Spotify Web API (the organizer's account) for the family playlist. No AI services, no ads, no tracking.
+
+5. REGIONS: the app is in Brazilian Portuguese, distributed only in Brazil, and works the same everywhere.
+
+6. REGULATED CONTENT: none. Payments are processed by C6 Bank (licensed Brazilian bank) through its official API; the app only shows the Pix code and the bank PDF.
+
+If Apple prefers, we are happy to use Unlisted App Distribution, since the app is meant for one family.
