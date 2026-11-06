@@ -20,7 +20,7 @@ export async function GET(req: Request) {
       resultado[nome] = mod.default ? await mod.default() : 'sem tarefa';
     } catch (e) {
       console.error(`[cron frequente] ${nome}`, (e as Error).message);
-      resultado[nome] = 'falhou';
+      resultado[nome] = `falhou: ${(e as Error).message.slice(0, 200)}`;
     }
   }
   return NextResponse.json({ ok: true, ...resultado });

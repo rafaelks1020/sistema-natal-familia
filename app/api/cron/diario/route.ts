@@ -22,7 +22,7 @@ export async function GET(req: Request) {
       resultado[nome] = mod.default ? await mod.default() : 'sem tarefa';
     } catch (e) {
       console.error(`[cron diario] ${nome}`, (e as Error).message);
-      resultado[nome] = 'falhou';
+      resultado[nome] = `falhou: ${(e as Error).message.slice(0, 200)}`;
     }
   }
   // Pix por último: se o C6 demorar, os avisos do dia já saíram.
