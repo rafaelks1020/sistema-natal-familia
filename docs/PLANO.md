@@ -173,8 +173,9 @@ Cada fase sai no site na hora e no app numa versão nova das lojas (Android vers
 - [x] Cron diário (9h) e cron de 5 min (VPS, avisos agendados e ordem da playlist) testados no ar
 - [x] Vídeo-convite v7 (edição no ritmo da música, Rockin' Around the Christmas Tree), enviado ao Rafael
 - [x] App 1.2.0 pronto (Android versionCode 3 e iPhone com widgets e App Group), a enviar depois da aprovação da 1.1
-- [ ] Apple 1.1: rejeição 2.1 (informação): falta o vídeo de tela (Denyse pelo TestFlight ou simulador) e reenviar com as notas
+- [x] Apple 1.1: rejeição 2.1 (informação) respondida com vídeo do simulador (storage.speedupti.com.br/revisao-apple/natal-familia.mp4) e notas; reenviada 06/11, aguardando revisão
 - [ ] Play 1.1: em análise (primeira publicação)
 - [ ] Depois da aprovação: 1.2 nas duas lojas, assetlinks.json com a chave do Google
 - [ ] (R) Reconectar o Spotify uma vez para o "tocando agora" do telão
-- [ ] Próxima rodada: telão super top com integração tipo Alexa
+- [x] Telão super top no ar (/telao e /telao/controle): cenas, tocando agora, jogos ao vivo, QR, voz "Natal"
+- [ ] Telão: testar a voz numa TV/Chrome de verdade e o "tocando agora" com música tocando
