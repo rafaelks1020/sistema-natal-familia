@@ -14,6 +14,7 @@ workflows:
         script: |
           keychain initialize
           app-store-connect fetch-signing-files "br.com.natalemfamilia.app" --type IOS_APP_STORE --create
+          app-store-connect fetch-signing-files "br.com.natalemfamilia.app.widget" --type IOS_APP_STORE --create
           keychain add-certificates
       - name: Dependências
         script: |
