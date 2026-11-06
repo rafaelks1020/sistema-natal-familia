@@ -32,6 +32,7 @@ interface LinhaFila {
   letra: LinhaLetra[] | null;
   offset_ms: number;
   modo: 'estudio' | 'letra' | 'video';
+  parcial: number | null;
   catalogo_id: number | string | null;
   catalogo_status: StatusCatalogo | null;
   capa_url: string | null;
@@ -57,6 +58,7 @@ function comMigracao(h: (req: Request) => Promise<Response>) {
       const codigo = codigoPg(err);
       const msg = err instanceof Error ? err.message : '';
       if (codigo === '42703' || codigo === '42P01') {
+        if (/parcial/.test(msg)) throw new HttpError(503, 'Rode a migração 041');
         if (/catalogo/.test(msg)) throw new HttpError(503, 'Rode a migração 040');
         if (/candidatos|videos_falhos|karaoke_videos_bloqueados/.test(msg)) throw new HttpError(503, 'Rode a migração 039');
         if (codigo === '42703' || /karaoke_ajustes/.test(msg)) throw new HttpError(503, 'Rode a migração 038');
@@ -83,7 +85,7 @@ async function estado(q: Q, ano: number, meuId: number, comLetra = false) {
       `SELECT f.id, f.user_id, u.name AS nome, f.dueto_user_id, d.name AS dueto_nome, f.video_id, f.titulo, f.canal,
               f.duracao_s, f.miniatura, f.status, f.posicao, n.nota, n.estrelas,
               f.faixa, f.artista, f.lrclib_id, f.offset_ms, f.modo,
-              f.catalogo_id, c.status AS catalogo_status, c.capa_url,
+              f.parcial, f.catalogo_id, c.status AS catalogo_status, c.capa_url,
               CASE WHEN $2::boolean AND f.status = 'cantando' THEN f.letra END AS letra,
               CASE WHEN $2::boolean AND f.status = 'cantando' AND f.modo = 'estudio' AND c.status = 'pronta' THEN c.audio_url END AS est_audio,
               CASE WHEN $2::boolean AND f.status = 'cantando' AND f.modo = 'estudio' AND c.status = 'pronta' THEN c.palavras END AS est_palavras,
@@ -303,12 +305,19 @@ export const POST = route(comMigracao(async (req) => {
 export const PATCH = route(comMigracao(async (req) => {
   const me = await requireAdmin();
   const ano = edicaoAtual();
-  const body = await readJson<{ id?: unknown; acao?: unknown; nota?: unknown; estrelas?: unknown; detalhes?: unknown; offset_ms?: unknown; video_id_falho?: unknown; codigo?: unknown }>(req);
+  const body = await readJson<{ id?: unknown; acao?: unknown; nota?: unknown; estrelas?: unknown; detalhes?: unknown; offset_ms?: unknown; video_id_falho?: unknown; codigo?: unknown; pontos?: unknown }>(req);
   const acao = typeof body.acao === 'string' ? body.acao : '';
-  const ACOES = ['subir', 'descer', 'pular', 'remover', 'comecar', 'terminar', 'offset', 'trocar_video'];
+  const ACOES = ['subir', 'descer', 'pular', 'remover', 'comecar', 'terminar', 'offset', 'trocar_video', 'parcial'];
   if (!ACOES.includes(acao)) throw new HttpError(400, 'Ação inválida.');
   const id = body.id == null ? null : toInt(body.id);
   if (id === null && acao !== 'comecar' && acao !== 'terminar') throw new HttpError(400, 'Campo id inválido.');
+
+  if (acao === 'parcial') {
+    // Placar parcial do telão: resposta leve (não devolve o estado inteiro com a letra).
+    const pontos = numeroEntre(body.pontos, 0, 10000, 'pontos');
+    await query(`UPDATE karaoke_fila SET parcial = $1 WHERE id = $2 AND ano = $3 AND status = 'cantando'`, [pontos, id, ano]);
+    return ok({ ok: true });
+  }
 
   if (acao === 'trocar_video') {
     const falho = typeof body.video_id_falho === 'string' ? body.video_id_falho.trim() : '';
@@ -369,7 +378,7 @@ export const PATCH = route(comMigracao(async (req) => {
       if (rows[0].status === 'cantando') return;
       if (rows[0].status !== 'fila') throw new HttpError(400, 'Essa música já passou.');
       await q(`UPDATE karaoke_fila SET status = 'pulada', terminado_em = NOW() WHERE ano = $1 AND status = 'cantando'`, [ano]);
-      await q(`UPDATE karaoke_fila SET status = 'cantando', iniciado_em = NOW() WHERE id = $1`, [alvo]);
+      await q(`UPDATE karaoke_fila SET status = 'cantando', iniciado_em = NOW(), parcial = NULL WHERE id = $1`, [alvo]);
       // Versão estúdio ficou pronta enquanto esperava na fila: vira modo estúdio na hora de começar (o ajuste de tempo do vídeo não vale).
       await q(
         `UPDATE karaoke_fila SET modo = 'estudio', offset_ms = 0

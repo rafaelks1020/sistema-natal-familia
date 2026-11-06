@@ -152,6 +152,7 @@ export default function KaraokeClient() {
       <p className="kicker">Cantando agora</p>
       <p className="display break-words text-2xl">{nomeFila(estado.atual)}</p>
       <p className="break-words text-sm text-marfim-2">{estado.atual.titulo}</p>
+      {estado.atual.modo === 'estudio' && estado.atual.parcial !== null ? <p className="text-sm text-champagne" aria-live="polite">Agora: {nomeFila(estado.atual)}, {estado.atual.parcial.toLocaleString('pt-BR')} pontos</p> : null}
     </section> : null}
 
     {minhas.length ? <section className="surface space-y-3 p-5" aria-label="Minha posição na fila">

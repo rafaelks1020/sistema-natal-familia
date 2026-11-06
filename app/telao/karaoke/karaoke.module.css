@@ -134,6 +134,47 @@
   .estPalco { left: 2vmin; right: 2vmin; bottom: calc(var(--faixa) + 24vmin); }
   .estLinha { font-size: 5.4vmin; }
 }
+/* placar ao vivo, sequência, avaliação por frase */
+.estPlacar { position: fixed; z-index: 6; top: 4.2vmin; right: 2.4vmin; display: flex; align-items: center; gap: 2.4vmin; pointer-events: none; }
+.estPontosCaixa { text-align: right; }
+.estPontos { margin: 0; font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 10vmin; line-height: 1; font-variant-numeric: tabular-nums; color: #f3ebdc; text-shadow: 0 0 3vmin rgba(230, 201, 142, 0.45), 0 0.4vmin 1.2vmin rgba(0, 0, 0, 0.55); }
+.estNotaMini { margin: 0.6vmin 0 0; font-size: 2.2vmin; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #bfa577; }
+.estNotaMini span { color: #f3ebdc; }
+.estCombo { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 11vmin; opacity: 0.5; color: #cfc6b6; transition: opacity 0.6s ease; animation: comboEntra 0.6s ease both; }
+.estComboAceso { opacity: 1; color: #e6c98e; text-shadow: 0 0 3vmin rgba(230, 201, 142, 0.8); animation: comboEntra 0.6s ease both, comboBrilha 1.8s ease-in-out 0.6s infinite alternate; }
+.estCombo[data-nivel="3"] { color: #ffd45e; text-shadow: 0 0 3.6vmin rgba(255, 212, 94, 0.9); }
+.estCombo[data-nivel="4"] { color: #fff0b0; text-shadow: 0 0 4.4vmin rgba(255, 232, 160, 1), 0 0 8vmin rgba(197, 41, 45, 0.6); }
+.estComboX { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 7.4vmin; line-height: 1; }
+.estComboSeq { font-size: 1.7vmin; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+.estQuebra { position: absolute; top: 100%; margin-top: 0.4vmin; font-size: 1.9vmin; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #e07a7d; white-space: nowrap; animation: quebraSome 1.4s ease both; }
+.estAvaliacao { position: absolute; z-index: 6; left: 50%; top: 40%; transform: translate(-50%, -50%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 1vmin; animation: avalia 1.2s ease both; }
+.estAvaliacaoTexto { margin: 0; font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 13vmin; line-height: 1; letter-spacing: 0.04em; text-shadow: 0 0 5vmin currentColor, 0 0.6vmin 1.6vmin rgba(0, 0, 0, 0.65); }
+.estGanho { margin: 0; font-size: 5vmin; font-weight: 800; font-variant-numeric: tabular-nums; color: #ffe9a8; text-shadow: 0 0 2vmin rgba(255, 226, 150, 0.8); animation: ganhoVoa 1.2s cubic-bezier(0.5, 0, 0.9, 0.4) both; }
+@keyframes avalia { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); } 14% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); } 24% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -58%) scale(1); } }
+@keyframes ganhoVoa { 0%, 35% { opacity: 1; transform: translate(0, 0) scale(1); } 100% { opacity: 0; transform: translate(34vw, -30vh) scale(0.45); } }
+@keyframes comboEntra { 0% { transform: scale(1.5); } 100% { transform: scale(1); } }
+@keyframes comboBrilha { from { filter: brightness(1); } to { filter: brightness(1.35); } }
+@keyframes quebraSome { 0% { opacity: 0; transform: translateX(0); } 15% { opacity: 1; transform: translateX(-0.8vmin); } 30% { transform: translateX(0.8vmin); } 45% { transform: translateX(-0.4vmin); } 60% { transform: translateX(0); opacity: 1; } 100% { opacity: 0; transform: translateY(1.4vmin); } }
+
+/* medidor de plateia (lateral esquerda) */
+.plateia { position: absolute; z-index: 3; left: 2.4vmin; top: 12vmin; bottom: calc(var(--faixa) + 2.4vmin + var(--video-h, 0px) + 1.6vmin); width: 7.4vmin; display: flex; flex-direction: column; align-items: center; gap: 1vmin; pointer-events: none; }
+.plateiaTitulo { margin: 0; font-size: 1.5vmin; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: #bfa577; }
+.plateiaTrilho { position: relative; flex: 1; min-height: 0; width: 3.4vmin; border-radius: 999px; overflow: hidden; background: rgba(243, 235, 220, 0.14); border: 0.2vmin solid rgba(243, 235, 220, 0.18); transition: box-shadow 0.6s ease; }
+.plateiaAlta { box-shadow: 0 0 3vmin rgba(230, 201, 142, 0.7); }
+.plateiaCheio { position: absolute; inset: 0; transform-origin: bottom; transform: scaleY(0.5); background: linear-gradient(0deg, #c5292d 0%, #e6c98e 55%, #9ec4a8 100%); }
+.plateiaMsg { margin: 0; min-height: 6vmin; width: 11vmin; font-size: 1.7vmin; font-weight: 700; line-height: 1.2; text-align: center; color: #e6c98e; opacity: 0; transition: opacity 0.5s ease; }
+.plateiaMsgVisivel { opacity: 1; }
+@media (orientation: landscape) {
+  .modoLetra .palco, .modoLetra .letraTopo, .modoEstudio .estPalco { left: 11vmin; }
+  .modoEstudio .estPalco { top: 20vmin; }
+  .modoEstudio .letraTopo { right: 50vmin; }
+}
+@media (orientation: portrait) { .plateia { display: none; } .estPlacar { top: 3vmin; } .estPontos { font-size: 8vmin; } .modoEstudio .estPalco { top: 18vmin; } .modoEstudio .letraTopo { right: 2vmin; top: 12vmin; } }
+
+/* tela final */
+.notaDetalhes { display: flex; flex-direction: column; align-items: center; gap: 0.8vmin; margin: 0; padding: 0; list-style: none; font-size: 2.6vmin; font-weight: 600; color: #cfc6b6; }
+.notaDetalhes b { color: #e6c98e; font-weight: 800; }
+
 @media (prefers-reduced-motion: reduce) { .estLinha, .estProxima { animation-duration: 0.01s; } .estFeedback { animation-duration: 0.6s; } }
 
 @keyframes brilhoLento { from { transform: translate(-3%, -2%) scale(1); } to { transform: translate(4%, 3%) scale(1.12); } }

@@ -45,6 +45,8 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
   const historico = useRef<PontoAltura[]>([]);
   const audio = useRef<{ ctx?: AudioContext; stream?: MediaStream; timer?: number; vozGain?: GainNode; token: number }>({ token: 0 });
   const gravacao = useRef<{ ativa: boolean; pausada: boolean; t0: number; quadros: Quadro[]; limiar: number; posicao?: () => number }>({ ativa: false, pausada: false, t0: 0, quadros: [], limiar: 0 });
+  /** Quem recebe cada quadro gravado (pontuação ao vivo e plateia). limiar: o de voz valendo nesse instante. */
+  const ouvinte = useRef<((q: Quadro, limiar: number) => void) | null>(null);
   const voz = useRef({ ligada: vozNaTv, volume: volumeVoz });
   const idPedido = useRef(deviceId);
 
@@ -119,8 +121,10 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
         const agora = performance.now();
         const g = gravacao.current;
         if (g.ativa && !g.pausada) {
-          g.quadros.push(g.posicao ? { t: agora - g.t0, hz, clareza, rms, m: g.posicao() } : { t: agora - g.t0, hz, clareza, rms });
+          const quadro: Quadro = g.posicao ? { t: agora - g.t0, hz, clareza, rms, m: g.posicao() } : { t: agora - g.t0, hz, clareza, rms };
+          g.quadros.push(quadro);
           if (!g.limiar && agora - g.t0 >= 2000) g.limiar = limiarDeVoz(medirRuido(g.quadros));
+          ouvinte.current?.(quadro, g.limiar || limiarDeVoz(0));
         }
         const limiar = g.limiar || limiarDeVoz(0);
         const q: Quadro = { t: agora, hz, clareza, rms };
@@ -187,5 +191,7 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
     return q;
   }, []);
 
-  return { status, erro, dispositivos, ativoId, vivo, historico, ligar, desligar, retomar, listar, iniciarGravacao, pausarGravacao, pararGravacao };
+  const definirOuvinte = useCallback((fn: ((q: Quadro, limiar: number) => void) | null) => { ouvinte.current = fn; }, []);
+
+  return { definirOuvinte, status, erro, dispositivos, ativoId, vivo, historico, ligar, desligar, retomar, listar, iniciarGravacao, pausarGravacao, pararGravacao };
 }

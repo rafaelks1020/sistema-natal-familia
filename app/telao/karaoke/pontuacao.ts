@@ -20,6 +20,11 @@ export type Detalhes = {
   /** Só no modo estúdio: pontos das notas + bônus das linhas (0 a 10000) e a parte do bônus. */
   total?: number;
   bonus?: number;
+  /** Só no modo estúdio: pontos do bônus de sequência, maior multiplicador, maior sequência de notas e notas perfeitas. */
+  comboPontos?: number;
+  maiorCombo?: number;
+  maiorSequencia?: number;
+  perfeitas?: number;
 };
 
 export type Resultado = { nota: number; estrelas: number; detalhes: Detalhes };
@@ -184,7 +189,8 @@ export function pontuar(quadros: readonly Quadro[], duracaoMs: number, inicioMs?
 export type NotaEstudio = { inicio_ms: number; dur_ms: number; midi: number; golden: boolean; linha: number };
 
 /** linhas: perfeição (0 a 1) de cada linha com notas, na ordem do número da linha. */
-export type ResultadoEstudio = Resultado & { total: number; linhas: number[] };
+export type ResumoEstudio = { maiorCombo: number; maiorSequencia: number; perfeitas: number; notas: number; perfeitasPct: number; pontos: number };
+export type ResultadoEstudio = Resultado & { total: number; linhas: number[]; resumo: ResumoEstudio };
 
 export const LATENCIA_PADRAO_MS = 80;
 export const LATENCIA_MAX_MS = 400;
@@ -238,68 +244,268 @@ export function prepararNotas(notas: readonly NotaEstudio[] | null | undefined):
     .sort((a, b) => a.inicio_ms - b.inicio_ms);
 }
 
+/** Nota acertada (conta para a sequência) a partir desta fração de acerto; perfeita a partir de PERFEITA. */
+export const RAZAO_ACERTO = 0.6;
+export const RAZAO_PERFEITA = 0.9;
+export const RAZAO_ESTRELA = 0.8;
+/** Bônus máximo da sequência: 15% dos 10000 pontos possíveis. */
+export const BONUS_SEQUENCIA_MAX = 1500;
+export const PONTOS_MAX = 10000;
+
+/** Multiplicador da sequência: x1, x2 (5 notas seguidas), x3 (10) e x4 (20). */
+export function multiplicadorDeCombo(sequencia: number): number {
+  return sequencia >= 20 ? 4 : sequencia >= 10 ? 3 : sequencia >= 5 ? 2 : 1;
+}
+
+export type EventoAoVivo =
+  | { tipo: 'nota'; indice: number; razao: number; golden: boolean; combo: number; sequencia: number; quebrou: boolean }
+  | { tipo: 'estrela'; indice: number }
+  | { tipo: 'linha'; linha: number; perfeicao: number; pontos: number };
+
+export type EstadoAoVivo = {
+  /** 0 a 10000 (já limitado). */
+  pontos: number;
+  bruto: number;
+  pontosNotas: number;
+  pontosLinhas: number;
+  pontosSequencia: number;
+  /** Nota 0 a 100 equivalente. */
+  nota: number;
+  combo: number;
+  sequencia: number;
+  maiorSequencia: number;
+  maiorCombo: number;
+  notasFinalizadas: number;
+  notasTotal: number;
+  notasPerfeitas: number;
+  perfeitasPct: number;
+  quadrosValidos: number;
+};
+
+const SEM_EVENTOS: readonly EventoAoVivo[] = Object.freeze([]);
+
 /**
- * Nota estilo Performous. Cada quadro de voz válido (clareza >= 0,8 e volume acima do ruído) dentro de uma nota rende
- * multiplicador * fatorDeAcerto * passo, com a oitava ignorada. Total = 9000 * acumulado / soma(multiplicador * duração)
- * + 1000 / nLinhas * perfeição de cada linha. Nota final = total / 100.
+ * Pontuação estilo Performous, incremental. Uma única fórmula para o placar ao vivo e para a nota final:
+ * 9000 * acumulado / soma(multiplicador * duração)  (oitava ignorada, golden x2, fator 1 até 0,5 semitom e 0 a partir de 1,5)
+ * + 1000 / nLinhas * perfeição de cada linha (somado quando a linha termina)
+ * + bônus de sequência (até 1500): cada nota acertada (>= 60%) dentro de uma sequência x2, x3 ou x4 soma
+ *   1500 * (peso da nota / peso total) * (multiplicador - 1) / 3 * acerto da nota. Errar uma nota volta a x1.
+ * Pontos = soma limitada a 10000; nota = pontos / 100.
+ * adicionarQuadro recebe ms (posição do áudio), midi (null se sem altura), clareza e volume; o limiar de voz vem de definirLimiar.
+ * Quando ms passa do fim de uma nota, ela é fechada (sequência, linha). encerrar() fecha o que faltar.
+ */
+export class PontuacaoAoVivo {
+  private readonly notas: NotaEstudio[];
+  private readonly peso: number[];
+  private readonly maximo: number;
+  private readonly ganho: number[];
+  private readonly fechada: boolean[];
+  private readonly estrelada: boolean[];
+  private readonly linhaRestam = new Map<number, number>();
+  private readonly linhaPeso = new Map<number, number>();
+  private readonly linhaGanho = new Map<number, number>();
+  private readonly linhaPerfeicao = new Map<number, number>();
+  private readonly nLinhas: number;
+  private latenciaMs: number;
+  private offsetMs: number;
+  private limiar: number;
+  private proximo = 0;
+  private somaGanho = 0;
+  private pontosLinhas = 0;
+  private pontosSequencia = 0;
+  private sequencia = 0;
+  private maiorSequencia = 0;
+  private maiorCombo = 1;
+  private perfeitas = 0;
+  private fechadas = 0;
+  private ultimoMs: number | null = null;
+  private pontosNoCorte = 0;
+  private tempoValido = 0;
+  private somaFator = 0;
+  private validos = 0;
+  /** O que o último quadro encontrou: nota sob o tom (ou -1), fator de acerto, se tinha voz válida e o ms. */
+  ultimoQuadro = { indice: -1, fator: 0, valido: false, ms: 0 };
+
+  constructor(notas: readonly NotaEstudio[], opcoes: { latenciaMs?: number; offsetMs?: number; limiar?: number } = {}) {
+    this.notas = prepararNotas(notas);
+    this.latenciaMs = opcoes.latenciaMs ?? LATENCIA_PADRAO_MS;
+    this.offsetMs = opcoes.offsetMs ?? 0;
+    this.limiar = opcoes.limiar ?? limiarDeVoz(0);
+    this.peso = this.notas.map((n) => multiplicadorDaNota(n) * n.dur_ms);
+    this.maximo = this.peso.reduce((a, b) => a + b, 0);
+    this.ganho = this.notas.map(() => 0);
+    this.fechada = this.notas.map(() => false);
+    this.estrelada = this.notas.map(() => false);
+    this.notas.forEach((n, i) => {
+      this.linhaRestam.set(n.linha, (this.linhaRestam.get(n.linha) ?? 0) + 1);
+      this.linhaPeso.set(n.linha, (this.linhaPeso.get(n.linha) ?? 0) + this.peso[i]);
+    });
+    this.nLinhas = this.linhaRestam.size;
+  }
+
+  definirLimiar(limiar: number) { this.limiar = limiar; }
+  definirAjuste(latenciaMs: number, offsetMs: number) { this.latenciaMs = latenciaMs; this.offsetMs = offsetMs; }
+  get notasPreparadas(): readonly NotaEstudio[] { return this.notas; }
+  /** Fração de acerto (0 a 1) da nota i até agora. */
+  razaoDaNota(i: number): number { return this.peso[i] > 0 ? limitar(this.ganho[i] / this.peso[i]) : 0; }
+
+  adicionarQuadro(ms: number, midi: number | null, clareza: number, volume: number, dtMs?: number): readonly EventoAoVivo[] {
+    if (!Number.isFinite(ms)) return SEM_EVENTOS;
+    const eventos: EventoAoVivo[] = [];
+    const dt = dtMs ?? (this.ultimoMs === null ? 33 : limitar(ms - this.ultimoMs, 0, DT_MAX_MS));
+    this.ultimoMs = ms;
+    const tn = ms - this.offsetMs - this.latenciaMs;
+    while (this.proximo < this.notas.length && this.notas[this.proximo].inicio_ms + this.notas[this.proximo].dur_ms <= tn) this.fechar(this.proximo++, eventos);
+    const valido = midi !== null && Number.isFinite(midi) && clareza >= CLAREZA_MINIMA && volume > this.limiar;
+    let indice = notaEm(this.notas, tn);
+    if (indice >= 0 && this.fechada[indice]) indice = -1;
+    let fator = 0;
+    if (valido && indice >= 0) {
+      const n = this.notas[indice];
+      fator = fatorDeAcerto(erroEmSemitons(midi as number, n.midi));
+      const antes = this.ganho[indice];
+      this.ganho[indice] = Math.min(this.peso[indice], antes + multiplicadorDaNota(n) * fator * dt);
+      this.somaGanho += this.ganho[indice] - antes;
+      this.tempoValido += dt;
+      this.somaFator += fator * dt;
+      this.validos++;
+      if (!this.estrelada[indice] && this.ganho[indice] >= RAZAO_ESTRELA * this.peso[indice]) { this.estrelada[indice] = true; eventos.push({ tipo: 'estrela', indice }); }
+    }
+    this.ultimoQuadro = { indice, fator, valido, ms };
+    return eventos.length ? eventos : SEM_EVENTOS;
+  }
+
+  private fechar(i: number, eventos: EventoAoVivo[]) {
+    const n = this.notas[i];
+    const razao = this.razaoDaNota(i);
+    this.fechada[i] = true;
+    this.fechadas++;
+    const comboAntes = multiplicadorDeCombo(this.sequencia);
+    const acertou = razao >= RAZAO_ACERTO;
+    if (acertou) {
+      this.sequencia++;
+      this.maiorSequencia = Math.max(this.maiorSequencia, this.sequencia);
+      const m = multiplicadorDeCombo(this.sequencia);
+      this.maiorCombo = Math.max(this.maiorCombo, m);
+      if (this.maximo > 0) this.pontosSequencia += BONUS_SEQUENCIA_MAX * (this.peso[i] / this.maximo) * ((m - 1) / 3) * razao;
+    } else this.sequencia = 0;
+    if (razao >= RAZAO_PERFEITA) this.perfeitas++;
+    eventos.push({ tipo: 'nota', indice: i, razao, golden: n.golden, combo: multiplicadorDeCombo(this.sequencia), sequencia: this.sequencia, quebrou: !acertou && comboAntes > 1 });
+    this.linhaGanho.set(n.linha, (this.linhaGanho.get(n.linha) ?? 0) + this.ganho[i]);
+    const restam = (this.linhaRestam.get(n.linha) ?? 1) - 1;
+    this.linhaRestam.set(n.linha, restam);
+    if (restam <= 0) {
+      const peso = this.linhaPeso.get(n.linha) ?? 0;
+      const perfeicao = peso > 0 ? limitar((this.linhaGanho.get(n.linha) ?? 0) / peso) : 0;
+      this.linhaPerfeicao.set(n.linha, perfeicao);
+      this.pontosLinhas += (PONTOS_LINHAS / this.nLinhas) * perfeicao;
+      const bruto = this.bruto();
+      eventos.push({ tipo: 'linha', linha: n.linha, perfeicao, pontos: Math.max(0, Math.round(bruto - this.pontosNoCorte)) });
+      this.pontosNoCorte = bruto;
+    }
+  }
+
+  private pontosNotas(): number { return this.maximo > 0 ? PONTOS_NOTAS * limitar(this.somaGanho / this.maximo) : 0; }
+  private bruto(): number { return this.pontosNotas() + this.pontosLinhas + this.pontosSequencia; }
+
+  /** Fecha as notas que faltam (fim da música). Devolve os eventos gerados. */
+  encerrar(): readonly EventoAoVivo[] {
+    const eventos: EventoAoVivo[] = [];
+    while (this.proximo < this.notas.length) this.fechar(this.proximo++, eventos);
+    return eventos;
+  }
+
+  estado(): EstadoAoVivo {
+    const bruto = this.bruto();
+    const pontos = Math.min(PONTOS_MAX, Math.round(bruto));
+    return {
+      pontos, bruto,
+      pontosNotas: this.pontosNotas(), pontosLinhas: this.pontosLinhas, pontosSequencia: this.pontosSequencia,
+      nota: Math.round(limitar(pontos / 100, 0, 100)),
+      combo: multiplicadorDeCombo(this.sequencia), sequencia: this.sequencia,
+      maiorSequencia: this.maiorSequencia, maiorCombo: this.maiorCombo,
+      notasFinalizadas: this.fechadas, notasTotal: this.notas.length, notasPerfeitas: this.perfeitas,
+      perfeitasPct: this.fechadas ? this.perfeitas / this.fechadas : 0,
+      quadrosValidos: this.validos,
+    };
+  }
+
+  /** Fecha tudo e devolve o resultado final (a mesma conta do placar ao vivo). ruido: só para registrar nos detalhes. */
+  resultado(ruido = 0): ResultadoEstudio {
+    this.encerrar();
+    const e = this.estado();
+    const ordem = [...this.linhaPerfeicao.keys()].sort((a, b) => a - b);
+    const linhas = ordem.map((k) => this.linhaPerfeicao.get(k) ?? 0);
+    const duracaoNotas = this.notas.reduce((a, n) => a + n.dur_ms, 0);
+    const arred = (x: number) => Math.round(x * 1000) / 1000;
+    const total = Math.round(Math.min(PONTOS_MAX, e.bruto) * 10) / 10;
+    return {
+      nota: e.nota,
+      estrelas: estrelasEstudio(e.nota),
+      total,
+      linhas: linhas.map(arred),
+      resumo: { maiorCombo: e.maiorCombo, maiorSequencia: e.maiorSequencia, perfeitas: e.notasPerfeitas, notas: e.notasTotal, perfeitasPct: arred(e.perfeitasPct), pontos: e.pontos },
+      detalhes: {
+        cobertura: arred(duracaoNotas > 0 ? limitar(this.tempoValido / duracaoNotas) : 0),
+        afinacao: arred(this.tempoValido > 0 ? this.somaFator / this.tempoValido : 0),
+        estabilidade: 0,
+        energia: 0,
+        trechos: this.ganho.filter((g) => g > 0).length,
+        ruido: arred(ruido),
+        limiar: arred(this.limiar),
+        modo: 'estudio',
+        total,
+        bonus: Math.round(this.pontosLinhas * 10) / 10,
+        comboPontos: Math.round(this.pontosSequencia * 10) / 10,
+        maiorCombo: e.maiorCombo,
+        maiorSequencia: e.maiorSequencia,
+        perfeitas: e.notasPerfeitas,
+      },
+    };
+  }
+}
+
+/**
+ * Nota estilo Performous em lote (a partir dos quadros gravados): usa a mesma PontuacaoAoVivo, então dá o mesmo resultado do placar ao vivo.
  * quadros precisam trazer m (posição do áudio em ms). latenciaMs: atraso entre ouvir e cantar (e do microfone), descontado de m.
  * offsetMs: ajuste de sincronia do telão (positivo atrasa a letra e as notas).
  */
 export function pontuarEstudio(quadros: readonly Quadro[], notas: readonly NotaEstudio[], latenciaMs: number = LATENCIA_PADRAO_MS, offsetMs = 0): ResultadoEstudio {
-  const lista = prepararNotas(notas);
   const todos = [...quadros].sort((a, b) => a.t - b.t);
   const ruido = medirRuido(todos);
-  const limiar = limiarDeVoz(ruido);
-  const peso = lista.map((n) => multiplicadorDaNota(n) * n.dur_ms);
-  const maximo = peso.reduce((a, b) => a + b, 0);
-  const ganho: number[] = lista.map(() => 0);
-  let tempoValido = 0;
-  let somaFator = 0;
-
+  const motor = new PontuacaoAoVivo(notas, { latenciaMs, offsetMs, limiar: limiarDeVoz(ruido) });
   for (let i = 0; i < todos.length; i++) {
     const f = todos[i];
     if (typeof f.m !== 'number' || !Number.isFinite(f.m)) continue;
-    if (!(f.clareza >= CLAREZA_MINIMA && f.rms > limiar && f.hz >= HZ_MIN && f.hz <= HZ_MAX)) continue;
-    const idx = notaEm(lista, f.m - offsetMs - latenciaMs);
-    if (idx < 0) continue;
     const proximo = i + 1 < todos.length ? todos[i + 1].t : f.t + 33;
     const dt = Math.min(DT_MAX_MS, Math.max(0, proximo - f.t));
-    const fator = fatorDeAcerto(erroEmSemitons(hzParaMidi(f.hz), lista[idx].midi));
-    ganho[idx] = Math.min(peso[idx], ganho[idx] + multiplicadorDaNota(lista[idx]) * fator * dt);
-    tempoValido += dt;
-    somaFator += fator * dt;
+    motor.adicionarQuadro(f.m, f.hz >= HZ_MIN && f.hz <= HZ_MAX ? hzParaMidi(f.hz) : null, f.clareza, f.rms, dt);
   }
+  return motor.resultado(ruido);
+}
 
-  const porLinha = new Map<number, { g: number; max: number }>();
-  lista.forEach((n, i) => {
-    const l = porLinha.get(n.linha) ?? { g: 0, max: 0 };
-    l.g += ganho[i]; l.max += peso[i];
-    porLinha.set(n.linha, l);
-  });
-  const ordem = [...porLinha.keys()].sort((a, b) => a - b);
-  const linhas = ordem.map((k) => { const l = porLinha.get(k)!; return l.max > 0 ? limitar(l.g / l.max) : 0; });
-  const pontosNotas = maximo > 0 ? PONTOS_NOTAS * limitar(ganho.reduce((a, b) => a + b, 0) / maximo) : 0;
-  const bonus = linhas.length ? linhas.reduce((a, p) => a + (PONTOS_LINHAS / linhas.length) * p, 0) : 0;
-  const total = Math.round((pontosNotas + bonus) * 10) / 10;
-  const nota = Math.round(limitar(total / 100, 0, 100));
-  const duracaoNotas = lista.reduce((a, n) => a + n.dur_ms, 0);
-  const arred = (x: number) => Math.round(x * 1000) / 1000;
-  return {
-    nota,
-    estrelas: estrelasEstudio(nota),
-    total,
-    linhas: linhas.map(arred),
-    detalhes: {
-      cobertura: arred(duracaoNotas > 0 ? limitar(tempoValido / duracaoNotas) : 0),
-      afinacao: arred(tempoValido > 0 ? somaFator / tempoValido : 0),
-      estabilidade: 0,
-      energia: 0,
-      trechos: ganho.filter((g) => g > 0).length,
-      ruido: arred(ruido),
-      limiar: arred(limiar),
-      modo: 'estudio',
-      total,
-      bonus: Math.round(bonus * 10) / 10,
-    },
-  };
+// ---------- Medidor de plateia (energia da festa) ----------
+
+/** Energia da plateia de 0 a 1: sobe com acertos, cai com silêncio e erros. */
+export class PlateiaEnergia {
+  nivel: number;
+  constructor(inicial = 0.5) { this.nivel = limitar(inicial); }
+  reiniciar(inicial = 0.5) { this.nivel = limitar(inicial); }
+  /** forca de -1 a 1: positiva sobe até 0,24 por segundo, negativa desce até 0,14 por segundo. */
+  atualizar(dtMs: number, forca: number) {
+    const f = limitar(forca, -1, 1);
+    this.nivel = limitar(this.nivel + f * (f > 0 ? 0.24 : 0.14) * (Math.max(0, dtMs) / 1000));
+  }
+}
+
+/** Força para a plateia no modo estúdio, a partir do último quadro da pontuação. */
+export function forcaEstudio(q: { indice: number; fator: number; valido: boolean }): number {
+  if (q.indice >= 0) return q.valido ? (q.fator > 0 ? q.fator : -0.7) : -0.8;
+  return q.valido ? 0 : -0.15;
+}
+
+/** Força para a plateia no modo letra: voz durante uma linha da letra anima, silêncio durante a linha esfria. */
+export function forcaLetra(dentroDaLinha: boolean, vozValida: boolean): number {
+  if (dentroDaLinha) return vozValida ? 0.6 : -0.6;
+  return vozValida ? 0 : -0.15;
 }

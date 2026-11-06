@@ -49,6 +49,8 @@ export type ItemFila = {
   offset_ms: number;
   /** 'estudio': instrumental, letra palavra a palavra e nota pela melodia; 'letra': letra própria na tela; 'video': letra do próprio vídeo. */
   modo: 'estudio' | 'letra' | 'video';
+  /** Placar parcial (0 a 10000) enviado pelo telão enquanto a música em modo estúdio está cantando. */
+  parcial: number | null;
   catalogo_id: number | null;
   catalogo_status: StatusCatalogo | null;
   capa_url: string | null;

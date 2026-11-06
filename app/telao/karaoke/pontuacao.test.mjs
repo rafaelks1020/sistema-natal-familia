@@ -10,7 +10,7 @@ const file = path.join(path.dirname(fileURLToPath(import.meta.url)), 'pontuacao.
 const js = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const mod = { exports: {} };
 new Function('module', 'exports', js)(mod, mod.exports);
-const { hzParaMidi, nomeDaNota, desvioCents, medirRuido, limiarDeVoz, cantando, estrelasDaNota, pontuar, pontuarEstudio, erroEmSemitons, fatorDeAcerto, notaEm, estrelasEstudio } = mod.exports;
+const { hzParaMidi, nomeDaNota, desvioCents, medirRuido, limiarDeVoz, cantando, estrelasDaNota, pontuar, pontuarEstudio, erroEmSemitons, fatorDeAcerto, notaEm, estrelasEstudio, PontuacaoAoVivo, multiplicadorDeCombo, PlateiaEnergia, forcaEstudio, forcaLetra } = mod.exports;
 
 const PASSO = 33;
 const hz = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
@@ -355,4 +355,143 @@ test('estúdio: quadros sem posição (m) não contam', () => {
   const notas = melodia();
   const sem = vozEstudio(notas).map((q) => ({ t: q.t, hz: q.hz, clareza: q.clareza, rms: q.rms }));
   assert.equal(pontuarEstudio(sem, notas, 80).nota, 0);
+});
+
+// ---------- pontuação ao vivo, sequência e plateia ----------
+
+// n notas de 1 s (pausa de 200 ms), 4 por linha, midi variando.
+function melodiaLonga(n) {
+  return Array.from({ length: n }, (_, i) => ({ inicio_ms: 2500 + i * 1200, dur_ms: 1000, midi: 55 + (i % 5) * 2, golden: i % 7 === 3, linha: Math.floor(i / 4) }));
+}
+// Quadros (já com m) cantando as notas escolhidas por acerta(i); ruído nos 2 primeiros segundos.
+function quadrosLongos(notas, { acerta = () => true, latencia = 80 } = {}) {
+  const quadros = [];
+  const fim = notas[notas.length - 1].inicio_ms + notas[notas.length - 1].dur_ms + 3000;
+  for (let m = 0; m < fim; m += PASSO) {
+    const tn = m - latencia;
+    const idx = notas.findIndex((x) => tn >= x.inicio_ms && tn < x.inicio_ms + x.dur_ms);
+    const canta = idx >= 0 && acerta(idx);
+    quadros.push({ t: m, hz: canta ? hz(notas[idx].midi) : 0, clareza: canta ? 0.95 : 0.2, rms: canta ? 0.08 : 0.003, m });
+  }
+  return quadros;
+}
+function alimentar(motor, quadros) {
+  const eventos = [];
+  let anterior = 0;
+  for (const q of quadros) {
+    const valido = q.hz > 0;
+    eventos.push(...motor.adicionarQuadro(q.m, valido ? hzParaMidi(q.hz) : null, q.clareza, q.rms, PASSO));
+    const e = motor.estado();
+    assert.ok(e.pontos >= anterior, 'o placar nunca desce');
+    assert.ok(e.pontos <= 10000);
+    anterior = e.pontos;
+  }
+  return eventos;
+}
+
+test('ao vivo: sequência x1, x2 (5), x3 (10), x4 (20)', () => {
+  assert.deepEqual([0, 4, 5, 9, 10, 19, 20, 99].map(multiplicadorDeCombo), [1, 1, 2, 2, 3, 3, 4, 4]);
+});
+
+test('ao vivo: placar incremental termina igual à pontuação em lote', () => {
+  const notas = melodiaLonga(24);
+  const quadros = quadrosLongos(notas, { acerta: (i) => i % 6 !== 5 });
+  const motor = new PontuacaoAoVivo(notas, { latenciaMs: 80 });
+  alimentar(motor, quadros);
+  const final = motor.resultado();
+  const lote = pontuarEstudio(quadros, notas, 80);
+  assert.equal(final.nota, lote.nota);
+  assert.equal(final.total, lote.total);
+  assert.deepEqual(final.linhas, lote.linhas);
+  assert.deepEqual(final.resumo, lote.resumo);
+  assert.equal(motor.estado().pontos, Math.min(10000, Math.round(final.total)));
+});
+
+test('ao vivo: a conta bate com a fórmula feita à mão', () => {
+  // 4 notas normais perfeitas numa linha só: 9000 + 1000 de bônus da linha, sem sequência (menos de 5).
+  const notas = melodiaLonga(4).map((n) => ({ ...n, golden: false, linha: 0 }));
+  const motor = new PontuacaoAoVivo(notas, { latenciaMs: 80 });
+  alimentar(motor, quadrosLongos(notas));
+  const r = motor.resultado();
+  assert.ok(r.total > 9900 && r.total <= 10000, `total ${r.total}`);
+  assert.equal(r.resumo.maiorCombo, 1);
+  assert.equal(r.detalhes.comboPontos, 0);
+});
+
+test('ao vivo: bônus de sequência é explícito, limitado a 1500 e entra na nota final', () => {
+  const notas = melodiaLonga(40).map((n) => ({ ...n, golden: false }));
+  const motor = new PontuacaoAoVivo(notas, { latenciaMs: 80 });
+  alimentar(motor, quadrosLongos(notas));
+  const e = motor.estado();
+  motor.encerrar();
+  const f = motor.estado();
+  assert.ok(f.pontosSequencia > 600 && f.pontosSequencia <= 1500, `sequência ${f.pontosSequencia}`);
+  assert.equal(f.maiorCombo, 4);
+  assert.equal(f.maiorSequencia, 40);
+  assert.equal(f.pontos, 10000);
+  assert.equal(motor.resultado().nota, 100);
+  assert.ok(e.pontos <= f.pontos);
+  const sem = pontuarEstudio(quadrosLongos(notas), notas.slice(0, 4), 80);
+  assert.equal(sem.detalhes.comboPontos, 0);
+});
+
+test('ao vivo: errar uma nota quebra a sequência e avisa', () => {
+  const notas = melodiaLonga(12).map((n) => ({ ...n, golden: false }));
+  const motor = new PontuacaoAoVivo(notas, { latenciaMs: 80 });
+  const eventos = alimentar(motor, quadrosLongos(notas, { acerta: (i) => i !== 7 }));
+  const doTipo = eventos.filter((e) => e.tipo === 'nota');
+  assert.equal(doTipo.length, 11 + 1 - 0);
+  assert.equal(doTipo[6].combo, 2);
+  assert.equal(doTipo[7].quebrou, true);
+  assert.equal(doTipo[7].combo, 1);
+  assert.equal(doTipo[7].sequencia, 0);
+  assert.equal(motor.estado().maiorSequencia, 7);
+});
+
+test('ao vivo: eventos de linha e estrela', () => {
+  const notas = melodiaLonga(8).map((n) => ({ ...n, golden: false }));
+  const motor = new PontuacaoAoVivo(notas, { latenciaMs: 80 });
+  const eventos = alimentar(motor, quadrosLongos(notas, { acerta: (i) => i < 4 }));
+  eventos.push(...motor.encerrar());
+  const linhas = eventos.filter((e) => e.tipo === 'linha');
+  assert.equal(linhas.length, 2);
+  assert.ok(linhas[0].perfeicao > 0.95 && linhas[0].pontos > 4000);
+  assert.equal(linhas[1].perfeicao, 0);
+  assert.equal(eventos.filter((e) => e.tipo === 'estrela').length, 4);
+});
+
+test('ao vivo: silêncio e quadros inválidos não pontuam; ultimoQuadro informa a nota', () => {
+  const notas = melodiaLonga(6);
+  const motor = new PontuacaoAoVivo(notas, { latenciaMs: 0 });
+  motor.adicionarQuadro(3000, 55, 0.5, 0.08, PASSO);
+  assert.equal(motor.ultimoQuadro.valido, false);
+  assert.equal(motor.ultimoQuadro.indice, 0);
+  motor.adicionarQuadro(3033, 55, 0.95, 0.001, PASSO);
+  assert.equal(motor.estado().pontos, 0);
+  motor.adicionarQuadro(3066, 55, 0.95, 0.08, PASSO);
+  assert.equal(motor.ultimoQuadro.valido, true);
+  assert.equal(motor.ultimoQuadro.fator, 1);
+  assert.ok(motor.estado().pontos > 0);
+});
+
+test('plateia: sobe cantando certo, cai no silêncio e fica entre 0 e 1', () => {
+  const p = new PlateiaEnergia();
+  for (let i = 0; i < 300; i++) p.atualizar(33, 1);
+  assert.equal(p.nivel, 1);
+  for (let i = 0; i < 600; i++) p.atualizar(33, -1);
+  assert.equal(p.nivel, 0);
+  const q = new PlateiaEnergia(0.5);
+  q.atualizar(1000, 1);
+  assert.ok(Math.abs(q.nivel - 0.74) < 1e-9);
+});
+
+test('plateia: forças do modo estúdio e do modo letra', () => {
+  assert.equal(forcaEstudio({ indice: 2, fator: 1, valido: true }), 1);
+  assert.equal(forcaEstudio({ indice: 2, fator: 0, valido: true }), -0.7);
+  assert.equal(forcaEstudio({ indice: 2, fator: 0, valido: false }), -0.8);
+  assert.equal(forcaEstudio({ indice: -1, fator: 0, valido: false }), -0.15);
+  assert.equal(forcaEstudio({ indice: -1, fator: 0, valido: true }), 0);
+  assert.equal(forcaLetra(true, true), 0.6);
+  assert.equal(forcaLetra(true, false), -0.6);
+  assert.equal(forcaLetra(false, false), -0.15);
 });
