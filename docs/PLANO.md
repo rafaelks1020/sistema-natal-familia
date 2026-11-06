@@ -154,16 +154,27 @@ Cada fase sai no site na hora e no app numa versão nova das lojas (Android vers
 
 ## G. Rodada 2 (05/11/2026, aprovada pelo Rafael)
 - [ ] 1. Telão super top para deixar tocando, com integração tipo Alexa (ANOTADO, próxima rodada; /api/spotify/tocando já fica pronto)
-- [~] 2. Votar nas músicas (ordem da playlist segue os votos)
-- [~] 3. Playlist por momento (jantar, festa, amigo oculto)
-- [~] 4. Retrospectiva musical
-- [~] 5. Resumo semanal no celular (domingos)
-- [~] 6. Ficha de lembrete: quem não confirmou presença ou não pagou a vaquinha (push só para essas pessoas)
-- [~] 7. Vídeo-convite da ceia (cenas do ChatGPT web + montagem com texto)
-- [~] 8. Cartão de Natal personalizado com a foto da pessoa
-- [~] 9. Widget de contagem regressiva no Android e no iPhone
-- [~] 10. Painel admin com gráficos
-- [~] 11. Relatório da ceia em PDF
-- [~] 12. Aviso agendado
+- [x] 2. Votar nas músicas (ordem da playlist segue os votos)
+- [x] 3. Playlist por momento (jantar, festa, amigo oculto)
+- [x] 4. Retrospectiva musical
+- [x] 5. Resumo semanal no celular (domingos)
+- [x] 6. Ficha de lembrete: quem não confirmou presença ou não pagou a vaquinha (push só para essas pessoas)
+- [x] 7. Vídeo-convite da ceia (cenas do ChatGPT web + montagem com texto)
+- [x] 8. Cartão de Natal personalizado com a foto da pessoa
+- [x] 9. Widget de contagem regressiva no Android e no iPhone
+- [x] 10. Painel admin com gráficos
+- [x] 11. Relatório da ceia em PDF
+- [x] 12. Aviso agendado
 - [x] Painel admin no site (39 recursos) e playlist do Spotify com prévia
-- [~] Painel admin no app (próxima versão das lojas)
+- [x] Painel admin no app (próxima versão das lojas)
+
+### Estado 06/11/2026
+- [x] Rodada 2 inteira no ar no site (Spotify por momento com votos, retrospectiva e prévia; cartão; resumo semanal; ficha de lembrete; admin com gráficos, relatório e aviso agendado)
+- [x] Cron diário (9h) e cron de 5 min (VPS, avisos agendados e ordem da playlist) testados no ar
+- [x] Vídeo-convite v7 (edição no ritmo da música, Rockin' Around the Christmas Tree), enviado ao Rafael
+- [x] App 1.2.0 pronto (Android versionCode 3 e iPhone com widgets e App Group), a enviar depois da aprovação da 1.1
+- [ ] Apple 1.1: rejeição 2.1 (informação): falta o vídeo de tela (Denyse pelo TestFlight ou simulador) e reenviar com as notas
+- [ ] Play 1.1: em análise (primeira publicação)
+- [ ] Depois da aprovação: 1.2 nas duas lojas, assetlinks.json com a chave do Google
+- [ ] (R) Reconectar o Spotify uma vez para o "tocando agora" do telão
+- [ ] Próxima rodada: telão super top com integração tipo Alexa
