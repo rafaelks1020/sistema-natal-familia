@@ -471,8 +471,8 @@ export interface PropsCameraFundo {
   /** nomes[i] é o nome de quem está no rosto i (da esquerda para a direita na tela). */
   nomes?: string[];
   efeitos: Efeitos;
-  /** Contador de acertos recentes: cada aumento solta faíscas do rosto do cantor. */
-  faiscas?: number;
+  /** Contador de acertos recentes (número ou ref, sem re-render): cada aumento solta faíscas do rosto do cantor. */
+  faiscas?: Ou<number>;
   /** 0..1, quanto escurecer o vídeo (padrão 0.35). */
   escurecer?: number;
   zIndex?: number;
@@ -482,17 +482,11 @@ export interface PropsCameraFundo {
 
 export function CameraFundo({ video, rostos, cantandoIdx, nomes, efeitos, faiscas = 0, escurecer = 0.35, zIndex = 0, canvasRef }: PropsCameraFundo) {
   const interno = useRef<HTMLCanvasElement | null>(null);
-  const alvo = canvasRef ?? interno;
-  const props = useRef({ video, rostos, cantandoIdx, nomes, efeitos, escurecer });
-  useEffect(() => { props.current = { video, rostos, cantandoIdx, nomes, efeitos, escurecer }; });
-
   const pendentes = useRef(0);
-  const anteriorFaiscas = useRef(faiscas);
-  useEffect(() => {
-    const delta = faiscas - anteriorFaiscas.current;
-    anteriorFaiscas.current = faiscas;
-    if (delta > 0) pendentes.current += Math.min(delta, 5);
-  }, [faiscas]);
+  const alvo = canvasRef ?? interno;
+  const props = useRef({ video, rostos, cantandoIdx, nomes, efeitos, escurecer, faiscas });
+  useEffect(() => { props.current = { video, rostos, cantandoIdx, nomes, efeitos, escurecer, faiscas }; });
+  const anteriorFaiscas = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = alvo.current;
@@ -519,6 +513,11 @@ export function CameraFundo({ video, rostos, cantandoIdx, nomes, efeitos, faisca
       const lista = ler(p.rostos);
       const idx = ler(p.cantandoIdx);
       const esc = ch / 1080;
+
+      const totalFaiscas = ler(p.faiscas);
+      const delta = anteriorFaiscas.current === null ? 0 : totalFaiscas - anteriorFaiscas.current;
+      anteriorFaiscas.current = totalFaiscas;
+      if (delta > 0) pendentes.current += Math.min(delta, 5);
 
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, cw, ch);
