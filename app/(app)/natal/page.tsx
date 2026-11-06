@@ -27,7 +27,8 @@ const GRUPOS: { titulo: string; itens: Item[] }[] = [
     { href: '/festa/bingo', titulo: 'Bingo da ceia', texto: 'O tio contou a mesma piada? Marca!', icon: Dices },
     { href: '/festa/enquete', titulo: 'Enquete ao vivo', texto: 'Votação na hora, com resultado na tela', icon: Vote },
     { href: '/festa/foto-oficial', titulo: 'Foto oficial do ano', texto: 'A mesma pose, todo ano', icon: Users },
-    { href: '/telao', titulo: 'Telão na TV', texto: 'As fotos da noite chegando ao vivo', icon: Tv },
+    { href: '/telao', titulo: 'Telão na TV', texto: 'Fotos, música, jogos e comando de voz na TV', icon: Tv },
+    { href: '/telao/controle', titulo: 'Controle do telão', texto: 'Quem organiza troca o que aparece na TV', icon: Tv },
   ] },
   { titulo: 'Memórias da família', itens: [
     { href: '/memorias', titulo: 'Memórias', texto: 'Neste dia, linha do tempo, retrospectiva e livro de fotos', icon: Images },

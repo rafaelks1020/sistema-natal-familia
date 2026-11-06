@@ -1,14 +1,220 @@
-.screen { position: fixed; inset: 0; overflow: hidden; background: #171b18; color: #f3ebdc; }
-.slide { position: absolute; inset: 0; overflow: hidden; animation: aparecer 1.5s ease both; }
-.photo { height: 100%; width: 100%; object-fit: contain; animation: respirar 18s ease-in-out both; }
-.header, .footer { position: absolute; left: 0; right: 0; padding: clamp(20px, 4vw, 64px); pointer-events: none; }
-.header { top: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; background: linear-gradient(#171b18dd, transparent); }
-.footer { bottom: 0; padding-right: clamp(120px, 18vw, 260px); padding-top: 90px; background: linear-gradient(transparent, #171b18ef); }
-.footer a { pointer-events: auto; }
-.clock { font-variant-numeric: tabular-nums; font-size: clamp(20px, 3vw, 40px); }
-.empty { display: grid; align-content: center; gap: 24px; height: 100%; padding: 8vw; max-width: 900px; }
-.controls { position: absolute; bottom: max(20px, env(safe-area-inset-bottom)); right: 20px; max-width: min(320px, calc(100vw - 40px)); z-index: 2; }
-@keyframes respirar { from { transform: scale(1); } to { transform: scale(1.07) translate(0.3%, -0.3%); } }
+/* Telão da TV: tudo em vmin, para valer igual em 1920x1080 (paisagem) e 1080x1920 (retrato). Visual Meia-Noite. */
+.root { position: fixed; inset: 0; overflow: hidden; background: #171b18; color: #f3ebdc; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; user-select: none; -webkit-user-select: none; }
+.semMouse, .semMouse * { cursor: none !important; }
+.palco { position: absolute; inset: 0; z-index: 1; }
+.cena { position: absolute; inset: 0; animation: aparecer 1.4s ease both; }
+.cenaSai { position: absolute; inset: 0; animation: sumir 0.01s 1.5s forwards; pointer-events: none; }
+.fill { position: absolute; inset: 0; }
+
+/* ---------- tipografia ---------- */
+.kicker { font-size: 2.1vmin; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: #bfa577; }
+.tituloGrande { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 700; font-size: 8.6vmin; line-height: 1.06; letter-spacing: -0.01em; text-wrap: balance; }
+.texto { font-size: 3.1vmin; line-height: 1.35; color: #cfc6b6; max-width: 120vmin; text-wrap: balance; }
+.centro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3vmin; padding: 12vmin 6vmin 8vmin; text-align: center; }
+.iconeGrande { width: 16vmin; height: 16vmin; color: #bfa577; }
+
+/* ---------- fotos ao vivo ---------- */
+.quadro, .quadroSai { position: absolute; inset: 0; overflow: hidden; }
+.quadro { animation: aparecer 1.4s ease both; }
+.quadroSai { animation: sumir 0.01s 1.5s forwards; }
+.quadro::after, .quadroSai::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to top, rgba(23, 27, 24, 0.92) 0%, rgba(23, 27, 24, 0) 38%), linear-gradient(to bottom, rgba(23, 27, 24, 0.7) 0%, rgba(23, 27, 24, 0) 16%); }
+.fotoFundo { position: absolute; inset: -6%; width: 112%; height: 112%; object-fit: cover; filter: blur(5vmin) brightness(0.5) saturate(1.2); }
+.fotoFrente { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; will-change: transform; }
+.kbA { animation: kbA 10s ease-out both; }
+.kbB { animation: kbB 10s ease-out both; }
+.fotoLegenda { position: absolute; z-index: 2; left: 5vmin; bottom: 5vmin; max-width: calc(100% - 36vmin); display: flex; flex-direction: column; gap: 1.2vmin; }
+.selo { align-self: flex-start; display: inline-flex; align-items: center; gap: 1.2vmin; padding: 1vmin 2.4vmin; border-radius: 999px; background: #c5292d; color: #f3ebdc; font-size: 2.4vmin; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; animation: pop 0.9s cubic-bezier(0.22, 1.4, 0.36, 1) 0.6s both; box-shadow: 0 1vmin 4vmin rgba(197, 41, 45, 0.55); }
+.seloPonto { width: 1.4vmin; height: 1.4vmin; border-radius: 50%; background: #f3ebdc; animation: brilho 1.4s ease-in-out infinite; }
+.fotoNome { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 700; font-size: 6.4vmin; line-height: 1.1; text-shadow: 0 0.4vmin 2vmin rgba(0, 0, 0, 0.6); }
+.fotoTexto { font-size: 3vmin; line-height: 1.3; color: #f3ebdc; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 0.3vmin 1.4vmin rgba(0, 0, 0, 0.7); }
+
+/* ---------- tocando agora ---------- */
+.tocFundo { position: absolute; inset: -12%; background-size: cover; background-position: center; filter: blur(7vmin) saturate(1.35) brightness(0.55); animation: aparecer 1.6s ease both, deriva 40s ease-in-out infinite alternate; }
+.tocVeu { position: absolute; inset: 0; background: radial-gradient(120% 100% at 50% 40%, rgba(23, 27, 24, 0.1), rgba(23, 27, 24, 0.7)); }
+.tocConteudo { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 7vmin; padding: 12vmin 6vmin 8vmin; }
+.tocCapaBox { flex: none; width: 54vmin; aspect-ratio: 1; border-radius: 1.4vmin; overflow: hidden; box-shadow: 0 3vmin 9vmin rgba(0, 0, 0, 0.65); animation: capaEntra 1.2s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.tocCapa { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tocCapaVazia { width: 100%; height: 100%; display: grid; place-items: center; background: #252b27; }
+.tocTexto { flex: 1; min-width: 0; max-width: 96vmin; display: flex; flex-direction: column; gap: 2vmin; }
+.tocNome { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 700; font-size: 8vmin; line-height: 1.06; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-wrap: balance; }
+.tocArtista { font-size: 4.6vmin; font-weight: 600; color: #cfc6b6; line-height: 1.2; }
+.tocPedida { font-size: 3.4vmin; font-weight: 700; color: #bfa577; margin-top: 1vmin; }
+.barra { margin-top: 3vmin; height: 1.2vmin; border-radius: 999px; background: rgba(243, 235, 220, 0.2); overflow: hidden; }
+.barraPreench { height: 100%; width: 100%; transform-origin: left; background: linear-gradient(90deg, #bfa577, #f3ebdc); transition: transform 1s linear; }
+.tempos { display: flex; justify-content: space-between; font-size: 2.5vmin; color: #cfc6b6; font-variant-numeric: tabular-nums; }
+.eq { display: inline-flex; align-items: flex-end; gap: 0.4vmin; height: 2.4vmin; margin-right: 1.4vmin; vertical-align: middle; }
+.eq i { display: block; width: 0.6vmin; height: 100%; background: #bfa577; transform-origin: bottom; animation: eq 0.9s ease-in-out infinite; }
+.eq i:nth-child(2) { animation-delay: -0.3s; } .eq i:nth-child(3) { animation-delay: -0.6s; } .eq i:nth-child(4) { animation-delay: -0.15s; } .eq i:nth-child(5) { animation-delay: -0.45s; }
+
+/* ---------- contagem ---------- */
+.caixas { display: flex; gap: 2.4vmin; justify-content: center; margin: 2vmin 0; }
+.caixa { min-width: 25vmin; padding: 3vmin 2vmin 2.4vmin; border-radius: 2.2vmin; background: #1d221f; border: 0.2vmin solid rgba(243, 235, 220, 0.18); display: flex; flex-direction: column; align-items: center; gap: 1vmin; box-shadow: 0 2vmin 6vmin rgba(0, 0, 0, 0.35); }
+.caixaNum { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 16vmin; line-height: 1; font-variant-numeric: lining-nums tabular-nums; color: #f3ebdc; }
+.caixaRot { font-size: 2.3vmin; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: #bfa577; }
+.felizNatal { position: relative; font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 900; font-size: 19vmin; line-height: 1; max-width: 92vw; text-wrap: balance; background: linear-gradient(180deg, #f3ebdc 10%, #bfa577 90%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 3vmin rgba(197, 41, 45, 0.55)); animation: estoura 1.4s cubic-bezier(0.2, 1.3, 0.3, 1) both, respira 4s ease-in-out 1.4s infinite; }
+.centro .kicker, .centro .texto { position: relative; }
+.aneis { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.aneis i { position: absolute; left: -15vmin; top: -15vmin; width: 30vmin; height: 30vmin; border-radius: 50%; border: 0.5vmin solid #bfa577; opacity: 0; animation: anel 4.2s ease-out infinite; }
+.aneis i:nth-child(2) { animation-delay: 1.4s; } .aneis i:nth-child(3) { animation-delay: 2.8s; }
+.confete { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+
+/* ---------- recados ---------- */
+.recados { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 3vmin; padding: 12vmin 6vmin 7vmin; }
+.recadoGrade { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 2.6vmin; }
+.recado { display: flex; min-height: 0; overflow: hidden; border-radius: 2.2vmin; background: #1d221f; border: 0.2vmin solid rgba(243, 235, 220, 0.18); animation: recadoEntra 1s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.recadoFoto { flex: none; width: 38%; height: 100%; object-fit: cover; }
+.recadoCorpo { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2vmin; padding: 3vmin; }
+.recadoTexto { font-size: 3.7vmin; line-height: 1.3; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.recadoTextoLongo { font-size: 2.9vmin; line-height: 1.32; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden; }
+.recadoNome { font-size: 2.5vmin; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: #bfa577; }
+
+/* ---------- advento ---------- */
+.advento { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8vmin; padding: 12vmin 7vmin 8vmin; }
+.advPorta { flex: none; width: 40vmin; height: 54vmin; border-radius: 20vmin 20vmin 1.6vmin 1.6vmin; background: linear-gradient(170deg, #c5292d, #8e1a1e); border: 0.5vmin solid #bfa577; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.6vmin; box-shadow: 0 0 9vmin rgba(197, 41, 45, 0.45); animation: capaEntra 1.2s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.advDia { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 25vmin; line-height: 1; font-variant-numeric: lining-nums; }
+.advMes { font-size: 2.6vmin; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: #f3ebdc; }
+.advTexto { flex: 1; min-width: 0; max-width: 100vmin; display: flex; flex-direction: column; gap: 2.6vmin; }
+.advCorpo { font-size: 3.7vmin; line-height: 1.35; color: #cfc6b6; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.advOpcoes { display: flex; flex-wrap: wrap; gap: 1.6vmin; list-style: none; padding: 0; margin: 0; }
+.advOpcoes li { padding: 1.2vmin 2.6vmin; border-radius: 999px; border: 0.3vmin solid #bfa577; font-size: 3vmin; font-weight: 700; }
+.advImagem { max-height: 26vmin; width: auto; max-width: 100%; border-radius: 1.6vmin; object-fit: cover; align-self: flex-start; }
+
+/* ---------- jogos ao vivo ---------- */
+.jogoTela { position: absolute; inset: 0; z-index: 5; background: radial-gradient(120% 90% at 50% 0%, #2c1d1e 0%, #171b18 62%); }
+.jogoEntra { position: absolute; inset: 0; z-index: 5; animation: aparecer 0.6s ease both; }
+.jogoSai { position: absolute; inset: 0; z-index: 5; animation: sumir 0.9s ease forwards; pointer-events: none; }
+.jogoLinha { position: absolute; inset: 0; display: flex; align-items: center; gap: 4vmin; padding: 0 5vmin; }
+.jogo { position: relative; flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3vmin; padding: 12vmin 4vmin 8vmin; text-align: center; }
+.jogoTela > .jogo { position: absolute; inset: 0; height: auto; }
+.jogoTitulo { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 14vmin; line-height: 1; }
+.jogoPergunta { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 700; font-size: 7vmin; line-height: 1.1; max-width: 130vmin; text-wrap: balance; }
+.quizImagem { max-height: 24vmin; border-radius: 1.6vmin; object-fit: cover; }
+.opcoes { width: 100%; max-width: 150vmin; display: grid; grid-template-columns: 1fr 1fr; gap: 2vmin; }
+.opcao { display: flex; align-items: center; gap: 2.4vmin; padding: 2.2vmin 3vmin; border-radius: 2vmin; background: #1d221f; border: 0.3vmin solid rgba(243, 235, 220, 0.18); font-size: 4.2vmin; font-weight: 700; text-align: left; line-height: 1.15; transition: opacity 0.6s, transform 0.6s, background 0.6s; }
+.opcaoLetra { flex: none; width: 7vmin; height: 7vmin; border-radius: 50%; display: grid; place-items: center; background: #c5292d; font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 4vmin; }
+.opcaoLetra svg { width: 4.4vmin; height: 4.4vmin; }
+.opcaoCerta { background: #607568; border-color: #bfa577; transform: scale(1.03); }
+.opcaoCerta .opcaoLetra { background: #f3ebdc; color: #171b18; }
+.opcaoApagada { opacity: 0.32; }
+.tempo { width: 100%; max-width: 150vmin; height: 1.6vmin; border-radius: 999px; background: rgba(243, 235, 220, 0.16); overflow: hidden; }
+.tempoPreench { height: 100%; transform-origin: left; background: linear-gradient(90deg, #c5292d, #bfa577); transition: transform 1s linear; }
+.placar { flex: none; width: 46vmin; padding: 3vmin; border-radius: 2.2vmin; background: #1d221f; border: 0.2vmin solid rgba(243, 235, 220, 0.18); }
+.placar ol { list-style: none; margin: 2vmin 0 0; padding: 0; display: flex; flex-direction: column; gap: 1.6vmin; }
+.placar li { display: flex; align-items: baseline; gap: 1.6vmin; font-size: 3.2vmin; font-weight: 600; text-align: left; }
+.placarPos { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; color: #bfa577; width: 3.4vmin; }
+.placarNome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.placarPts { font-weight: 800; color: #bfa577; font-variant-numeric: tabular-nums; }
+.podio { display: flex; align-items: flex-end; justify-content: center; gap: 2vmin; margin-top: 2vmin; }
+.degrau { width: 30vmin; display: flex; flex-direction: column; align-items: center; gap: 1vmin; }
+.degrauNome { font-size: 3.8vmin; font-weight: 800; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.degrauPts { font-size: 2.8vmin; color: #bfa577; font-weight: 700; }
+.degrauBloco { width: 100%; display: grid; place-items: start center; padding-top: 1.4vmin; border-radius: 1.4vmin 1.4vmin 0 0; background: linear-gradient(180deg, #607568, #3d4d43); font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 9vmin; line-height: 1; }
+.degrau1 .degrauBloco { height: 28vmin; background: linear-gradient(180deg, #d8c08a, #bfa577); color: #171b18; }
+.degrau2 .degrauBloco { height: 20vmin; }
+.degrau3 .degrauBloco { height: 13vmin; }
+.barras { width: 100%; max-width: 140vmin; display: flex; flex-direction: column; gap: 2.6vmin; }
+.barraLinha { display: flex; flex-direction: column; gap: 1vmin; text-align: left; }
+.barraRotulo { display: flex; justify-content: space-between; align-items: baseline; gap: 3vmin; font-size: 4vmin; font-weight: 700; }
+.barraPct { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 5vmin; font-variant-numeric: lining-nums tabular-nums; }
+.barraTrilho { height: 3.6vmin; border-radius: 999px; background: rgba(243, 235, 220, 0.12); overflow: hidden; }
+.barraValor { height: 100%; width: 100%; transform-origin: left; background: linear-gradient(90deg, #8e1a1e, #c5292d); transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1); }
+.barraVence .barraValor { background: linear-gradient(90deg, #bfa577, #e8d9a8); }
+.barraVence .barraRotulo { color: #bfa577; }
+.bingoGrito { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 900; font-size: 30vmin; line-height: 0.95; color: #c5292d; text-shadow: 0 0 6vmin rgba(197, 41, 45, 0.6); animation: estoura 1s cubic-bezier(0.2, 1.4, 0.3, 1) both, respira 1.6s ease-in-out 1s infinite; }
+.bingoNome { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 700; font-size: 8vmin; line-height: 1.1; text-wrap: balance; }
+.suspense { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 700; font-size: 12vmin; line-height: 1.05; color: #bfa577; animation: brilho 1.4s ease-in-out infinite; }
+.pontos i { font-style: normal; animation: ponto 1.2s infinite; }
+.pontos i:nth-child(2) { animation-delay: 0.2s; } .pontos i:nth-child(3) { animation-delay: 0.4s; }
+.amigoNome { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 700; font-size: 11vmin; line-height: 1.05; text-wrap: balance; }
+.amigoTirou { font-size: 4.2vmin; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: #cfc6b6; }
+.amigoRevela { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 900; font-size: 16vmin; line-height: 1.02; color: #bfa577; text-wrap: balance; animation: estoura 1.1s cubic-bezier(0.2, 1.3, 0.3, 1) both; text-shadow: 0 0 5vmin rgba(191, 165, 119, 0.45); }
+
+/* ---------- moldura (relógio, QR, avisos) ---------- */
+.topo { position: absolute; z-index: 6; top: 0; left: 0; right: 0; display: flex; align-items: flex-start; justify-content: space-between; padding: 3.2vmin 4vmin; pointer-events: none; }
+.marca { font-size: 2vmin; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: #bfa577; text-shadow: 0 0.2vmin 1vmin rgba(0, 0, 0, 0.7); }
+.relogio { font-size: 3.6vmin; font-weight: 700; font-variant-numeric: tabular-nums; text-shadow: 0 0.2vmin 1vmin rgba(0, 0, 0, 0.7); }
+.qr { position: absolute; z-index: 6; right: 3.4vmin; bottom: 3.4vmin; width: 21vmin; padding: 1.4vmin; border-radius: 2vmin; background: rgba(23, 27, 24, 0.78); border: 0.2vmin solid rgba(243, 235, 220, 0.2); backdrop-filter: blur(1vmin); display: flex; flex-direction: column; gap: 1vmin; text-align: center; pointer-events: none; }
+.qr img { width: 100%; aspect-ratio: 1; border-radius: 1vmin; display: block; }
+.qrTexto { font-size: 2vmin; line-height: 1.2; font-weight: 800; }
+.qrLink { font-size: 1.6vmin; font-weight: 700; color: #bfa577; word-break: break-all; }
+.selo2 { position: absolute; z-index: 7; top: 3vmin; left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 1vmin; padding: 0.8vmin 2vmin; border-radius: 999px; background: rgba(23, 27, 24, 0.85); border: 0.2vmin solid #bfa577; font-size: 2vmin; font-weight: 700; color: #bfa577; }
+.reconectando { position: absolute; z-index: 7; top: 9vmin; right: 4vmin; font-size: 1.8vmin; font-weight: 600; color: #bfa577; }
+.ouvindo { position: absolute; z-index: 7; top: 8vmin; left: 4vmin; display: inline-flex; align-items: center; gap: 1vmin; padding: 0.7vmin 1.8vmin; border-radius: 999px; background: rgba(23, 27, 24, 0.7); font-size: 1.8vmin; font-weight: 700; color: #cfc6b6; }
+.ouvindo svg { color: #c5292d; animation: brilho 1.6s ease-in-out infinite; }
+.painel { position: absolute; z-index: 9; left: 50%; top: 50%; width: min(92vw, 120vmin); transform: translate(-50%, -50%); padding: 5vmin; border-radius: 3vmin; background: rgba(23, 27, 24, 0.96); border: 0.3vmin solid rgba(191, 165, 119, 0.5); text-align: center; display: flex; flex-direction: column; gap: 2.4vmin; align-items: center; animation: painelEntra 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; box-shadow: 0 4vmin 14vmin rgba(0, 0, 0, 0.7); }
+.painelTitulo { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 8vmin; line-height: 1; }
+.painelLista { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 1.6vmin; }
+.painelLista li { display: grid; grid-template-columns: 6vmin 1fr auto; gap: 2vmin; font-size: 4vmin; font-weight: 600; text-align: left; }
+.painelLista b { color: #bfa577; font-variant-numeric: tabular-nums; }
+.painelNomes { font-size: 3.6vmin; line-height: 1.5; color: #cfc6b6; }
+.painelAjuda { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 1.6vmin; }
+.painelAjuda li { padding: 1.2vmin 2.6vmin; border-radius: 999px; border: 0.3vmin solid #bfa577; font-size: 3.2vmin; font-weight: 700; }
+.balao { position: absolute; z-index: 10; left: 50%; bottom: 4vmin; transform: translateX(-50%); max-width: calc(100vw - 60vmin); padding: 1.6vmin 3vmin; border-radius: 2.6vmin; background: rgba(23, 27, 24, 0.9); border: 0.2vmin solid rgba(243, 235, 220, 0.2); font-size: 2.5vmin; font-weight: 600; text-align: center; animation: rise 0.5s ease both; }
+.balaoResposta { margin-top: 0.6vmin; color: #bfa577; font-size: 2.3vmin; font-weight: 600; }
+.aviso { position: absolute; z-index: 11; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3vmin; padding: 8vmin; text-align: center; background: rgba(23, 27, 24, 0.95); animation: aparecer 0.6s ease both; }
+.avisoTexto { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 12vmin; line-height: 1.08; text-wrap: balance; max-width: 160vmin; }
+.avisoTextoLongo { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 7.6vmin; line-height: 1.12; text-wrap: balance; max-width: 150vmin; }
+
+/* ---------- controles de quem está no computador (somem sozinhos) ---------- */
+.controles { position: absolute; z-index: 8; left: 24px; bottom: 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; max-width: calc(100% - 48px); transition: opacity 0.6s; }
+.controlesOcultos { opacity: 0; pointer-events: none; }
+.botao { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; background: rgba(23, 27, 24, 0.9); border: 1px solid rgba(243, 235, 220, 0.25); color: #f3ebdc; font-size: 15px; font-weight: 600; cursor: pointer; }
+.botao:hover { border-color: #bfa577; }
+.menu { position: relative; }
+.menu summary { list-style: none; }
+.menu summary::-webkit-details-marker { display: none; }
+.menuCaixa { position: absolute; left: 0; bottom: 100%; margin-bottom: 8px; width: 260px; display: flex; flex-direction: column; gap: 4px; padding: 8px; border-radius: 16px; background: #171b18; border: 1px solid rgba(243, 235, 220, 0.18); }
+.erroVoz { font-size: 14px; color: #bfa577; background: rgba(23, 27, 24, 0.9); padding: 8px 14px; border-radius: 12px; }
+
+/* ---------- retrato (1080x1920) ---------- */
+@media (orientation: portrait) {
+  .tocConteudo { flex-direction: column; justify-content: center; text-align: center; gap: 5vmin; }
+  .tocCapaBox { width: 78vmin; }
+  .tocTexto { flex: none; width: 100%; align-items: stretch; }
+  .tocNome { font-size: 7vmin; }
+  .caixa { min-width: 20vmin; padding: 2.6vmin 1.4vmin 2vmin; }
+  .caixaNum { font-size: 12.5vmin; }
+  .caixas { gap: 1.6vmin; }
+  .felizNatal { font-size: 17vmin; }
+  .recadoGrade { grid-template-columns: 1fr; }
+  .advento { flex-direction: column; justify-content: center; text-align: center; gap: 5vmin; }
+  .advPorta { width: 34vmin; height: 44vmin; }
+  .advDia { font-size: 20vmin; }
+  .advTexto { flex: none; align-items: center; }
+  .advImagem { align-self: center; }
+  .advOpcoes { justify-content: center; }
+  .jogoLinha { flex-direction: column; justify-content: center; padding: 10vmin 4vmin 8vmin; }
+  .jogo { height: auto; padding: 8vmin 2vmin; }
+  .jogoTela > .jogo { position: absolute; inset: 0; padding: 12vmin 4vmin 8vmin; }
+  .opcoes { grid-template-columns: 1fr; }
+  .placar { width: 100%; }
+  .degrau { width: 29vmin; }
+  .jogoTitulo { font-size: 13vmin; }
+  .jogoPergunta { font-size: 6.4vmin; }
+  .bingoGrito { font-size: 27vmin; }
+  .amigoRevela { font-size: 14vmin; }
+  .balao { bottom: 28vmin; max-width: 86vw; }
+  .fotoLegenda { max-width: calc(100% - 34vmin); }
+}
+
+/* ---------- animações ---------- */
 @keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .photo, .slide { animation: none; } }
-@media (max-width: 480px) { .header { padding: 20px; } .header > p { max-width: 100px; } .footer { padding-left: 20px; padding-bottom: 84px; padding-right: 20px; } }
+@keyframes sumir { to { opacity: 0; visibility: hidden; } }
+@keyframes rise { from { opacity: 0; transform: translate(-50%, 14px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes painelEntra { from { opacity: 0; transform: translate(-50%, -46%) scale(0.97); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes kbA { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.07) translate(-1%, -0.8%); } }
+@keyframes kbB { from { transform: scale(1.07) translate(1%, 0.8%); } to { transform: scale(1) translate(0, 0); } }
+@keyframes deriva { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.12) translate(-2%, 1.5%); } }
+@keyframes capaEntra { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+@keyframes recadoEntra { from { opacity: 0; transform: translateY(5vmin) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes pop { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
+@keyframes brilho { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+@keyframes estoura { 0% { opacity: 0; transform: scale(0.3); } 60% { opacity: 1; transform: scale(1.08); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes respira { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+@keyframes anel { 0% { opacity: 0.8; transform: scale(0.3); } 100% { opacity: 0; transform: scale(5.5); } }
+@keyframes ponto { 0%, 60%, 100% { opacity: 0.2; } 30% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .kbA, .kbB, .tocFundo, .felizNatal, .bingoGrito, .aneis i { animation: none; }
+}
