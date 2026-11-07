@@ -10,6 +10,7 @@ import { MedidorAfinacao } from './_medidor';
 import { LetraPalco } from './_letra';
 import { PalcoEstudio } from './_estudio';
 import { MedidorPlateia } from './_plateia';
+import { avaliarAtraso, latenciaDaPontuacao, type Avaliacao } from './atraso';
 import { Depuracao } from './_depuracao';
 import { COMBO_CLIPE, PERFEICAO_FRASE, tocarWhoosh, useMomentos, type CenaMomento, type EstadoMomentos } from './_momentos';
 import { ControleEstrela, DetectorGestos, type EventoGesto, type Postura } from './gestos';
@@ -182,6 +183,8 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const [aviso, setAviso] = useState('');
   const [config, setConfig] = useState(false);
   const [controlesOcultos, setControlesOcultos] = useState(false);
+  const [medindo, setMedindo] = useState(false);
+  const [atrasoInfo, setAtrasoInfo] = useState<{ ms: number; medidas: number[]; nova: number; av: Avaliacao; razoes: number[] } | { erro: string } | null>(null);
   const [tocando, setTocando] = useState(false);
   const [auto, setAuto] = useState(true);
   const [vozNaTv, setVozNaTv] = useState(false);
@@ -897,6 +900,24 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const mudarVolume = (v: number) => { setVolumeVoz(v); gravarLS(LS_VOLUME, String(v)); };
   const mudarEco = (ligado: boolean) => { setCancelarEco(ligado); gravarLS(LS_ECO, ligado ? '1' : '0'); };
   const mudarLatencia = (v: number) => { setLatenciaMs(v); gravarLS(LS_LATENCIA, String(v)); };
+  /** Mede o atraso total da Voz na TV (pulso pelas caixas, gravado pelo microfone) e calibra o atraso da pontuação com ele. */
+  const medirAtraso = async () => {
+    setMedindo(true); setAtrasoInfo(null);
+    try {
+      const r = await pitch.medirAtraso();
+      if (r.inconsistente) { setAtrasoInfo({ erro: `As 3 medidas não bateram (${r.medidas.map((m) => `${Math.round(m)} ms`).join(', ')}; nitidez ${r.razoes.map((x) => `${x}x`).join(', ')}): tem barulho na sala ou o pulso não chegou ao microfone. Aumente o volume da TV, aproxime o microfone das caixas e tente de novo.` }); return; }
+      if (r.atrasoMs === null) { setAtrasoInfo({ erro: 'Não ouvi o pulso: aumente o volume da TV, aproxime o microfone das caixas e tente de novo.' }); return; }
+      const av = avaliarAtraso(r.atrasoMs);
+      const nova = latenciaDaPontuacao(r.atrasoMs);
+      mudarLatencia(nova);
+      setAtrasoInfo({ ms: r.atrasoMs, medidas: r.medidas, nova, av, razoes: r.razoes });
+      if (av.nivel === 'alto' && vozNaTv) avisar('Atraso da voz alto: desligue a Voz na TV.');
+    } catch (e) {
+      setAtrasoInfo({ erro: (e as Error).message || 'Não consegui medir o atraso.' });
+    } finally {
+      setMedindo(false);
+    }
+  };
   const botaoCamera = () => {
     setConfig(false);
     if (!camLigada) { setCamLigada(true); gravarLS(LS_CAM_LIGADA, '1'); setConfigCam(true); } else setConfigCam((c) => !c);
@@ -1054,6 +1075,16 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
           <input type="range" min={0} max={LATENCIA_MAX_MS} step={10} value={latenciaMs} onChange={(e) => mudarLatencia(Number(e.target.value))} />
         </label>
         <p>Se a nota parecer baixa mesmo cantando certo, aumente. O padrão é {LATENCIA_PADRAO_MS} ms.</p>
+        <div className={styles.linha}>
+          <span>{atrasoInfo && 'ms' in atrasoInfo ? `Atraso total: ${Math.round(atrasoInfo.ms)} ms` : 'Atraso da voz nas caixas'}</span>
+          <button type="button" className={styles.botao} onClick={() => void medirAtraso()} disabled={pitch.status !== 'ativo' || medindo}>{medindo ? 'Medindo...' : 'Medir atraso'}</button>
+        </div>
+        {atrasoInfo && 'erro' in atrasoInfo ? <p className={styles.erro}>{atrasoInfo.erro}</p> : null}
+        {atrasoInfo && 'ms' in atrasoInfo ? <>
+          <p>Medidas: {atrasoInfo.medidas.map((m) => `${Math.round(m)} ms`).join(', ')} (nitidez do pulso {atrasoInfo.razoes.map((x) => `${x}x`).join(', ')}). Atraso do microfone da pontuação ajustado para {atrasoInfo.nova} ms.</p>
+          <p className={atrasoInfo.av.nivel === 'bom' ? undefined : styles.aviso2}>{atrasoInfo.av.texto}{atrasoInfo.av.nivel === 'alto' && !vozNaTv ? ' (A Voz na TV já está desligada.)' : ''}</p>
+        </> : null}
+        {pitch.infoMonitor ? <p>Monitoração: {Math.round(pitch.infoMonitor.taxa)} Hz, buffer {pitch.infoMonitor.baseMs} ms, saída {pitch.infoMonitor.saidaMs} ms. {pitch.infoMonitor.separado ? 'Microfone cru separado (sem eco), a nota segue no microfone com eco.' : 'O Chrome não separou o microfone: a monitoração usa o mesmo fluxo da nota.'}</p> : null}
         <label className={styles.linhaCheck}>
           <input type="checkbox" checked={cancelarEco} onChange={(e) => mudarEco(e.target.checked)} />
           Cancelar eco da TV
