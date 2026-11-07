@@ -39,7 +39,7 @@ const FRASES = [
 const MAX_TEXTO = 120;
 const MAX_ASSINATURA = 40;
 
-const ehBlob = (u: string | null | undefined): u is string => !!u && (/^https:\/\/[^/]+\.public\.blob\.vercel-storage\.com\//.test(u) || u.startsWith('https://natal.169-58-196-17.sslip.io/f/'));
+const ehBlob = (u: string | null | undefined): u is string => !!u && (/^https:\/\/[^/]+\.public\.blob\.vercel-storage\.com\//.test(u) || u.startsWith('https://natal.169-58-196-17.sslip.io/f/') || u.startsWith('https://arquivos.natalemfamilia.com.br/f/'));
 
 function caminhoImagem(foto: string, modelo: Modelo, texto: string, assinatura: string, baixar = false) {
   const q = new URLSearchParams({ foto, modelo, texto, assinatura });

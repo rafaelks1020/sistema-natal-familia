@@ -8,7 +8,9 @@ import { HttpError } from '@/app/lib/api';
 // atualizar /home/rafael/natal-arquivos/env na VPS.
 // Nada é sobrescrito: cada envio tem caminho único (o cache é "immutable").
 
-export const BASE_ARQUIVOS = 'https://natal.169-58-196-17.sslip.io';
+export const BASE_ARQUIVOS = 'https://arquivos.natalemfamilia.com.br';
+/** Endereço antigo (sslip), ainda servido pela VPS: aceito para apagar arquivos enviados antes da troca. */
+const BASE_ANTIGA = 'https://natal.169-58-196-17.sslip.io';
 
 function chave(): Buffer {
   const s = process.env.SESSION_SECRET;
@@ -25,8 +27,8 @@ export const urlPublica = (caminho: string) => `${BASE_ARQUIVOS}/f/${caminho}`;
 
 /** É uma URL do nosso armazenamento? Devolve o caminho, ou null. */
 export function caminhoDaUrl(url: string): string | null {
-  const ini = `${BASE_ARQUIVOS}/f/`;
-  return url.startsWith(ini) ? url.slice(ini.length) : null;
+  for (const base of [BASE_ARQUIVOS, BASE_ANTIGA]) if (url.startsWith(`${base}/f/`)) return url.slice(base.length + 3);
+  return null;
 }
 
 /** URL assinada para enviar UM arquivo (PUT com o Content-Type igual a `tipo`, até `max` bytes), válida por `validadeS` segundos. */
