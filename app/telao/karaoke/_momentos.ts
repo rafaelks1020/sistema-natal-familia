@@ -26,6 +26,10 @@ const TENTATIVAS_ENVIO = 2;
 const INTERVALO_ENVIO_MS = 2000;
 const FILAS_NA_MEMORIA = 3;
 const OURO = '#ffd45e';
+/** Microfone na gravação: nível (mais baixo que o instrumental), quanto a porta segura aberta depois da última voz e o resquício com eco ligado. */
+const MIC_NIVEL = 0.7;
+const SEGURA_PORTA_MS = 400;
+const PISO_PORTA_COM_ECO = 0.1;
 const CREME = '#f3ebdc';
 
 const esperar = (ms: number) => new Promise<void>((resolve) => { window.setTimeout(resolve, ms); });
@@ -43,7 +47,6 @@ export interface CenaMomento {
   sequencia: number;
   /** ms que faltam do Modo Estrela (0 se não está ativo). */
   estrelaMs: number;
-  capaUrl: string | null;
 }
 
 export interface FotoMomento { chave: number; url: string; estado: 'enviando' | 'salva' | 'erro' }
@@ -61,7 +64,12 @@ export interface EstadoMomentos {
 }
 
 export interface OpcoesMomentos {
+  /** Fluxo do microfone do telão, já aberto com cancelamento de eco (o mesmo do detector de tom). */
   obterMic: () => MediaStream | undefined;
+  /** Há voz cantada agora (o detector de tom ouviu uma nota). Sem isso a porta do microfone fica sempre aberta. */
+  vozAtiva?: () => boolean;
+  /** O que o navegador confirmou sobre o cancelamento de eco do microfone (null: não sei). Desligado, a porta fecha por completo sem voz. */
+  ecoAtivo?: () => boolean | null;
   /** Elemento <audio> do instrumental (modo estúdio); null no modo YouTube (só o microfone). */
   audio: () => HTMLAudioElement | null;
   lerCena: () => CenaMomento | null;
@@ -93,7 +101,6 @@ class Compositor {
   readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
   private timer: number | undefined;
-  private capa: { url: string; img: HTMLImageElement; ok: boolean } | null = null;
   private pontosExibidos = 0;
 
   constructor(private readonly lerCena: () => CenaMomento | null, private readonly fonte: () => HTMLCanvasElement | null) {
@@ -118,35 +125,13 @@ class Compositor {
     return new Promise((resolve) => this.canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.88));
   }
 
-  private carregarCapa(url: string | null) {
-    if (!url) { this.capa = null; return; }
-    if (this.capa?.url === url) return;
-    const img = new Image();
-    // CORS anônimo: sem isso o canvas ficaria "sujo" e a foto e o vídeo sairiam em branco. Se o servidor não deixar, a capa só não aparece.
-    img.crossOrigin = 'anonymous';
-    const e = { url, img, ok: false };
-    img.onload = () => { e.ok = img.naturalWidth > 0; };
-    img.onerror = () => { e.ok = false; };
-    img.src = url;
-    this.capa = e;
-  }
-
-  private fundo(cena: CenaMomento | null) {
+  /** Câmera natural (sem tom nem escurecimento); sem câmera, um fundo liso escuro. */
+  private fundo() {
     const ctx = this.ctx;
     const cam = this.fonte();
     if (cam && cam.width > 1 && cam.height > 1) { coberturaDe(ctx, cam, cam.width, cam.height); return; }
-    const g = ctx.createRadialGradient(LARG / 2, ALT * 0.1, 40, LARG / 2, ALT / 2, LARG * 0.8);
-    g.addColorStop(0, '#2c1d1e');
-    g.addColorStop(1, '#171b18');
-    ctx.fillStyle = g;
+    ctx.fillStyle = '#14181a';
     ctx.fillRect(0, 0, LARG, ALT);
-    this.carregarCapa(cena?.capaUrl ?? null);
-    if (this.capa?.ok) {
-      ctx.save();
-      ctx.globalAlpha = 0.3;
-      coberturaDe(ctx, this.capa.img, this.capa.img.naturalWidth, this.capa.img.naturalHeight);
-      ctx.restore();
-    }
   }
 
   private desenhar() {
@@ -154,31 +139,14 @@ class Compositor {
     const cena = this.lerCena();
     const agora = performance.now();
     ctx.clearRect(0, 0, LARG, ALT);
-    this.fundo(cena);
+    this.fundo();
 
-    // Sombra embaixo para a letra aparecer bem e leve escurecida em cima.
-    const sombra = ctx.createLinearGradient(0, ALT * 0.5, 0, ALT);
-    sombra.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    sombra.addColorStop(1, 'rgba(0, 0, 0, 0.72)');
-    ctx.fillStyle = sombra;
-    ctx.fillRect(0, ALT * 0.5, LARG, ALT * 0.5);
-    const topo = ctx.createLinearGradient(0, 0, 0, 170);
-    topo.addColorStop(0, 'rgba(0, 0, 0, 0.55)');
-    topo.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = topo;
-    ctx.fillRect(0, 0, LARG, 170);
-
-    if (cena?.estrelaMs && cena.estrelaMs > 0) {
-      const p = 0.5 + 0.5 * Math.sin(agora / 180);
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = `rgba(255, 190, 50, ${0.1 + 0.06 * p})`;
-      ctx.fillRect(0, 0, LARG, ALT);
-      ctx.restore();
-      ctx.strokeStyle = `rgba(255, 226, 140, ${0.7 + 0.3 * p})`;
-      ctx.lineWidth = 8;
-      ctx.strokeRect(4, 4, LARG - 8, ALT - 8);
-    }
+    // Só uma faixa suave atrás da área da letra, embaixo (transparente até 35% de preto). O resto da imagem fica natural.
+    const faixa = ctx.createLinearGradient(0, ALT * 0.58, 0, ALT);
+    faixa.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    faixa.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
+    ctx.fillStyle = faixa;
+    ctx.fillRect(0, ALT * 0.58, LARG, ALT * 0.42);
 
     if (cena) {
       this.cabecalho(cena);
@@ -284,9 +252,9 @@ class Compositor {
     const w = 420;
     const x = (LARG - w) / 2;
     ctx.save();
-    ctx.shadowColor = 'rgba(255, 205, 90, 0.95)';
-    ctx.shadowBlur = 18 + 12 * p;
-    pilula(ctx, x, 24, w, 56, 'rgba(255, 232, 150, 1)');
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+    ctx.shadowBlur = 8;
+    pilula(ctx, x, 24, w, 56, `rgba(255, 232, 150, ${0.75 + 0.25 * p})`);
     ctx.shadowBlur = 0;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -321,6 +289,7 @@ interface Recursos {
   ctx: AudioContext | null;
   fluxo: MediaStream | null;
   espelho: { el: HTMLAudioElement; timer: number } | null;
+  timerPorta: number | undefined;
   timerSeg: number | undefined;
   segmentos: Segmento[];
 }
@@ -333,7 +302,7 @@ function escolherMime(): string | null {
 
 class GravadorMomentos {
   private readonly plano = new PlanejadorMomentos();
-  private r: Recursos = { comp: null, ctx: null, fluxo: null, espelho: null, timerSeg: undefined, segmentos: [] };
+  private r: Recursos = { comp: null, ctx: null, fluxo: null, espelho: null, timerPorta: undefined, timerSeg: undefined, segmentos: [] };
   private filaId: number | null = null;
   private mime = '';
   private pendentes: ClipePendente[] = [];
@@ -395,17 +364,13 @@ class GravadorMomentos {
       const faixas: MediaStreamTrack[] = [...comp.canvas.captureStream(FPS).getVideoTracks()];
       let ctx: AudioContext | null = null;
       let espelho: Recursos['espelho'] = null;
+      let timerPorta: number | undefined;
       try {
         ctx = new AudioContext();
         void ctx.resume().catch(() => undefined);
         const destino = ctx.createMediaStreamDestination();
         const mic = d.obterMic();
-        if (mic && mic.getAudioTracks().length) {
-          const g = ctx.createGain();
-          g.gain.value = 1;
-          ctx.createMediaStreamSource(mic).connect(g);
-          g.connect(destino);
-        }
+        if (mic && mic.getAudioTracks().length) timerPorta = this.ligarMic(ctx, destino, mic);
         if (comInstrumental) {
           const principal = d.audio();
           if (principal) espelho = this.criarEspelho(ctx, destino, principal);
@@ -414,7 +379,7 @@ class GravadorMomentos {
       } catch (e) { console.error('karaoke: áudio dos momentos', e); }
 
       const fluxo = new MediaStream(faixas);
-      this.r = { comp, ctx, fluxo, espelho, timerSeg: undefined, segmentos: [] };
+      this.r = { comp, ctx, fluxo, espelho, timerPorta, timerSeg: undefined, segmentos: [] };
       this.filaId = filaId;
       this.abrirSegmento();
       this.r.timerSeg = window.setInterval(() => this.abrirSegmento(), PASSO_SEGMENTO_MS);
@@ -423,10 +388,44 @@ class GravadorMomentos {
       console.error('karaoke: não consegui iniciar a gravação dos momentos', e);
       this.filaId = null;
       this.liberar(this.r);
-      this.r = { comp: null, ctx: null, fluxo: null, espelho: null, timerSeg: undefined, segmentos: [] };
+      this.r = { comp: null, ctx: null, fluxo: null, espelho: null, timerPorta: undefined, timerSeg: undefined, segmentos: [] };
       return false;
     }
   };
+
+  /**
+   * Microfone -> passa-altas 120 Hz -> porta de ruído -> nível -> gravação. A música que a TV toca e o microfone capta não pode dobrar no vídeo:
+   * o fluxo já vem com cancelamento de eco; a porta fecha quando ninguém canta (com o eco desligado, fecha por completo; ligado, deixa um
+   * resquício de 10% para o som não parecer cortado) e o microfone entra mais baixo que o instrumental limpo.
+   */
+  private ligarMic(ctx: AudioContext, destino: MediaStreamAudioDestinationNode, mic: MediaStream): number {
+    const passaAltas = ctx.createBiquadFilter();
+    passaAltas.type = 'highpass';
+    passaAltas.frequency.value = 120;
+    passaAltas.Q.value = 0.707;
+    const porta = ctx.createGain();
+    porta.gain.value = 0;
+    const nivel = ctx.createGain();
+    nivel.gain.value = MIC_NIVEL;
+    ctx.createMediaStreamSource(mic).connect(passaAltas);
+    passaAltas.connect(porta);
+    porta.connect(nivel);
+    nivel.connect(destino);
+    let ultimaVoz = -Infinity;
+    let aberta = false;
+    let piso = -1;
+    return window.setInterval(() => {
+      const o = this.opcoes;
+      const agora = performance.now();
+      if (!o?.vozAtiva || o.vozAtiva()) ultimaVoz = agora;
+      const devAbrir = agora - ultimaVoz < SEGURA_PORTA_MS;
+      const novoPiso = o?.ecoAtivo?.() === true ? PISO_PORTA_COM_ECO : 0;
+      if (devAbrir === aberta && novoPiso === piso) return;
+      aberta = devAbrir;
+      piso = novoPiso;
+      porta.gain.setTargetAtTime(aberta ? 1 : piso, ctx.currentTime, aberta ? 0.005 : 0.15);
+    }, 33);
+  }
 
   /**
    * O instrumental entra na gravação por uma CÓPIA do <audio> (mesmo endereço, em modo CORS anônimo) que toca só para o gravador, em sincronia
@@ -534,7 +533,7 @@ class GravadorMomentos {
     if (this.filaId !== filaId) { this.marcarFechada(filaId); return; }
     this.filaId = null;
     const recursos = this.r;
-    this.r = { comp: null, ctx: null, fluxo: null, espelho: null, timerSeg: undefined, segmentos: [] };
+    this.r = { comp: null, ctx: null, fluxo: null, espelho: null, timerPorta: undefined, timerSeg: undefined, segmentos: [] };
     window.clearInterval(recursos.timerSeg);
     const meus = this.pendentes.filter((p) => p.filaId === filaId);
     await Promise.all(meus.map((p) => this.concluirClipe(p)));
@@ -544,6 +543,7 @@ class GravadorMomentos {
 
   private liberar(r: Recursos) {
     window.clearInterval(r.timerSeg);
+    window.clearInterval(r.timerPorta);
     for (const s of r.segmentos) this.fechar(s);
     r.comp?.parar();
     if (r.espelho) { window.clearInterval(r.espelho.timer); r.espelho.el.pause(); r.espelho.el.removeAttribute('src'); r.espelho.el.load(); }
@@ -556,7 +556,7 @@ class GravadorMomentos {
     this.pendentes = [];
     this.filaId = null;
     this.liberar(this.r);
-    this.r = { comp: null, ctx: null, fluxo: null, espelho: null, timerSeg: undefined, segmentos: [] };
+    this.r = { comp: null, ctx: null, fluxo: null, espelho: null, timerPorta: undefined, timerSeg: undefined, segmentos: [] };
   };
 
   // ----- envio em segundo plano -----

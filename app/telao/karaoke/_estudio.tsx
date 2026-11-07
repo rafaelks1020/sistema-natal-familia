@@ -1,5 +1,4 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { erroEmSemitons, type EventoAoVivo, type NotaEstudio, type PontuacaoAoVivo } from './pontuacao';
 import type { PontoAltura } from './_pitch';
@@ -15,14 +14,6 @@ const AVALIACAO_MS = 1200;
 const MAX_FAISCAS = 200;
 
 const limitar = (x: number, min = 0, max = 1) => (x < min ? min : x > max ? max : x);
-
-/** Fundo da cena de estúdio: capa do álbum desfocada (se houver) e um brilho lento. */
-export function FundoEstudio({ capa }: { capa: string | null }) {
-  return <div className={styles.fundoLetra} aria-hidden="true">
-    {capa ? <img src={capa} alt="" referrerPolicy="no-referrer" /> : null}
-    <div className={styles.brilhoLetra} />
-  </div>;
-}
 
 function barra(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
   const r = Math.min(h / 2, w / 2);
@@ -356,7 +347,7 @@ export function PalcoEstudio({ linhas, notas, lerMs, historico, latenciaRef, off
     <div className={styles.estLetra} ref={letraRef}>
       {cena.intro || !atual ? <p className={styles.notas}>♪ ♪ ♪</p> : <>
         <div key={`a${cena.atual}`} className={styles.estLinha} aria-label={atual.texto}>
-          {atual.palavras.map((p, k) => <span key={k}><span className={styles.estPalavra} data-w={k}>{p.texto}</span>{k < atual.palavras.length - 1 ? ' ' : ''}</span>)}
+          {atual.palavras.map((p, k) => <span key={k}><span className={styles.estPalavraCaixa} data-w={k} data-t={p.texto}><span className={styles.estPalavra}>{p.texto}</span></span>{k < atual.palavras.length - 1 ? ' ' : ''}</span>)}
         </div>
         {proxima ? <div key={`p${cena.atual + 1}`} className={styles.estProxima}>{proxima.texto}</div> : null}
       </>}

@@ -1,16 +1,7 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
 import { useEffect, useRef, useState } from 'react';
 import { cenaEm, progressoLinha, progressoPalavra, type Cena, type LinhaCantada } from './letra';
 import styles from './karaoke.module.css';
-
-/** Fundo da cena de letra: miniatura do vídeo desfocada e escura, com um brilho lento. */
-export function FundoLetra({ videoId }: { videoId: string }) {
-  return <div className={styles.fundoLetra} aria-hidden="true">
-    <img src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} alt="" />
-    <div className={styles.brilhoLetra} />
-  </div>;
-}
 
 const tamanhoDaLinha = (texto: string) => (texto.length <= 38 ? '7vmin' : texto.length <= 64 ? '6vmin' : '5vmin');
 

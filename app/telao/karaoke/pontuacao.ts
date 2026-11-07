@@ -194,7 +194,8 @@ export type NotaEstudio = { inicio_ms: number; dur_ms: number; midi: number; gol
 export type ResumoEstudio = { maiorCombo: number; maiorSequencia: number; perfeitas: number; notas: number; perfeitasPct: number; pontos: number };
 export type ResultadoEstudio = Resultado & { total: number; linhas: number[]; resumo: ResumoEstudio };
 
-export const LATENCIA_PADRAO_MS = 80;
+/** Atraso padrão entre a nota tocar e a voz chegar: caixa/TV (HDMI), microfone USB e quem canta sempre vem um pouco depois. No Chrome, com a voz original alinhada, medi 100 a 250 ms. */
+export const LATENCIA_PADRAO_MS = 140;
 export const LATENCIA_MAX_MS = 400;
 /** Até esse erro (semitons) vale ponto cheio; de 0,5 até 1,5 cai linearmente a zero (modo Fácil). */
 const ERRO_CHEIO = 0.5;

@@ -22,10 +22,11 @@ const INTERVALO_POSE_MS = 100; // ~10 poses por segundo (gestos do estilo Kinect
 const LIMIAR_VOLUME = 0.05; // abaixo disso ninguém está cantando
 const SILENCIO_SOLTA_MS = 2500; // sem volume por tanto tempo, ninguém é o cantor
 const SUAVIZA_JAW = 0.25; // peso da média móvel do jawOpen
-const MAX_FAISCAS = 150;
-const FAISCAS_POR_ACERTO = 14;
+const MAX_FAISCAS = 80;
+const FAISCAS_POR_ACERTO = 5;
 const LARGURA_MAX_CANVAS = 1920;
-const LS_EFEITOS = 'karaoke.camera.efeitos';
+// v2: a escolha antiga (gorro ligado por padrão) é descartada; agora os filtros começam desligados.
+const LS_EFEITOS = 'karaoke.camera.efeitos.v2';
 
 // Índices da malha facial do MediaPipe (478 pontos).
 const P_TESTA = 10;
@@ -63,7 +64,7 @@ export interface Rosto {
 export interface Efeitos { gorro: boolean; barba: boolean; chifres: boolean; oculos: boolean }
 export type Filtro = keyof Efeitos;
 
-export const EFEITOS_PADRAO: Efeitos = { gorro: true, barba: false, chifres: false, oculos: false };
+export const EFEITOS_PADRAO: Efeitos = { gorro: false, barba: false, chifres: false, oculos: false };
 
 type Ou<T> = T | RefObject<T>;
 
@@ -425,68 +426,31 @@ function desenharFiltros(ctx: CanvasRenderingContext2D, q: Quadro, r: Rosto, efe
   }
 }
 
-/** Modo Estrela: aura dourada pulsando em volta de qualquer rosto. */
-function desenharAura(ctx: CanvasRenderingContext2D, q: Quadro, r: Rosto, tempoMs: number) {
+/** Só o nome de quem canta, embaixo do rosto (sem anel nem aura). */
+function desenharCantor(ctx: CanvasRenderingContext2D, q: Quadro, r: Rosto, nome: string | undefined) {
   const testa = mapear(q, r.testa), queixo = mapear(q, r.queixo);
-  const centro = { x: (testa.x + queixo.x) / 2, y: (testa.y + queixo.y) / 2 };
   const altura = dist(testa, queixo);
-  const pulso = 0.5 + 0.5 * Math.sin(tempoMs / 140);
-  const raio = altura * (1.25 + 0.25 * pulso);
-  const g = ctx.createRadialGradient(centro.x, centro.y, altura * 0.3, centro.x, centro.y, raio);
-  g.addColorStop(0, 'rgba(255, 226, 140, 0.55)');
-  g.addColorStop(0.55, 'rgba(255, 190, 60, 0.28)');
-  g.addColorStop(1, 'rgba(255, 170, 40, 0)');
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(centro.x, centro.y, raio, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
-function desenharCantor(ctx: CanvasRenderingContext2D, q: Quadro, r: Rosto, nome: string | undefined, tempoMs: number, estrela = false) {
-  const testa = mapear(q, r.testa), queixo = mapear(q, r.queixo);
-  const temporas = dist(mapear(q, r.temporaE), mapear(q, r.temporaD));
-  const olhoE = mapear(q, r.olhoE), olhoD = mapear(q, r.olhoD);
-  const [a, b] = olhoE.x <= olhoD.x ? [olhoE, olhoD] : [olhoD, olhoE];
-  const rolagem = Math.atan2(b.y - a.y, b.x - a.x);
-  const altura = dist(testa, queixo);
-  const centro = { x: (testa.x + queixo.x) / 2, y: (testa.y + queixo.y) / 2 };
-  const pulso = 0.5 + 0.5 * Math.sin(tempoMs / 260);
-  const esc = Math.max(0.5, altura / 220);
-
-  ctx.save();
-  ctx.translate(centro.x, centro.y);
-  ctx.rotate(rolagem);
-  ctx.shadowColor = 'rgba(255, 205, 90, 0.9)';
-  ctx.shadowBlur = (26 + 14 * pulso) * esc * (estrela ? 2.2 : 1);
-  ctx.strokeStyle = estrela ? `rgba(255, 232, 150, ${0.85 + 0.15 * pulso})` : `rgba(255, 214, 120, ${0.55 + 0.3 * pulso})`;
-  ctx.lineWidth = (estrela ? 8 : 4) * esc;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, temporas * 0.64, altura * 0.68, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
 
   if (nome) {
-    const tam = Math.max(18, altura * 0.17);
+    // Acima da cabeça (a letra fica embaixo) e com tamanho limitado, mesmo com o rosto bem perto da câmera.
+    const tam = Math.max(20, Math.min(altura * 0.13, q.ch * 0.034));
     ctx.save();
-    ctx.font = `700 ${tam}px Manrope, system-ui, sans-serif`;
+    ctx.font = `800 ${tam}px Manrope, system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const largura = ctx.measureText(nome).width + tam * 1.2;
     const alt = tam * 1.7;
-    const x = queixo.x - largura / 2;
-    const y = queixo.y + altura * 0.2;
+    const x = Math.max(8, Math.min(q.cw - largura - 8, testa.x - largura / 2));
+    const y = Math.max(8, testa.y - altura * 0.5 - alt);
     ctx.fillStyle = 'rgba(23, 27, 24, 0.82)';
-    ctx.strokeStyle = 'rgba(255, 214, 120, 0.95)';
-    ctx.lineWidth = Math.max(2, tam * 0.1);
+    ctx.strokeStyle = 'rgba(243, 235, 220, 0.85)';
+    ctx.lineWidth = Math.max(2, tam * 0.07);
     ctx.beginPath();
     ctx.roundRect(x, y, largura, alt, alt / 2);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = '#fff6dd';
-    ctx.fillText(nome, queixo.x, y + alt / 2 + 1);
+    ctx.fillText(nome, x + largura / 2, y + alt / 2 + 1);
     ctx.restore();
   }
 }
@@ -537,21 +501,19 @@ export interface PropsCameraFundo {
   efeitos: Efeitos;
   /** Contador de acertos recentes (número ou ref, sem re-render): cada aumento solta faíscas do rosto do cantor. */
   faiscas?: Ou<number>;
-  /** 0..1, quanto escurecer o vídeo (padrão 0.35). */
-  escurecer?: number;
-  /** Modo Estrela ativo (booleano ou ref, sem re-render): luz dourada na tela e aura nos rostos. */
+  /** Modo Estrela ativo (booleano ou ref, sem re-render): só chove um pouco mais de faíscas (a câmera segue natural). */
   estrela?: Ou<boolean>;
   zIndex?: number;
   /** Para tirarFoto(canvasRef.current). */
   canvasRef?: RefObject<HTMLCanvasElement | null>;
 }
 
-export function CameraFundo({ video, rostos, cantandoIdx, nomes, efeitos, faiscas = 0, escurecer = 0.35, estrela = false, zIndex = 0, canvasRef }: PropsCameraFundo) {
+export function CameraFundo({ video, rostos, cantandoIdx, nomes, efeitos, faiscas = 0, estrela = false, zIndex = 0, canvasRef }: PropsCameraFundo) {
   const interno = useRef<HTMLCanvasElement | null>(null);
   const pendentes = useRef(0);
   const alvo = canvasRef ?? interno;
-  const props = useRef({ video, rostos, cantandoIdx, nomes, efeitos, escurecer, faiscas, estrela });
-  useEffect(() => { props.current = { video, rostos, cantandoIdx, nomes, efeitos, escurecer, faiscas, estrela }; });
+  const props = useRef({ video, rostos, cantandoIdx, nomes, efeitos, faiscas, estrela });
+  useEffect(() => { props.current = { video, rostos, cantandoIdx, nomes, efeitos, faiscas, estrela }; });
   const anteriorFaiscas = useRef<number | null>(null);
   const ultimaChuva = useRef(0);
 
@@ -600,34 +562,11 @@ export function CameraFundo({ video, rostos, cantandoIdx, nomes, efeitos, faisca
       ctx.drawImage(v, q.dx, q.dy, dw, dh);
       ctx.restore();
 
-      // escurecimento + vinheta
-      if (p.escurecer > 0) { ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(0.9, p.escurecer)})`; ctx.fillRect(0, 0, cw, ch); }
-      const vin = ctx.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.35, cw / 2, ch / 2, Math.hypot(cw, ch) * 0.55);
-      vin.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      vin.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
-      ctx.fillStyle = vin;
-      ctx.fillRect(0, 0, cw, ch);
-
+      // Câmera natural: sem escurecimento, vinheta, tom ou granulado. A legibilidade vem da sombra nos textos.
       const emEstrela = ler(p.estrela);
-      if (emEstrela) {
-        // Luz dourada forte: vinheta dourada pulsando e faíscas contínuas.
-        const pulsoE = 0.5 + 0.5 * Math.sin(agora / 200);
-        const ouro = ctx.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.2, cw / 2, ch / 2, Math.hypot(cw, ch) * 0.6);
-        ouro.addColorStop(0, `rgba(255, 200, 70, ${0.1 + 0.08 * pulsoE})`);
-        ouro.addColorStop(1, `rgba(255, 170, 30, ${0.42 + 0.14 * pulsoE})`);
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.fillStyle = ouro;
-        ctx.fillRect(0, 0, cw, ch);
-        ctx.restore();
-        ctx.strokeStyle = `rgba(255, 226, 140, ${0.7 + 0.3 * pulsoE})`;
-        ctx.lineWidth = 10 * esc;
-        ctx.strokeRect(5 * esc, 5 * esc, cw - 10 * esc, ch - 10 * esc);
-      }
       lista.forEach((r, i) => {
-        if (emEstrela) desenharAura(ctx, q, r, agora);
         desenharFiltros(ctx, q, r, p.efeitos);
-        if (i === idx) desenharCantor(ctx, q, r, p.nomes?.[i], agora, Boolean(emEstrela));
+        if (i === idx) desenharCantor(ctx, q, r, p.nomes?.[i]);
       });
 
       if (emEstrela && agora - ultimaChuva.current > 90) {
@@ -705,10 +644,6 @@ export function tirarFoto(canvas: HTMLCanvasElement): Promise<Blob | null> {
   ctx.drawImage(canvas, 0, 0);
 
   const esc = copia.height / 1080;
-  // moldura dourada fina
-  ctx.strokeStyle = 'rgba(255, 214, 120, 0.9)';
-  ctx.lineWidth = 6 * esc;
-  ctx.strokeRect(3 * esc, 3 * esc, copia.width - 6 * esc, copia.height - 6 * esc);
   // selo no canto inferior direito
   const texto = 'Karaokê Natal em Família 2026';
   const tam = 30 * esc;

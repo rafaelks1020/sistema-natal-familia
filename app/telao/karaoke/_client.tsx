@@ -7,8 +7,8 @@ import { api } from '@/app/ui/client';
 import { Confete } from '../_confete';
 import { CameraFundo, EscolhaFiltros, tirarFoto, useCameraKaraoke, useEfeitos } from './_camera';
 import { MedidorAfinacao } from './_medidor';
-import { FundoLetra, LetraPalco } from './_letra';
-import { FundoEstudio, PalcoEstudio } from './_estudio';
+import { LetraPalco } from './_letra';
+import { PalcoEstudio } from './_estudio';
 import { MedidorPlateia } from './_plateia';
 import { Depuracao } from './_depuracao';
 import { COMBO_CLIPE, PERFEICAO_FRASE, tocarWhoosh, useMomentos, type CenaMomento, type EstadoMomentos } from './_momentos';
@@ -20,7 +20,7 @@ import { quemCanta, type DadosEstudio, type EstadoKaraoke, type ItemFila } from 
 import styles from './karaoke.module.css';
 
 const URL_QR = 'https://natalemfamilia.com.br/karaoke';
-const CONTAGEM_S = 5;
+const CONTAGEM_S = 3;
 const NOTA_MS = 15000;
 const LS_DISPOSITIVO = 'karaoke.mic.dispositivo';
 const LS_LIGADO = 'karaoke.mic.ligado';
@@ -39,7 +39,7 @@ const ATRASO_GRAVAR_OFFSET_MS = 400;
 const ERROS_TROCAVEIS = [100, 101, 150, 153];
 const MAX_TROCAS = 4;
 const CONTAGEM_TROCA_S = 3;
-/** Câmera: faixa da música em que vale tirar a foto do pico, ponto em que tira se não houve pico, e escurecimento do vídeo. */
+/** Câmera: faixa da música em que vale tirar a foto do pico e ponto em que tira se não houve pico. */
 const FOTO_DE = 0.3;
 const FOTO_ATE = 0.9;
 const FOTO_FALLBACK = 0.6;
@@ -49,8 +49,8 @@ const ACERTO_FAISCA = 0.75;
 const FRASE_PERFEITA_LETRA = 0.85;
 const ACENO_PAUSA_MS = 3000;
 const FRASE_BOA = 0.6;
-const ESCURECER_CANTANDO = 0.4;
-const ESCURECER_OCIOSO = 0.2;
+/** Os botões de baixo somem depois de tanto tempo sem mexer o mouse e voltam ao mexer. */
+const OCULTAR_CONTROLES_MS = 3000;
 
 interface FotoNota { url: string; estado: 'enviando' | 'salva' | 'erro' }
 
@@ -141,7 +141,7 @@ function NotaCena({ item, r, posicao, foto, momentos }: { item: ItemFila; r: Res
   const numero = useNumeroAnimado(r?.nota ?? 0);
   const est = r && 'resumo' in r ? (r as ResultadoEstudio) : null;
   const pontos = useNumeroAnimado(Math.round(est?.total ?? 0));
-  return <div className={styles.cartaz}>
+  return <div className={`${styles.cartaz} ${styles.cartazNota}`}>
     <Confete modo={r && r.estrelas >= 4 ? 'explosao' : 'rajada'} />
     {foto ? <figure className={styles.fotoNota}>
       <img src={foto.url} alt="Foto da apresentação" />
@@ -151,24 +151,26 @@ function NotaCena({ item, r, posicao, foto, momentos }: { item: ItemFila; r: Res
       {momentos.fotos.length > 0 ? <ul aria-label="Fotos dos melhores momentos">{momentos.fotos.map((f) => <li key={f.chave}><img src={f.url} alt="Foto de um dos melhores momentos" /></li>)}</ul> : null}
       <p className={styles.momentosContagem} aria-live="polite">{momentos.salvos} {momentos.salvos === 1 ? 'momento salvo' : 'momentos salvos'}{momentos.pendentes > 0 ? ' (salvando...)' : ''}</p>
     </div> : null}
-    <p className={styles.kicker}>{r ? 'Nota da apresentação' : 'Apresentação encerrada'}</p>
-    <p className={styles.subtitulo}>{quemCanta(item)} · {item.titulo}</p>
-    {!r ? <p className={styles.frase}>Sem nota desta vez: ligue o microfone (botão Microfone) e cante pelo menos uns 20 segundos.</p> : null}
-    {r ? <>
-      <p className={styles.notaNumero} aria-label={`Nota ${r.nota}`}>{numero}</p>
-      <div className={styles.estrelas} aria-label={`${r.estrelas} de 5 estrelas`}>
-        {[0, 1, 2, 3, 4].map((i) => i < r.estrelas
-          ? <Star key={i} className={`${styles.estrela} ${styles.estrelaCheia}`} style={{ ['--atraso' as string]: `${1.6 + i * 0.28}s` }} strokeWidth={1.5} />
-          : <Star key={i} className={`${styles.estrela} ${styles.estrelaVazia}`} strokeWidth={1.5} />)}
-      </div>
-      <p className={styles.frase}>{FRASES[r.estrelas]}</p>
-      <ul className={styles.notaDetalhes}>
-        {est ? <li><b>{pontos.toLocaleString('pt-BR')}</b> pontos</li> : null}
-        {est ? <li>Maior sequência: <b>{est.resumo.maiorSequencia}</b> {est.resumo.maiorSequencia === 1 ? 'nota' : 'notas'} (combo <b>x{est.resumo.maiorCombo}</b>)</li> : null}
-        {est ? <li>Notas perfeitas: <b>{Math.round(est.resumo.perfeitasPct * 100)}%</b></li> : null}
-        {posicao ? <li>Ranking da noite: <b>{posicao}º lugar</b></li> : null}
-      </ul>
-    </> : <p className={styles.titulo}>Valeu por cantar!</p>}
+    <div className={styles.notaCartao}>
+      <p className={styles.kicker}>{r ? 'Nota da apresentação' : 'Apresentação encerrada'}</p>
+      <p className={styles.subtitulo}>{quemCanta(item)} · {item.titulo}</p>
+      {!r ? <p className={styles.frase}>Sem nota desta vez: ligue o microfone (botão Microfone) e cante pelo menos uns 20 segundos.</p> : null}
+      {r ? <>
+        <p className={styles.notaNumero} aria-label={`Nota ${r.nota}`}>{numero}</p>
+        <div className={styles.estrelas} aria-label={`${r.estrelas} de 5 estrelas`}>
+          {[0, 1, 2, 3, 4].map((i) => i < r.estrelas
+            ? <Star key={i} className={`${styles.estrela} ${styles.estrelaCheia}`} style={{ ['--atraso' as string]: `${1.6 + i * 0.28}s` }} strokeWidth={1.5} />
+            : <Star key={i} className={`${styles.estrela} ${styles.estrelaVazia}`} strokeWidth={1.5} />)}
+        </div>
+        <p className={styles.frase}>{FRASES[r.estrelas]}</p>
+        <ul className={styles.notaStats}>
+          {est ? <li><b>{pontos.toLocaleString('pt-BR')}</b><span>pontos</span></li> : null}
+          {est ? <li><b>{est.resumo.maiorSequencia}</b><span>{est.resumo.maiorSequencia === 1 ? 'nota seguida' : 'notas seguidas'} (x{est.resumo.maiorCombo})</span></li> : null}
+          {est ? <li><b>{Math.round(est.resumo.perfeitasPct * 100)}%</b><span>notas perfeitas</span></li> : null}
+          {posicao ? <li><b>{posicao}º</b><span>no ranking da noite</span></li> : null}
+        </ul>
+      </> : <p className={styles.titulo}>Valeu por cantar!</p>}
+    </div>
   </div>;
 }
 
@@ -179,6 +181,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const [resultado, setResultado] = useState<{ item: ItemFila; r: Resultado | null } | null>(null);
   const [aviso, setAviso] = useState('');
   const [config, setConfig] = useState(false);
+  const [controlesOcultos, setControlesOcultos] = useState(false);
   const [tocando, setTocando] = useState(false);
   const [auto, setAuto] = useState(true);
   const [vozNaTv, setVozNaTv] = useState(false);
@@ -312,11 +315,13 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     const e = motorRef.current?.estado() ?? null;
     return {
       cantor: quemCanta(it), musica: it.faixa ?? it.titulo, linha, pontos: e ? e.pontos : null,
-      combo: e ? e.combo : 1, sequencia: e ? e.sequencia : 0, estrelaMs: estrelaRef.current.restanteMs(performance.now()), capaUrl: it.capa_url,
+      combo: e ? e.combo : 1, sequencia: e ? e.sequencia : 0, estrelaMs: estrelaRef.current.restanteMs(performance.now()),
     };
   }, [lerMsLetra]);
   const momentos = useMomentos({
     obterMic: pitch.obterStream,
+    vozAtiva: () => pitch.vivo.current.cantando,
+    ecoAtivo: () => ecoRef.current,
     audio: () => (usaEstudio(emCursoRef.current) ? audioRef.current : null),
     lerCena,
     fonte: () => canvasCamRef.current,
@@ -824,6 +829,29 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     return () => { window.removeEventListener('pointerdown', destravar); window.removeEventListener('keydown', destravar); };
   }, [admin, ligar, retomar]);
 
+  // Tela limpa: tira o grão de filme global (body::after) enquanto o karaokê está aberto.
+  useEffect(() => {
+    document.body.dataset.telaLimpa = '1';
+    return () => { delete document.body.dataset.telaLimpa; };
+  }, []);
+
+  // Botões de baixo: somem com o mouse parado (e o cursor com eles) e voltam ao mexer. Com um painel aberto ficam.
+  const painelAbertoRef = useRef(false);
+  useEffect(() => { painelAbertoRef.current = config || configCam; });
+  useEffect(() => {
+    if (!admin) return;
+    let timer = 0;
+    const agendar = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { if (painelAbertoRef.current) agendar(); else setControlesOcultos(true); }, OCULTAR_CONTROLES_MS);
+    };
+    const mostrar = () => { setControlesOcultos(false); agendar(); };
+    agendar();
+    const eventos = ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
+    for (const e of eventos) window.addEventListener(e, mostrar, { passive: true });
+    return () => { window.clearTimeout(timer); for (const e of eventos) window.removeEventListener(e, mostrar); };
+  }, [admin]);
+
   // O painel do microfone fecha ao clicar fora dele (para não cobrir a letra).
   useEffect(() => {
     if (!config) return;
@@ -928,18 +956,15 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   };
 
   const nomesNaTela = emCurso ? (emCurso.dueto_nome ? [emCurso.nome, emCurso.dueto_nome] : [emCurso.nome, emCurso.nome]) : [];
-  const escurecerCamera = fase === 'contagem' || fase === 'cantando' || fase === 'trocando' ? ESCURECER_CANTANDO : ESCURECER_OCIOSO;
 
-  return <div className={styles.root + (admin ? '' : ` ${styles.semFaixa}`) + (camAtiva ? ` ${styles.camAtiva}` : '') + (letraAtiva ? ` ${styles.modoLetra}` : '') + (estudioAtivo ? ` ${styles.modoEstudio}` : '')}>
+  return <div className={styles.root + (admin ? '' : ` ${styles.semFaixa}`) + (camAtiva ? ` ${styles.camAtiva}` : '') + (letraAtiva ? ` ${styles.modoLetra}` : '') + (estudioAtivo ? ` ${styles.modoEstudio}` : '') + (controlesOcultos ? ` ${styles.controlesOcultos}` : '')}>
     {camAtiva ? <>
-      <CameraFundo video={cam.video} rostos={cam.rostosRef} cantandoIdx={cam.cantandoRef} nomes={nomesNaTela} efeitos={efeitos} faiscas={faiscasRef} escurecer={escurecerCamera} estrela={estrelaAtivaRef} canvasRef={canvasCamRef} />
-      {letraAtiva || estudioAtivo ? <div className={styles.camVeu} aria-hidden="true" /> : null}
+      <CameraFundo video={cam.video} rostos={cam.rostosRef} cantandoIdx={cam.cantandoRef} nomes={nomesNaTela} efeitos={efeitos} faiscas={faiscasRef} estrela={estrelaAtivaRef} canvasRef={canvasCamRef} />
+      {letraAtiva || estudioAtivo ? <div className={styles.camFaixaLetra} aria-hidden="true" /> : null}
     </> : null}
-    {!camAtiva && letraAtiva && item ? <FundoLetra videoId={item.video_id} /> : null}
-    {!camAtiva && estudioAtivo && emCurso ? <FundoEstudio capa={emCurso.capa_url} /> : null}
     {admin ? <audio ref={audioRef} preload="auto" onPlaying={aoTocarAudio} onPause={aoPausarAudio} onWaiting={aoPausarAudio} onEnded={() => tratadores.current.finalizar()} onError={() => { if (usaEstudio(emCursoRef.current)) tratadores.current.erroVideo(); }} /> : null}
     <div className={styles.topo}><span className={styles.marca}>Natal em Família · Karaokê</span></div>
-    {estrelaOn ? <><div className={styles.estrelaVeu} aria-hidden="true" /><p className={styles.estrelaBanner} role="status">MODO ESTRELA x2</p></> : null}
+    {estrelaOn ? <p className={styles.estrelaBanner} role="status">MODO ESTRELA x2</p> : null}
     {dicaEstrela && !estrelaOn ? <p className={styles.dicaEstrela}>Levante os braços para o Modo Estrela!</p> : null}
 
     {/* O vídeo do YouTube fica sempre visível enquanto toca (exigência do YouTube); no modo letra só encolhe para o canto. */}
@@ -973,11 +998,14 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
 
     {admin && emPalco && pitch.status !== 'ativo' ? <p className={styles.semMic}>Microfone desligado: sem nota</p> : null}
 
-    {fase === 'contagem' && item ? <div className={styles.cartaz}>
-      <p className={styles.kicker}>Agora</p>
+    {fase === 'contagem' && item ? <div className={`${styles.cartaz} ${styles.cartazContagem}`}>
+      <p className={styles.kicker}>Prepare-se</p>
       <p className={styles.titulo}>{quemCanta(item)}</p>
       <p className={styles.subtitulo}>{item.titulo}</p>
-      <p className={styles.numero} key={contagem} aria-live="polite">{contagem}</p>
+      <div className={styles.contagemRoda} key={contagem}>
+        <svg viewBox="0 0 100 100" className={styles.contagemAnel} aria-hidden="true"><circle cx="50" cy="50" r="46" pathLength="100" /></svg>
+        <span className={styles.numero} aria-live="polite">{contagem}</span>
+      </div>
     </div> : null}
 
     {fase === 'trocando' && item ? <div className={styles.cartaz}>

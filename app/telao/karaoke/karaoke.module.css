@@ -1,5 +1,5 @@
 /* Tela do karaokê no telão: tudo em vmin, como o telão principal. Visual Meia-Noite. */
-.root { position: fixed; inset: 0; overflow: hidden; background: radial-gradient(120% 90% at 50% 0%, #2a1c1e 0%, #171b18 60%); color: #f3ebdc; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; user-select: none; -webkit-user-select: none; --lateral: 38vmin; --faixa: 84px; }
+.root { position: fixed; inset: 0; overflow: hidden; background: #14181a; color: #f3ebdc; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; user-select: none; -webkit-user-select: none; --lateral: 38vmin; --faixa: 84px; }
 .semFaixa { --faixa: 0px; }
 .topo { position: absolute; z-index: 6; top: 0; left: 0; right: 0; display: flex; align-items: flex-start; justify-content: space-between; padding: 2.8vmin 3vmin; pointer-events: none; }
 .marca { font-size: 2vmin; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: #bfa577; }
@@ -21,7 +21,7 @@
 .latDica { font-size: 1.6vmin; color: #9b9486; line-height: 1.3; }
 
 /* ---------- cartazes que cobrem a tela ---------- */
-.cartaz { position: absolute; z-index: 5; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.4vmin; padding: 9vmin 5vmin 6vmin; text-align: center; background: radial-gradient(120% 90% at 50% 0%, #2c1d1e 0%, #171b18 62%); animation: aparecer 0.6s ease both; }
+.cartaz { position: absolute; z-index: 5; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.4vmin; padding: 9vmin 5vmin 6vmin; text-align: center; background: #14181a; animation: aparecer 0.6s ease both; }
 .kicker { font-size: 2.1vmin; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: #bfa577; }
 .titulo { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 9vmin; line-height: 1.05; text-wrap: balance; max-width: 150vmin; }
 .subtitulo { font-size: 3.4vmin; font-weight: 600; color: #cfc6b6; max-width: 130vmin; text-wrap: balance; }
@@ -88,17 +88,13 @@
 /* ---------- modo letra: letra própria sincronizada no centro, vídeo pequeno no canto ---------- */
 .modoLetra { --lateral: 26vmin; --video-w: 360px; --video-h: 203px; }
 .videoPequeno { top: auto; right: auto; width: var(--video-w); height: var(--video-h); bottom: calc(var(--faixa) + 2.4vmin); border-radius: 1.2vmin; z-index: 3; }
-.fundoLetra { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: #171b18; }
-.fundoLetra img { position: absolute; inset: -8%; width: 116%; height: 116%; object-fit: cover; filter: blur(4.5vmin) brightness(0.3) saturate(1.15); transform: scale(1.05); }
-.fundoLetra::after { content: ""; position: absolute; inset: 0; background: radial-gradient(110% 80% at 50% 40%, rgba(23, 27, 24, 0.15) 0%, rgba(23, 27, 24, 0.82) 100%); }
-.brilhoLetra { position: absolute; inset: -20%; z-index: 1; background: radial-gradient(40% 35% at 30% 40%, rgba(197, 41, 45, 0.22), transparent 70%), radial-gradient(35% 30% at 72% 62%, rgba(191, 165, 119, 0.2), transparent 70%); animation: brilhoLento 14s ease-in-out infinite alternate; mix-blend-mode: screen; }
 .letraTopo { position: absolute; z-index: 2; top: 6.2vmin; left: 2.4vmin; right: calc(var(--lateral) + 4.8vmin); display: flex; flex-direction: column; align-items: center; gap: 0.6vmin; text-align: center; pointer-events: none; }
 .letraCantando { font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 4vmin; line-height: 1.1; color: #bfa577; text-shadow: 0 0 3vmin rgba(191, 165, 119, 0.35); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .letraCantando b { color: #f3ebdc; font-weight: 800; }
 .letraMusica { font-size: 1.9vmin; font-weight: 600; letter-spacing: 0.06em; color: #cfc6b6; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .palco { position: absolute; z-index: 2; left: 2.4vmin; top: 21vmin; right: calc(var(--lateral) + 4.8vmin); bottom: calc(var(--faixa) + 2.4vmin + var(--video-h) + 1.6vmin); pointer-events: none; }
-.linhaLetra { position: absolute; left: 50%; top: 50%; width: min(100%, 135vmin); text-align: center; font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 700; line-height: 1.12; text-wrap: balance; transform: translate(-50%, calc(-50% + var(--dy, 0vmin))) scale(var(--s, 1)); opacity: var(--o, 0); transition: transform 0.75s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.6s ease; will-change: transform, opacity; }
-.linhaLetra[data-slot="0"] { --dy: 0vmin; --s: 1; --o: 1; filter: drop-shadow(0 0 2.2vmin rgba(197, 41, 45, 0.45)); }
+.linhaLetra { position: absolute; left: 50%; top: 50%; width: min(100%, 135vmin); text-align: center; font-family: var(--font-manrope), \"Manrope\", system-ui, sans-serif; font-weight: 800; line-height: 1.12; text-wrap: balance; transform: translate(-50%, calc(-50% + var(--dy, 0vmin))) scale(var(--s, 1)); opacity: var(--o, 0); transition: transform 0.75s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.6s ease; will-change: transform, opacity; }
+.linhaLetra[data-slot="0"] { --dy: 0vmin; --s: 1; --o: 1; filter: drop-shadow(0 0.3vmin 1.2vmin rgba(0, 0, 0, 0.85)); }
 .linhaLetra[data-slot="-1"] { --dy: -17vmin; --s: 0.46; --o: 0.4; }
 .linhaLetra[data-slot="1"] { --dy: 16vmin; --s: 0.62; --o: 0.55; }
 .linhaLetra[data-slot="-2"] { --dy: -26vmin; --s: 0.3; --o: 0; }
@@ -121,11 +117,12 @@
 /* ---------- modo estúdio: barras de notas no alto, letra palavra a palavra embaixo ---------- */
 .modoEstudio { --lateral: 26vmin; --video-w: 0px; --video-h: 0px; }
 .estPalco { position: absolute; z-index: 2; left: 2.4vmin; top: 17vmin; right: calc(var(--lateral) + 4.8vmin); bottom: calc(var(--faixa) + 2.4vmin); display: flex; flex-direction: column; gap: 2.4vmin; pointer-events: none; }
-.estCanvas { flex: 0 0 40%; width: 100%; height: 40%; display: block; border-radius: 1.6vmin; background: rgba(21, 25, 22, 0.72); border: 0.2vmin solid rgba(243, 235, 220, 0.14); box-shadow: 0 2vmin 6vmin rgba(0, 0, 0, 0.45); }
+.estCanvas { flex: 0 0 40%; width: 100%; height: 40%; display: block; border-radius: 1.6vmin; background: rgba(21, 25, 22, 0.55); border: 0.2vmin solid rgba(243, 235, 220, 0.14); box-shadow: 0 2vmin 6vmin rgba(0, 0, 0, 0.45); }
 .estLetra { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3vmin; text-align: center; }
-.estLinha { max-width: 100%; font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 700; font-size: 6.4vmin; line-height: 1.14; text-wrap: balance; filter: drop-shadow(0 0 2.2vmin rgba(197, 41, 45, 0.45)); animation: aparecer 0.6s ease both; }
-.estProxima { max-width: 100%; font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 600; font-size: 3.8vmin; line-height: 1.15; color: rgba(243, 235, 220, 0.42); text-wrap: balance; animation: aparecer 0.6s ease both; }
-.estPalavra { --p: 0; --z: 1; display: inline-block; transform: scale(var(--z)); transform-origin: 50% 80%; color: transparent; -webkit-background-clip: text; background-clip: text; background-image: linear-gradient(90deg, #e6c98e 0%, #e6c98e calc(var(--p) * 100%), #f3ebdc calc(var(--p) * 100% + 0.4%), #f3ebdc 100%); will-change: transform; }
+.estLinha { max-width: 100%; word-spacing: 0.14em; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; font-weight: 800; font-size: 6.4vmin; line-height: 1.14; text-wrap: balance; filter: drop-shadow(0 0.3vmin 1.2vmin rgba(0, 0, 0, 0.85)); animation: aparecer 0.6s ease both; }
+.estProxima { max-width: 100%; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; font-weight: 700; font-size: 3.8vmin; line-height: 1.15; color: rgba(243, 235, 220, 0.42); text-wrap: balance; animation: aparecer 0.6s ease both; }
+.estPalavraCaixa { --p: 0; --z: 1; position: relative; display: inline-block; transform: scale(var(--z)); transform-origin: 50% 80%; will-change: transform; }
+.estPalavra { display: inline-block; color: transparent; -webkit-background-clip: text; background-clip: text; background-image: linear-gradient(90deg, #e6c98e 0%, #e6c98e calc(var(--p) * 100%), #f3ebdc calc(var(--p) * 100% + 0.4%), #f3ebdc 100%); will-change: transform; }
 .estFeedback { position: absolute; z-index: 4; left: 50%; top: 30%; margin: 0; transform: translate(-50%, -50%); font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 9vmin; color: #e6c98e; text-shadow: 0 0 4vmin rgba(230, 201, 142, 0.6), 0 0.4vmin 1.2vmin rgba(0, 0, 0, 0.6); animation: feedbackSobe 1.7s ease both; }
 @keyframes feedbackSobe { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.8); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); } 30% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -70%) scale(1); } }
 @media (orientation: portrait) {
@@ -177,7 +174,6 @@
 
 @media (prefers-reduced-motion: reduce) { .estLinha, .estProxima { animation-duration: 0.01s; } .estFeedback { animation-duration: 0.6s; } }
 
-@keyframes brilhoLento { from { transform: translate(-3%, -2%) scale(1); } to { transform: translate(4%, 3%) scale(1.12); } }
 @keyframes pulsa { 0%, 100% { opacity: 0.65; } 50% { opacity: 1; } }
 @media (orientation: portrait) {
   .modoLetra { --lateral: 0px; }
@@ -187,7 +183,7 @@
   .ajusteLetra { left: 2vmin; bottom: calc(var(--faixa) + 2.4vmin + var(--video-h) + 1vmin); }
   .palco { bottom: calc(var(--faixa) + 2.4vmin + var(--video-h) + 8vmin); }
 }
-@media (prefers-reduced-motion: reduce) { .brilhoLetra, .notas { animation: none; } .linhaLetra { transition-duration: 0.01s; } }
+@media (prefers-reduced-motion: reduce) { .notas { animation: none; } .linhaLetra { transition-duration: 0.01s; } }
 
 @keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
 @keyframes estoura { 0% { opacity: 0; transform: scale(0.3); } 60% { opacity: 1; transform: scale(1.08); } 100% { opacity: 1; transform: scale(1); } }
@@ -196,9 +192,18 @@
 
 /* ---------- câmera de fundo ---------- */
 .camAtiva { background: transparent; }
-.camAtiva .cartaz { background: radial-gradient(120% 90% at 50% 40%, rgba(23, 27, 24, 0.3) 0%, rgba(23, 27, 24, 0.68) 100%); text-shadow: 0 0.3vmin 1.6vmin rgba(0, 0, 0, 0.85); }
-.camVeu { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(10, 12, 11, 0.5) 0%, rgba(10, 12, 11, 0.22) 38%, rgba(10, 12, 11, 0.6) 100%); }
-.camAtiva .palco, .camAtiva .estPalco, .camAtiva .letraTopo { text-shadow: 0 0.2vmin 1.2vmin rgba(0, 0, 0, 0.9); }
+/* Câmera natural: nada escurece a tela inteira. Os textos ganham sombra forte e só a área da letra, embaixo, ganha uma faixa suave. */
+.camAtiva .cartaz { background: transparent; text-shadow: 0 0.2vmin 0.6vmin rgba(0, 0, 0, 0.95), 0 0 2.4vmin rgba(0, 0, 0, 0.9), 0 0 5vmin rgba(0, 0, 0, 0.7); }
+.camAtiva .notaNumero, .camAtiva .estrela { filter: drop-shadow(0 0.4vmin 1.4vmin rgba(0, 0, 0, 0.9)) drop-shadow(0 0 4vmin rgba(0, 0, 0, 0.6)); }
+.camFaixaLetra { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; height: 46%; pointer-events: none; background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.35) 100%); }
+.camAtiva .palco, .camAtiva .estPalco, .camAtiva .letraTopo, .camAtiva .topo, .camAtiva .plateia, .camAtiva .estPlacar, .camAtiva .estAvaliacao { text-shadow: 0 0.2vmin 0.6vmin rgba(0, 0, 0, 0.95), 0 0 2vmin rgba(0, 0, 0, 0.85); }
+.camAtiva .estPontos, .camAtiva .estComboX { text-shadow: 0 0.3vmin 0.8vmin rgba(0, 0, 0, 0.95), 0 0 3vmin rgba(0, 0, 0, 0.8); }
+.camAtiva .estLinha, .camAtiva .estProxima { text-shadow: 0 0.25vmin 0.7vmin rgba(0, 0, 0, 0.95), 0 0 2.4vmin rgba(0, 0, 0, 0.9); }
+.estPalavra, .palavra { text-shadow: none; }
+.camAtiva .estPalco .estPalavra, .camAtiva .palco .palavra { text-shadow: none; }
+/* Contorno escuro atrás de cada palavra (cópia com traço, sem filtro: filtro em cada palavra a cada quadro pesava na pintura). */
+.camAtiva .estPalavraCaixa::before { content: attr(data-t); position: absolute; left: 0; top: 0; color: transparent; -webkit-text-stroke: 0.9vmin rgba(0, 0, 0, 0.88); text-shadow: 0 0.3vmin 1.4vmin rgba(0, 0, 0, 0.8); white-space: pre; pointer-events: none; }
+.camAtiva .palco .palavra { filter: drop-shadow(0 0 0.5vmin rgba(0, 0, 0, 0.95)); }
 .config .linhaCheck { flex-direction: row; align-items: center; gap: 10px; color: #f3ebdc; font-weight: 600; }
 .config .linhaCheck input { width: 20px; height: 20px; accent-color: #bfa577; }
 
@@ -207,15 +212,47 @@
 .fotoNota img { display: block; width: 100%; height: auto; border-radius: 0.4vmin; background: #000; }
 .fotoNota figcaption { margin-top: 0.8vmin; text-align: center; font-size: 1.9vmin; font-weight: 800; color: #171b18; text-shadow: none; }
 
-/* Modo Estrela (gesto de braços para cima): luz dourada na borda, faixa no topo e dica. */
-.estrelaVeu { position: absolute; z-index: 4; inset: 0; pointer-events: none; box-shadow: inset 0 0 14vmin rgba(255, 190, 60, 0.75), inset 0 0 3vmin rgba(255, 226, 140, 0.9); background: radial-gradient(120% 90% at 50% 50%, rgba(255, 200, 70, 0) 40%, rgba(255, 180, 40, 0.22) 100%); animation: estrelaPulsa 0.7s ease-in-out infinite alternate; }
-.estrelaBanner { position: absolute; z-index: 7; left: 50%; top: 2.2vmin; transform: translateX(-50%); padding: 1.2vmin 4vmin; border-radius: 999px; background: rgba(23, 27, 24, 0.85); border: 0.35vmin solid #ffe28c; color: #ffd45e; font-size: 3.6vmin; font-weight: 800; letter-spacing: 0.12em; text-shadow: 0 0 2vmin rgba(255, 200, 70, 0.9); box-shadow: 0 0 5vmin rgba(255, 190, 60, 0.7); pointer-events: none; animation: estrelaPulsa 0.7s ease-in-out infinite alternate; }
+/* Modo Estrela (gesto de braços para cima): só a faixa no topo e a dica (a câmera fica natural). */
+.estrelaBanner { position: absolute; z-index: 7; left: 50%; top: 2.2vmin; transform: translateX(-50%); padding: 1.2vmin 4vmin; border-radius: 999px; background: rgba(23, 27, 24, 0.85); border: 0.35vmin solid #ffe28c; color: #ffd45e; font-size: 3.6vmin; font-weight: 800; letter-spacing: 0.12em; text-shadow: 0 0 2vmin rgba(255, 200, 70, 0.9); box-shadow: 0 0.4vmin 1.6vmin rgba(0, 0, 0, 0.6); pointer-events: none; animation: estrelaPulsa 0.7s ease-in-out infinite alternate; }
 .dicaEstrela { position: absolute; z-index: 7; left: 50%; bottom: calc(var(--faixa) + 1.6vmin); transform: translateX(-50%); padding: 0.8vmin 2.2vmin; border-radius: 999px; background: rgba(23, 27, 24, 0.8); border: 0.2vmin solid rgba(255, 212, 94, 0.8); color: #ffd45e; font-size: 1.9vmin; font-weight: 700; pointer-events: none; animation: aparecer 0.6s ease both; }
 @keyframes estrelaPulsa { from { opacity: 0.75; } to { opacity: 1; } }
 
 /* Tela da nota: faixa de miniaturas dos melhores momentos e o contador. */
-.momentosFaixa { position: absolute; z-index: 3; left: 3vmin; bottom: calc(var(--faixa) + 3vmin); max-width: 56vw; display: flex; flex-direction: column; gap: 1vmin; animation: aparecer 0.8s ease 2.4s both; }
-.momentosFaixa ul { display: flex; gap: 1vmin; margin: 0; padding: 0; list-style: none; }
-.momentosFaixa li { width: 11vmin; aspect-ratio: 16 / 9; border-radius: 0.6vmin; overflow: hidden; background: #000; border: 0.2vmin solid rgba(255, 214, 120, 0.8); box-shadow: 0 1vmin 3vmin rgba(0, 0, 0, 0.6); }
+.momentosFaixa { position: absolute; z-index: 3; left: 3vmin; bottom: calc(var(--faixa) + 3vmin); max-width: 22vw; display: flex; flex-direction: column; gap: 1vmin; animation: aparecer 0.8s ease 2.4s both; }
+.momentosFaixa ul { display: flex; flex-wrap: wrap; gap: 1vmin; margin: 0; padding: 0; list-style: none; }
+.momentosFaixa li { width: 9vmin; aspect-ratio: 16 / 9; border-radius: 0.6vmin; overflow: hidden; background: #000; border: 0.2vmin solid rgba(255, 214, 120, 0.8); box-shadow: 0 1vmin 3vmin rgba(0, 0, 0, 0.6); }
 .momentosFaixa img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .momentosContagem { margin: 0; font-size: 2.2vmin; font-weight: 800; color: #ffd45e; text-shadow: 0 0.3vmin 1.2vmin rgba(0, 0, 0, 0.9); }
+
+/* ---------- controles que somem com o mouse parado ---------- */
+.faixa, .ajusteLetra, .dicaEstrela { transition: opacity 0.5s ease; }
+.controlesOcultos { cursor: none; }
+.controlesOcultos .faixa, .controlesOcultos .ajusteLetra, .controlesOcultos .dicaEstrela { opacity: 0; pointer-events: none; }
+
+/* ---------- contagem 3, 2, 1 ---------- */
+.contagemRoda { position: relative; display: grid; place-items: center; width: 44vmin; height: 44vmin; margin-top: 1vmin; }
+.contagemAnel { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.contagemAnel circle { fill: none; stroke: #bfa577; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; animation: anelContagem 1s linear forwards; filter: drop-shadow(0 0 1.2px rgba(0, 0, 0, 0.9)); }
+.contagemRoda::before { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 0.6vmin solid rgba(243, 235, 220, 0.16); }
+.contagemRoda .numero { font-size: 30vmin; text-shadow: 0 0.4vmin 1.6vmin rgba(0, 0, 0, 0.85); }
+@keyframes anelContagem { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .contagemAnel circle { animation-duration: 0.01s; } }
+
+@media (orientation: landscape) { .modoLetra .ajusteLetra, .modoEstudio .ajusteLetra { left: 12vmin; } }
+/* Contagem sobre a câmera: disco escuro só atrás do número. */
+.contagemRoda { background: radial-gradient(circle, rgba(0, 0, 0, 0.45) 0 62%, rgba(0, 0, 0, 0) 64%); }
+.contagemRoda .numero { color: #f3ebdc; }
+.botao { min-height: 48px; font-size: 17px; }
+
+/* ---------- tela da nota: cartão com o resultado (o confete cai atrás) ---------- */
+.notaCartao { position: relative; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 1.4vmin; width: min(138vmin, 92vw); padding: 3.2vmin 8vmin 3.6vmin; border-radius: 3vmin; background: rgba(12, 15, 16, 0.58); border: 0.2vmin solid rgba(243, 235, 220, 0.16); box-shadow: 0 3vmin 9vmin rgba(0, 0, 0, 0.45); animation: aparecer 0.6s ease both; }
+.notaCartao .notaNumero { font-size: 25vmin; text-shadow: none; }
+.notaCartao .estrela { width: 9vmin; height: 9vmin; }
+.notaCartao .frase { font-size: 5vmin; }
+.notaCartao .subtitulo { font-size: 3vmin; }
+.camAtiva .cartaz .notaNumero { filter: none; }
+.notaStats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.4vmin; width: 100%; margin: 0.8vmin 0 0; padding: 0; list-style: none; animation: aparecer 0.8s ease 2.2s both; }
+.notaStats li { display: flex; flex-direction: column; align-items: center; gap: 0.4vmin; padding: 1.3vmin 1.6vmin; border-radius: 1.6vmin; background: rgba(243, 235, 220, 0.07); border: 0.15vmin solid rgba(243, 235, 220, 0.12); }
+.notaStats b { white-space: nowrap; font-family: var(--font-bodoni), "Bodoni Moda", Georgia, serif; font-weight: 800; font-size: 5.2vmin; line-height: 1.05; color: #e6c98e; font-variant-numeric: tabular-nums; text-shadow: none; }
+.notaStats span { font-size: 1.8vmin; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #cfc6b6; text-align: center; text-shadow: none; }
+.camAtiva .notaCartao, .camAtiva .notaCartao * { text-shadow: none; }

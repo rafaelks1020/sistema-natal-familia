@@ -75,6 +75,9 @@ body::after {
   background-size: 96px 96px;
 }
 
+/* Telas limpas (telão do karaokê): sem o grão de filme por cima. */
+body[data-tela-limpa]::after { display: none; }
+
 ::selection {
   background: var(--cereja);
   color: var(--marfim);

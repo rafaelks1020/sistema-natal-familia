@@ -173,18 +173,18 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
       });
       const porta = ctx.createGain();
       porta.gain.value = 0;
-      const limitador = ctx.createDynamicsCompressor();
-      limitador.threshold.value = -6;
-      limitador.ratio.value = 20;
-      limitador.attack.value = 0.001;
-      limitador.release.value = 0.1;
-      limitador.knee.value = 0;
+      // Limitador sem atraso: curva suave (tanh) em vez de DynamicsCompressor, que segura ~6 ms de antecipação.
+      const limitador = ctx.createWaveShaper();
+      const curva = new Float32Array(1024);
+      for (let i = 0; i < curva.length; i++) { const x = (i / (curva.length - 1)) * 2 - 1; curva[i] = Math.tanh(x * 1.6) / Math.tanh(1.6); }
+      limitador.curve = curva;
       const vozGain = ctx.createGain();
       vozGain.gain.value = voz.current.ligada ? voz.current.volume : 0;
       const reverb = ctx.createConvolver();
-      reverb.buffer = criarImpulso(ctx);
+      // Eco de karaokê curto e discreto: reverb longo soa como atraso e atrapalha quem canta.
+      reverb.buffer = criarImpulso(ctx, 0.5, 4);
       const reverbGain = ctx.createGain();
-      reverbGain.gain.value = 0.45;
+      reverbGain.gain.value = 0.12;
       fonte.connect(passaAltas);
       let cadeia: AudioNode = passaAltas;
       for (const c of cortes) { cadeia.connect(c); cadeia = c; }
