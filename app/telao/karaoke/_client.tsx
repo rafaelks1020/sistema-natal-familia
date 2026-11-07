@@ -10,6 +10,7 @@ import { MedidorAfinacao } from './_medidor';
 import { FundoLetra, LetraPalco } from './_letra';
 import { FundoEstudio, PalcoEstudio } from './_estudio';
 import { MedidorPlateia } from './_plateia';
+import { Depuracao } from './_depuracao';
 import { COMBO_CLIPE, PERFEICAO_FRASE, tocarWhoosh, useMomentos, type CenaMomento, type EstadoMomentos } from './_momentos';
 import { ControleEstrela, DetectorGestos, type EventoGesto, type Postura } from './gestos';
 import { janelasDaLetra, prepararLetra, type LinhaCantada } from './letra';
@@ -221,6 +222,8 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const latenciaRef = useRef(LATENCIA_PADRAO_MS);
   /** Pontuação ao vivo da música em modo estúdio, fila de acontecimentos para a tela, energia da plateia e linhas da letra (modo letra). */
   const motorRef = useRef<PontuacaoAoVivo | null>(null);
+  /** Contadores de depuração (só com ?debug=1): expostos em window.__karaoke. */
+  const depRef = useRef<Depuracao | null>(null);
   const eventosRef = useRef<EventoAoVivo[]>([]);
   const plateiaRef = useRef<PlateiaEnergia>(new PlateiaEnergia());
   const linhasLetraRef = useRef<LinhaCantada[]>([]);
@@ -394,6 +397,8 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     fotoRef.current = null; fraseRef.current = { i: -1, total: 0, bons: 0 };
     limparFoto();
     definirModoEstudio(usaEstudio(item));
+    depRef.current = usaEstudio(item) && new URLSearchParams(window.location.search).get('debug') === '1'
+      ? new Depuracao(prepararNotas(item.estudio.notas), latenciaRef.current, offsetRef.current) : null;
     motorRef.current = usaEstudio(item) ? new PontuacaoAoVivo(prepararNotas(item.estudio.notas), { latenciaMs: latenciaRef.current, offsetMs: offsetRef.current }) : null;
     linhasLetraRef.current = item.modo === 'letra' ? prepararLetra(item.letra) : [];
     relogioRef.current = { v: 0, w: 0, saida: 0 };
@@ -672,7 +677,9 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
         if (!motor || typeof q.m !== 'number') return;
         motor.definirLimiar(limiarDeVozEstudio(ruido));
         motor.definirAjuste(latenciaRef.current, offsetRef.current);
-        const ev = motor.adicionarQuadro(q.m, emFaixa ? hzParaMidi(q.hz) : null, q.clareza, q.rms, dt);
+        const midiQ = emFaixa ? hzParaMidi(q.hz) : null;
+        const ev = motor.adicionarQuadro(q.m, midiQ, q.clareza, q.rms, dt);
+        depRef.current?.registrar({ t: q.t, m: q.m, midi: midiQ, valido: motor.ultimoQuadro.valido, indice: motor.ultimoQuadro.indice, clareza: q.clareza, rms: q.rms, dt });
         if (ev.length) {
           for (const e of ev) {
             if (e.tipo === 'nota') {
@@ -754,6 +761,21 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     }, 500);
     return () => window.clearInterval(t);
   }, [camAtiva, salvarFoto, fase, emCursoFotoId, cam.rostosRef]);
+
+  // Depuração (só com ?debug=1): contadores do modo estúdio em window.__karaoke.estado().
+  const infoAudio = pitch.infoAudio;
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('debug') !== '1') return;
+    const w = window as unknown as { __karaoke?: { estado: () => unknown } };
+    w.__karaoke = {
+      estado: () => {
+        const d = depRef.current;
+        if (d) { d.info = infoAudio.current; d.latenciaMs = latenciaRef.current; d.offsetMs = offsetRef.current; }
+        return { ...(d?.estado() ?? {}), placar: motorRef.current?.estado() ?? null, fase: faseRef.current, offsetMs: offsetRef.current, latenciaMs: latenciaRef.current };
+      },
+    };
+    return () => { delete w.__karaoke; };
+  }, [infoAudio]);
 
   // Placar parcial para o celular ("Agora: Fulano, 4.230 pontos"): a cada 3 s, só quando mudou.
   const emCursoId = emCurso?.id;

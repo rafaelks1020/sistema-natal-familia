@@ -23,6 +23,37 @@ export function criarImpulso(ctx: BaseAudioContext, segundos = 2.2, decaimento =
   return buf;
 }
 
+/** Código do AudioWorklet: guarda as últimas 2048 amostras e avisa a página a cada ~33 ms (passo), com o instante do fim do trecho. */
+const CODIGO_CAPTURA = `
+class Captura extends AudioWorkletProcessor {
+  constructor(opcoes) {
+    super();
+    this.n = opcoes.processorOptions.janela;
+    this.passo = opcoes.processorOptions.passo;
+    this.buf = new Float32Array(this.n);
+    this.pos = 0;
+    this.cont = 0;
+    this.total = 0;
+  }
+  process(entradas) {
+    const canal = entradas[0] && entradas[0][0];
+    if (!canal) return true;
+    for (let i = 0; i < canal.length; i++) { this.buf[this.pos] = canal[i]; this.pos = (this.pos + 1) % this.n; }
+    this.cont += canal.length;
+    this.total += canal.length;
+    if (this.cont >= this.passo && this.total >= this.n) {
+      this.cont -= this.passo;
+      const saida = new Float32Array(this.n);
+      saida.set(this.buf.subarray(this.pos), 0);
+      saida.set(this.buf.subarray(0, this.pos), this.n - this.pos);
+      this.port.postMessage({ t: currentTime + canal.length / sampleRate, buf: saida }, [saida.buffer]);
+    }
+    return true;
+  }
+}
+registerProcessor('karaoke-captura', Captura);
+`;
+
 const SEM_VOZ: Vivo = { midi: null, hz: 0, rms: 0, cantando: false, limiar: limiarDeVoz(0) };
 
 function mensagemDeErro(err: unknown): string {
@@ -43,12 +74,14 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
   const vivo = useRef<Vivo>(SEM_VOZ);
   /** Últimos segundos de altura, para o medidor desenhar a linha rolando. */
   const historico = useRef<PontoAltura[]>([]);
-  const audio = useRef<{ ctx?: AudioContext; stream?: MediaStream; timer?: number; vozGain?: GainNode; token: number }>({ token: 0 });
+  const audio = useRef<{ ctx?: AudioContext; stream?: MediaStream; timer?: number; node?: AudioWorkletNode; vozGain?: GainNode; token: number }>({ token: 0 });
   const gravacao = useRef<{ ativa: boolean; pausada: boolean; t0: number; quadros: Quadro[]; limiar: number; ruido: number; posicao?: () => number }>({ ativa: false, pausada: false, t0: 0, quadros: [], limiar: 0, ruido: 0 });
   /** Quem recebe cada quadro gravado (pontuação ao vivo e plateia). limiar: o de voz valendo nesse instante. */
   const ouvinte = useRef<((q: Quadro, limiar: number, ruido: number) => void) | null>(null);
   /** Modo estúdio: clareza mínima e limiar de voz próprios (a voz cantada real tem clareza menor e a música da TV vaza para o microfone). */
   const estudio = useRef(false);
+  /** Taxa de amostragem e latências do AudioContext do microfone (depuração). */
+  const infoAudio = useRef({ sampleRate: 0, baseLatency: 0, outputLatency: 0 });
   const voz = useRef({ ligada: vozNaTv, volume: volumeVoz });
   const idPedido = useRef(deviceId);
 
@@ -64,6 +97,8 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
     a.token++;
     if (a.timer !== undefined) window.clearInterval(a.timer);
     a.timer = undefined;
+    if (a.node) { a.node.port.onmessage = null; a.node.disconnect(); }
+    a.node = undefined;
     a.stream?.getTracks().forEach((t) => t.stop());
     void a.ctx?.close().catch(() => undefined);
     a.stream = undefined; a.ctx = undefined; a.vozGain = undefined;
@@ -90,6 +125,7 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
       const ctx = new AudioContext({ latencyHint: 'interactive' });
       await ctx.resume().catch(() => undefined);
       if (token !== audio.current.token) { stream.getTracks().forEach((t) => t.stop()); void ctx.close().catch(() => undefined); return; }
+      infoAudio.current = { sampleRate: ctx.sampleRate, baseLatency: ctx.baseLatency ?? 0, outputLatency: ctx.outputLatency ?? 0 };
       const fonte = ctx.createMediaStreamSource(stream);
       const analisador = ctx.createAnalyser();
       analisador.fftSize = 2048;
@@ -108,22 +144,26 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
       reverb.connect(reverbGain);
       reverbGain.connect(ctx.destination);
 
-      const buf = new Float32Array(analisador.fftSize);
-      const detector = PitchDetector.forFloat32Array(analisador.fftSize);
+      const janelaN = analisador.fftSize;
+      const buf = new Float32Array(janelaN);
+      const detector = PitchDetector.forFloat32Array(janelaN);
       let recentes: number[] = [];
       let semVoz = 0;
-      const timer = window.setInterval(() => {
-        analisador.getFloatTimeDomainData(buf);
+      /**
+       * Mede um quadro (janela de 2048 amostras). idadeMs: há quanto tempo esse trecho foi captado. Com a captura pelo AudioWorklet os quadros
+       * chegam em fila mesmo se a página travar (câmera, canvas pesado), então o tempo e a posição da música são os do instante da captura.
+       */
+      const processar = (janela: Float32Array, idadeMs: number) => {
         let soma = 0;
-        for (let i = 0; i < buf.length; i++) soma += buf[i] * buf[i];
-        const rms = Math.sqrt(soma / buf.length);
+        for (let i = 0; i < janela.length; i++) soma += janela[i] * janela[i];
+        const rms = Math.sqrt(soma / janela.length);
         let hz = 0;
         let clareza = 0;
-        if (rms > 0.004) [hz, clareza] = detector.findPitch(buf, ctx.sampleRate);
-        const agora = performance.now();
+        if (rms > 0.004) [hz, clareza] = detector.findPitch(janela, ctx.sampleRate);
+        const agora = performance.now() - idadeMs;
         const g = gravacao.current;
-        if (g.ativa && !g.pausada) {
-          const quadro: Quadro = g.posicao ? { t: agora - g.t0, hz, clareza, rms, m: g.posicao() } : { t: agora - g.t0, hz, clareza, rms };
+        if (g.ativa && !g.pausada && agora >= g.t0) {
+          const quadro: Quadro = g.posicao ? { t: agora - g.t0, hz, clareza, rms, m: g.posicao() - idadeMs } : { t: agora - g.t0, hz, clareza, rms };
           g.quadros.push(quadro);
           if (!g.limiar && agora - g.t0 >= 2000) { g.ruido = medirRuido(g.quadros); g.limiar = limiarDeVoz(g.ruido); }
           ouvinte.current?.(quadro, g.limiar || limiarDeVoz(0), g.ruido);
@@ -140,10 +180,31 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
         vivo.current = { midi, hz: valido ? hz : 0, rms, cantando: valido, limiar };
         const h = historico.current;
         h.push({ t: agora, midi });
-        while (h.length && agora - h[0].t > 12000) h.shift();
-      }, 33);
+        const corte = performance.now() - 12000;
+        while (h.length && h[0].t < corte) h.shift();
+      };
 
-      audio.current = { ctx, stream, timer, vozGain, token };
+      // Captura no thread de áudio (AudioWorklet): um quadro a cada ~33 ms, com o instante exato. Sem worklet, cai no temporizador.
+      let timer: number | undefined;
+      let node: AudioWorkletNode | undefined;
+      try {
+        if (!ctx.audioWorklet) throw new Error('sem AudioWorklet');
+        const url = URL.createObjectURL(new Blob([CODIGO_CAPTURA], { type: 'text/javascript' }));
+        try { await ctx.audioWorklet.addModule(url); } finally { URL.revokeObjectURL(url); }
+        if (token !== audio.current.token) { stream.getTracks().forEach((t) => t.stop()); void ctx.close().catch(() => undefined); return; }
+        node = new AudioWorkletNode(ctx, 'karaoke-captura', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], processorOptions: { janela: janelaN, passo: Math.round(ctx.sampleRate * 0.033) } });
+        node.port.onmessage = (e: MessageEvent<{ t: number; buf: Float32Array }>) => processar(e.data.buf, Math.max(0, (ctx.currentTime - e.data.t) * 1000));
+        const mudo = ctx.createGain();
+        mudo.gain.value = 0;
+        fonte.connect(node);
+        node.connect(mudo);
+        mudo.connect(ctx.destination);
+      } catch {
+        node = undefined;
+        timer = window.setInterval(() => { analisador.getFloatTimeDomainData(buf); processar(buf, 0); }, 33);
+      }
+
+      audio.current = { ctx, stream, timer, node, vozGain, token };
       setAtivoId(stream.getAudioTracks()[0]?.getSettings().deviceId ?? id);
       setStatus('ativo');
       void listar();
@@ -198,5 +259,5 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
   const definirOuvinte = useCallback((fn: ((q: Quadro, limiar: number, ruido: number) => void) | null) => { ouvinte.current = fn; }, []);
   const definirModoEstudio = useCallback((ligado: boolean) => { estudio.current = ligado; }, []);
 
-  return { definirOuvinte, definirModoEstudio, obterStream, status, erro, dispositivos, ativoId, vivo, historico, ligar, desligar, retomar, listar, iniciarGravacao, pausarGravacao, pararGravacao };
+  return { infoAudio, definirOuvinte, definirModoEstudio, obterStream, status, erro, dispositivos, ativoId, vivo, historico, ligar, desligar, retomar, listar, iniciarGravacao, pausarGravacao, pararGravacao };
 }
