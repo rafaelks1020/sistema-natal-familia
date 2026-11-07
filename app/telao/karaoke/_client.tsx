@@ -111,7 +111,7 @@ type Fase = 'ocioso' | 'contagem' | 'cantando' | 'nota' | 'pulando' | 'trocando'
 const TENTATIVAS_PATCH = 3;
 const INTERVALO_PATCH_MS = 2000;
 const AVISO_MICROFONIA = 'Use fone ou mantenha o microfone longe das caixas para evitar microfonia';
-const DICAS_MICROFONIA = 'Aponte a caixa para longe do microfone; cante de frente para o microfone e de costas para a caixa; comece com a voz na TV baixa.';
+const DICAS_MICROFONIA = 'O que mais rende: microfone perto da boca (a metade da distância dá 6 dB a mais antes de apitar); quem canta fica atrás das caixas ou ao lado, nunca na frente delas; o Lark é de lapela e pega o som de todos os lados, então segure a uns 5 cm da boca. Rode "Afinar microfonia" uma vez com tudo no lugar.';
 const esperar = (ms: number) => new Promise<void>((resolve) => { window.setTimeout(resolve, ms); });
 
 const FRASES: Record<number, string> = {
@@ -184,6 +184,8 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const [config, setConfig] = useState(false);
   const [controlesOcultos, setControlesOcultos] = useState(false);
   const [medindo, setMedindo] = useState(false);
+  const [afinando, setAfinando] = useState<string | null>(null);
+  const [afinarInfo, setAfinarInfo] = useState<{ texto: string; erro?: boolean } | null>(null);
   const [atrasoInfo, setAtrasoInfo] = useState<{ ms: number; medidas: number[]; nova: number; av: Avaliacao; razoes: number[] } | { erro: string } | null>(null);
   const [tocando, setTocando] = useState(false);
   const [auto, setAuto] = useState(true);
@@ -918,6 +920,21 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
       setMedindo(false);
     }
   };
+  /** Afinar microfonia: sobe a Voz na TV até apitar, corta cada apito e deixa o volume 6 dB abaixo do primeiro. */
+  const afinarMicrofonia = async () => {
+    setAfinarInfo(null); setAfinando('Silêncio na sala: vai apitar rapidinho...');
+    try {
+      const r = await pitch.afinarRetorno((v, apitos) => setAfinando(`Subindo a voz: ${Math.round(v * 100)}%${apitos ? `, ${apitos} ${apitos === 1 ? 'apito cortado' : 'apitos cortados'}` : ''}`));
+      mudarVolume(r.volumeSeguro);
+      setAfinarInfo({ texto: r.apitos === 0
+        ? 'Não apitou nem no volume máximo: volume da voz no máximo.'
+        : `${r.apitos} ${r.apitos === 1 ? 'apito encontrado e cortado' : 'apitos encontrados e cortados'} (${r.cortes} cortes fixos). Volume da voz ajustado para ${Math.round(r.volumeSeguro * 100)}%, 6 dB abaixo do primeiro apito.${r.volumeSeguro < 0.3 ? ' Ainda está baixo: afaste o microfone das caixas ou vire as caixas para longe de quem canta.' : ''}` });
+    } catch (e) {
+      setAfinarInfo({ texto: (e as Error).message || 'Não consegui afinar.', erro: true });
+    } finally {
+      setAfinando(null);
+    }
+  };
   const botaoCamera = () => {
     setConfig(false);
     if (!camLigada) { setCamLigada(true); gravarLS(LS_CAM_LIGADA, '1'); setConfigCam(true); } else setConfigCam((c) => !c);
@@ -1099,8 +1116,13 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
         </label>
         <div className={styles.linha}>
           <span>Anti-microfonia: {pitch.antiMic.cortes} {pitch.antiMic.cortes === 1 ? 'corte ativo' : 'cortes ativos'}{pitch.antiMic.reducaoDb > 0 ? `, voz ${pitch.antiMic.reducaoDb} dB mais baixa` : ''}</span>
-          <button type="button" className={styles.botao} onClick={pitch.resetarAntiMicrofonia} disabled={pitch.status !== 'ativo' || (pitch.antiMic.cortes === 0 && pitch.antiMic.reducaoDb === 0)}>Resetar anti-microfonia</button>
+          <button type="button" className={styles.botao} onClick={pitch.resetarAntiMicrofonia} disabled={pitch.status !== 'ativo' || Boolean(afinando) || (pitch.antiMic.cortes === 0 && pitch.antiMic.reducaoDb === 0)}>Resetar anti-microfonia</button>
         </div>
+        <div className={styles.linha}>
+          <span>{afinando ?? 'Afinar microfonia: com a sala em silêncio, acha e corta as frequências que apitam e acerta o volume máximo seguro.'}</span>
+          <button type="button" className={styles.botao} onClick={() => void afinarMicrofonia()} disabled={pitch.status !== 'ativo' || Boolean(afinando) || medindo}>{afinando ? 'Afinando...' : 'Afinar microfonia'}</button>
+        </div>
+        {afinarInfo ? <p className={afinarInfo.erro ? styles.erro : undefined}>{afinarInfo.texto}</p> : null}
         <p>{DICAS_MICROFONIA}</p>
         <p className={styles.aviso2}>Com a Voz na TV ligada o som das caixas pode voltar para o microfone e apitar (microfonia). {AVISO_MICROFONIA}. Comece com o volume baixo.</p>
       </div> : null}

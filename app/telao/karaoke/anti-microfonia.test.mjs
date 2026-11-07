@@ -81,15 +81,15 @@ test('senoide crescente em 2,5 kHz sobre ruído: detecta e devolve a frequência
   assert.ok(d.length > 0, 'não detectou');
   for (const x of d) assert.ok(Math.abs(x.hz - 2500) <= BIN_HZ, `hz ${x.hz}`);
   assert.ok(d[0].t < 1500, `demorou ${d[0].t} ms`);
-  assert.ok(d[0].excessoDb >= 18);
+  assert.ok(d[0].excessoDb >= 16);
 });
 
-test('senoide constante também é detectada, depois de persistir 250 ms', () => {
+test('senoide constante também é detectada, depois de persistir 180 ms', () => {
   const s = ruido(1.5, 0.002, 2);
   for (let i = 0; i < s.length; i++) s[i] += 0.05 * Math.sin((2 * Math.PI * 1234 * i) / SR);
   const d = rodar(s);
   assert.ok(d.length > 0);
-  assert.ok(d[0].duracaoMs >= 250 || d[0].cresceu);
+  assert.ok(d[0].duracaoMs >= 180 || d[0].cresceu);
   assert.ok(Math.abs(d[0].hz - 1234) <= BIN_HZ);
 });
 
@@ -133,10 +133,10 @@ test('silêncio e ruído de fundo: não detecta nada', () => {
   assert.deepEqual(rodar(ruido(2, 0.003, 9)), []);
 });
 
-test('acharPicos: 17 dB de excesso não passa, 25 dB passa', () => {
+test('acharPicos: 15 dB de excesso não passa, 25 dB passa', () => {
   const esp = new Float32Array(N / 2).fill(-90);
   const k = Math.round(2500 / BIN_HZ);
-  esp[k] = -90 + 17; esp[k - 1] = -90 + 5; esp[k + 1] = -90 + 5;
+  esp[k] = -90 + 15; esp[k - 1] = -90 + 5; esp[k + 1] = -90 + 5;
   assert.equal(acharPicos(esp, { sampleRate: SR, fftSize: N, nivelMinDb: -100 }).length, 0);
   esp[k] = -90 + 25;
   const p = acharPicos(esp, { sampleRate: SR, fftSize: N, nivelMinDb: -100 });
@@ -195,10 +195,55 @@ test('gerenciador: pausa de mais de 1,5 s sem detecção zera a contagem de satu
   assert.equal(depois.find((a) => a.tipo === 'abaixar'), undefined);
 });
 
+test('apito saturado (harmônicos ímpares do limitador) em 2 kHz: detecta', () => {
+  const s = ruido(1.5, 0.002, 21);
+  for (let i = 0; i < s.length; i++) s[i] += Math.tanh(1.6 * 0.9 * Math.sin((2 * Math.PI * 2000 * i) / SR)) / Math.tanh(1.6);
+  const d = rodar(s);
+  assert.ok(d.length > 0, 'não detectou');
+  assert.ok(Math.abs(d[0].hz - 2000) <= BIN_HZ);
+});
+
+test('gerenciador: apito já alto baixa a voz na hora, junto com o corte', () => {
+  const g = new GerenciadorMicrofonia();
+  const a = g.aoDetectar({ hz: 2000, nivelDb: -20 }, 0);
+  assert.ok(a.some((x) => x.tipo === 'cortar'));
+  assert.ok(a.some((x) => x.tipo === 'abaixar' && x.totalDb === 6));
+  assert.equal(g.aoDetectar({ hz: 3000, nivelDb: -60 }, 400).some((x) => x.tipo === 'abaixar'), false);
+});
+
 test('retorno crescendo enquanto a pessoa canta: detecta a frequência do retorno, não a da voz', () => {
   const s = voz({ f0: 220, vibratoSt: 0.4, segundos: 2.5, seed: 77 });
   for (let i = 0; i < s.length; i++) s[i] += 0.002 * Math.pow(200, i / s.length) * Math.sin((2 * Math.PI * 3150 * i) / SR);
   const d = rodar(s);
   assert.ok(d.length > 0, 'não detectou');
   for (const x of d) assert.ok(Math.abs(x.hz - 3150) <= BIN_HZ, `hz ${x.hz}`);
+});
+
+test('gerenciador: corte sem apito há 60 s se solta 3 dB a cada 10 s; corte fixo da afinação não se solta', () => {
+  const g = new GerenciadorMicrofonia();
+  g.aoDetectar({ hz: 1000 }, 0);
+  g.fixarCortes();
+  g.aoDetectar({ hz: 3000 }, 0);
+  assert.deepEqual(g.soltar(30000), []);
+  const a = g.soltar(60000);
+  assert.equal(a.length, 1);
+  assert.equal(a[0].indice, 1);
+  assert.equal(a[0].ganhoDb, PROFUNDIDADES_DB[0] + 3);
+  assert.deepEqual(g.soltar(65000), [], 'espera 10 s entre passos');
+  let t = 60000;
+  while (g.estado().cortes.length > 1 && t < 200000) g.soltar((t += 10000));
+  assert.equal(g.estado().cortes.length, 1, 'o solto some, o fixo fica');
+  assert.equal(g.estado().cortes[0].hz, 1000);
+  const r = g.aoDetectar({ hz: 5000 }, t + 1);
+  assert.equal(r[0].indice, 1, 'reaproveita a vaga livre');
+});
+
+test('gerenciador: volume abaixado volta 3 dB a cada 30 s sem apito', () => {
+  const g = new GerenciadorMicrofonia();
+  g.aoDetectar({ hz: 2000, nivelDb: -10 }, 0);
+  assert.equal(g.estado().reducaoDb, 6);
+  assert.deepEqual(g.soltar(10000).filter((x) => x.tipo === 'abaixar'), []);
+  const v = g.soltar(30000).find((x) => x.tipo === 'abaixar');
+  assert.equal(v.db, -3);
+  assert.equal(g.estado().reducaoDb, 3);
 });

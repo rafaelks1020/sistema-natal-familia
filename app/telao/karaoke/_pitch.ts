@@ -88,6 +88,80 @@ registerProcessor('karaoke-medida', Medida);
 `;
 
 /**
+ * Código do AudioWorklet da Voz na TV (no caminho do som, sem atraso: processa dentro do mesmo bloco de 128 amostras).
+ * 1) Deslocador de frequência (anti-microfonia clássico): os agudos (acima de ~700 Hz, onde caixa de notebook e TV apitam) saem alguns Hz
+ *    acima do que entrou. A cada volta pela sala o som sobe mais um pouco, não fica parado na frequência que ressoa, e o apito não se forma
+ *    (dá de 3 a 6 dB a mais de volume antes de apitar). Os graves (onde fica a altura da voz) passam intactos. Hilbert por dois ramos de
+ *    passa-tudo IIR (Olli Niemitalo, 90 graus de 20 Hz a 20 kHz, sem atraso).
+ * 2) Expansor: nas pausas (microfone abaixo do ruído da sala + 10 dB) baixa a voz 12 dB, abrindo em 1 ms. É na pausa que o apito começa.
+ */
+const CODIGO_MONITOR = `
+const A = [0.6923878, 0.9360654322959, 0.9882295226860, 0.9987488452737].map((c) => c * c);
+const B = [0.4021921162426, 0.8561710882420, 0.9722909545651, 0.9952884791278].map((c) => c * c);
+function cadeia(c) {
+  const s = c.map(() => [0, 0, 0, 0]);
+  return (x) => { for (let i = 0; i < c.length; i++) { const z = s[i]; const y = c[i] * (x + z[3]) - z[1]; z[1] = z[0]; z[0] = x; z[3] = z[2]; z[2] = y; x = y; } return x; };
+}
+function passaBaixas(fc, sr) {
+  const w = 2 * Math.PI * fc / sr; const al = Math.sin(w) / (2 * Math.SQRT1_2); const c = Math.cos(w); const a0 = 1 + al;
+  const b0 = (1 - c) / 2 / a0; const b1 = (1 - c) / a0; const a1 = -2 * c / a0; const a2 = (1 - al) / a0;
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  return (x) => { const y = b0 * x + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x; y2 = y1; y1 = y; return y; };
+}
+class Monitor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.desloc = 6; this.expansor = true;
+    this.a = cadeia(A); this.b = cadeia(B); this.atrasoA = 0; this.fase = 0;
+    this.lp1 = passaBaixas(700, sampleRate); this.lp2 = passaBaixas(700, sampleRate);
+    this.env = 0; this.piso = 0.003; this.g = 1; this.segura = 0;
+    this.kAtaque = 1 - Math.exp(-1 / (0.001 * sampleRate));
+    this.kSolta = 1 - Math.exp(-1 / (0.08 * sampleRate));
+    this.kAbre = 1 - Math.exp(-1 / (0.001 * sampleRate));
+    this.kFecha = 1 - Math.exp(-1 / (0.2 * sampleRate));
+    this.kPisoSobe = 1 - Math.exp(-1 / (4 * sampleRate));
+    this.kPisoDesce = 1 - Math.exp(-1 / (0.3 * sampleRate));
+    this.seguraN = Math.round(0.15 * sampleRate);
+    this.port.onmessage = (e) => { const d = e.data || {}; if (typeof d.desloc === 'number') this.desloc = d.desloc; if (typeof d.expansor === 'boolean') this.expansor = d.expansor; };
+  }
+  process(entradas, saidas) {
+    const ent = entradas[0] && entradas[0][0];
+    const sai = saidas[0] && saidas[0][0];
+    if (!sai) return true;
+    if (!ent) { sai.fill(0); return true; }
+    const w = 2 * Math.PI * this.desloc / sampleRate;
+    for (let n = 0; n < ent.length; n++) {
+      const x = ent[n];
+      let y = x;
+      if (this.desloc !== 0) {
+        const grave = this.lp2(this.lp1(x));
+        const agudo = x - grave;
+        const i = this.atrasoA; this.atrasoA = this.a(agudo);
+        const q = this.b(agudo);
+        this.fase += w; if (this.fase > 6.283185307179586) this.fase -= 6.283185307179586;
+        y = grave + i * Math.cos(this.fase) + q * Math.sin(this.fase);
+      }
+      const ax = Math.abs(x);
+      this.env += (ax > this.env ? this.kAtaque : this.kSolta) * (ax - this.env);
+      // Ruído da sala: o envelope mínimo (sobe devagar, desce rápido).
+      this.piso += (this.env > this.piso ? this.kPisoSobe : this.kPisoDesce) * (this.env - this.piso);
+      let alvo = 1;
+      if (this.expansor) {
+        const limiar = Math.min(0.05, Math.max(0.004, this.piso * 3.2));
+        if (this.env >= limiar) this.segura = this.seguraN;
+        else if (this.segura > 0) this.segura--;
+        else alvo = 0.25;
+      }
+      this.g += (alvo > this.g ? this.kAbre : this.kFecha) * (alvo - this.g);
+      sai[n] = y * this.g;
+    }
+    return true;
+  }
+}
+registerProcessor('karaoke-monitor', Monitor);
+`;
+
+/**
  * Segundo getUserMedia do MESMO microfone, cru (sem eco, ruído nem ganho automático, buffer mínimo), só para a Voz na TV: o AEC do Chrome
  * atrasa e filtra o sinal. O detector de tom e a gravação seguem no stream com AEC. Devolve null se o Chrome não der uma faixa realmente
  * diferente (aí a monitoração usa o mesmo stream, para a nota nunca depender da monitoração).
@@ -100,6 +174,12 @@ async function abrirMicCru(id: string | null): Promise<MediaStream | null> {
     s.getTracks().forEach((t) => t.stop());
     return null;
   } catch { return null; }
+}
+
+/** Curva do limitador: reta (ganho 1) até 0,6 e joelho suave (tanh) até 1. */
+export function limitar(x: number): number {
+  const a = Math.abs(x);
+  return a <= 0.6 ? x : Math.sign(x) * (0.6 + 0.4 * Math.tanh((a - 0.6) / 0.4));
 }
 
 const SEM_VOZ: Vivo = { midi: null, hz: 0, rms: 0, cantando: false, limiar: limiarDeVoz(0) };
@@ -125,12 +205,12 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
   const ecoPedido = useRef(cancelarEco);
   const aoRetornoRef = useRef(opcoes.aoRetorno);
   /** Peças da anti-microfonia do microfone aberto (só no caminho da Voz na TV; o detector de tom e a gravação recebem o sinal limpo do microfone). */
-  const anti = useRef<{ gerente: GerenciadorMicrofonia; detector: DetectorMicrofonia; cortes: BiquadFilterNode[]; reducaoDb: number; avisos: number } | null>(null);
+  const anti = useRef<{ gerente: GerenciadorMicrofonia; detector: DetectorMicrofonia; cortes: BiquadFilterNode[]; reducaoDb: number; avisos: number; eventos: number } | null>(null);
   /** Leitura atual (altura, volume). Muda a 30 vezes por segundo: por isso é ref e não estado. */
   const vivo = useRef<Vivo>(SEM_VOZ);
   /** Últimos segundos de altura, para o medidor desenhar a linha rolando. */
   const historico = useRef<PontoAltura[]>([]);
-  const audio = useRef<{ ctx?: AudioContext; stream?: MediaStream; timer?: number; node?: AudioWorkletNode; vozGain?: GainNode; timerAnti?: number; timerInfo?: number; ctxMon?: AudioContext; streamMon?: MediaStream; fonteMon?: MediaStreamAudioSourceNode; medidaPronta?: boolean; token: number }>({ token: 0 });
+  const audio = useRef<{ ctx?: AudioContext; stream?: MediaStream; timer?: number; node?: AudioWorkletNode; vozGain?: GainNode; timerAnti?: number; timerInfo?: number; ctxMon?: AudioContext; streamMon?: MediaStream; fonteMon?: MediaStreamAudioSourceNode; monitorNode?: AudioWorkletNode; medidaPronta?: boolean; afinando?: boolean; token: number }>({ token: 0 });
   const gravacao = useRef<{ ativa: boolean; pausada: boolean; t0: number; quadros: Quadro[]; limiar: number; ruido: number; posicao?: () => number }>({ ativa: false, pausada: false, t0: 0, quadros: [], limiar: 0, ruido: 0 });
   /** Quem recebe cada quadro gravado (pontuação ao vivo e plateia). limiar: o de voz valendo nesse instante. */
   const ouvinte = useRef<((q: Quadro, limiar: number, ruido: number) => void) | null>(null);
@@ -167,7 +247,7 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
     void a.ctx?.close().catch(() => undefined);
     void a.ctxMon?.close().catch(() => undefined);
     a.stream = undefined; a.ctx = undefined; a.vozGain = undefined;
-    a.ctxMon = undefined; a.streamMon = undefined; a.fonteMon = undefined; a.medidaPronta = undefined;
+    a.ctxMon = undefined; a.streamMon = undefined; a.fonteMon = undefined; a.monitorNode = undefined; a.medidaPronta = undefined; a.afinando = undefined;
     vivo.current = SEM_VOZ;
     historico.current = [];
   }, []);
@@ -235,10 +315,11 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
         f.gain.value = 0;
         return f;
       });
-      // Limitador sem atraso: curva suave (tanh) em vez de DynamicsCompressor, que segura ~6 ms de antecipação.
+      // Limitador sem atraso: curva suave em vez de DynamicsCompressor, que segura ~6 ms de antecipação. Ganho 1 no sinal baixo (a curva
+      // tanh(1,6x) normalizada antiga somava 4,8 dB e deixava o laço caixa-microfone mais perto de apitar).
       const limitador = ctxMon.createWaveShaper();
       const curva = new Float32Array(1024);
-      for (let i = 0; i < curva.length; i++) { const x = (i / (curva.length - 1)) * 2 - 1; curva[i] = Math.tanh(x * 1.6) / Math.tanh(1.6); }
+      for (let i = 0; i < curva.length; i++) { const x = (i / (curva.length - 1)) * 2 - 1; curva[i] = limitar(x); }
       limitador.curve = curva;
       const vozGain = ctxMon.createGain();
       vozGain.gain.value = voz.current.ligada ? voz.current.volume : 0;
@@ -246,10 +327,20 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
       // Eco de karaokê curto e discreto: reverb longo soa como atraso e atrapalha quem canta.
       reverb.buffer = criarImpulso(ctxMon, 0.5, 4);
       const reverbGain = ctxMon.createGain();
-      reverbGain.gain.value = 0.12;
+      reverbGain.gain.value = 0.08;
+      // Deslocador de frequência e expansor (AudioWorklet). Se o navegador não carregar, a cadeia segue sem ele.
+      let monitorNode: AudioWorkletNode | undefined;
+      try {
+        if (!ctxMon.audioWorklet) throw new Error('sem AudioWorklet');
+        const url = URL.createObjectURL(new Blob([CODIGO_MONITOR], { type: 'text/javascript' }));
+        try { await ctxMon.audioWorklet.addModule(url); } finally { URL.revokeObjectURL(url); }
+        monitorNode = new AudioWorkletNode(ctxMon, 'karaoke-monitor', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], channelCount: 1, channelCountMode: 'explicit' });
+      } catch { monitorNode = undefined; }
+      if (token !== audio.current.token) { crua?.getTracks().forEach((t) => t.stop()); stream.getTracks().forEach((t) => t.stop()); void ctx.close().catch(() => undefined); void ctxMon.close().catch(() => undefined); return; }
       fonteMon.connect(passaAltas);
       let cadeia: AudioNode = passaAltas;
       for (const c of cortes) { cadeia.connect(c); cadeia = c; }
+      if (monitorNode) { cadeia.connect(monitorNode); cadeia = monitorNode; }
       cadeia.connect(limitador);
       limitador.connect(vozGain);
       vozGain.connect(ctxMon.destination);
@@ -276,17 +367,30 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
       analisadorRetorno.smoothingTimeConstant = 0;
       passaAltas.connect(analisadorRetorno);
       const espectro = new Float32Array(analisadorRetorno.frequencyBinCount);
-      const pecas = { gerente: new GerenciadorMicrofonia(), detector: new DetectorMicrofonia({ sampleRate: ctxMon.sampleRate, fftSize: analisadorRetorno.fftSize }), cortes, reducaoDb: 0, avisos: 0 };
+      const pecas = { gerente: new GerenciadorMicrofonia(), detector: new DetectorMicrofonia({ sampleRate: ctxMon.sampleRate, fftSize: analisadorRetorno.fftSize }), cortes, reducaoDb: 0, avisos: 0, eventos: 0 };
       anti.current = pecas;
       let vigiaLigada = false;
+      let ultimaSoltura = 0;
       const vigia = window.setInterval(() => {
         if (!voz.current.ligada) { vigiaLigada = false; return; }
         if (!vigiaLigada) { vigiaLigada = true; pecas.detector.reiniciar(); }
         // Microfonia: pico estreito parado numa frequência que persiste ou cresce vira um corte; sem recurso, baixa a voz.
-        analisadorRetorno.getFloatFrequencyData(espectro);
         const agora = performance.now();
+        // Uma vez por segundo: solta os cortes que não apitam há 60 s e devolve aos poucos o volume que tinha sido abaixado.
+        if (agora - ultimaSoltura >= 1000 && !audio.current.afinando) {
+          ultimaSoltura = agora;
+          let mudou = false;
+          for (const acao of pecas.gerente.soltar(agora)) {
+            mudou = true;
+            if (acao.tipo === 'cortar') pecas.cortes[acao.indice].gain.setTargetAtTime(acao.ganhoDb, ctxMon.currentTime, 0.3);
+            else { pecas.reducaoDb = acao.totalDb; aplicarVolume(); }
+          }
+          if (mudou) setAntiMic({ cortes: pecas.gerente.estado().cortes.length, reducaoDb: pecas.reducaoDb, avisos: pecas.avisos });
+        }
+        analisadorRetorno.getFloatFrequencyData(espectro);
         const det = pecas.detector.analisar(espectro, agora);
         if (!det) return;
+        pecas.eventos++;
         for (const acao of pecas.gerente.aoDetectar(det, agora)) {
           if (acao.tipo === 'cortar') {
             const f = pecas.cortes[acao.indice];
@@ -297,7 +401,7 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
             pecas.reducaoDb = acao.totalDb;
             pecas.avisos++;
             aplicarVolume();
-            aoRetornoRef.current?.(AVISO_RETORNO);
+            if (!audio.current.afinando) aoRetornoRef.current?.(AVISO_RETORNO);
           }
         }
         const e = pecas.gerente.estado();
@@ -364,7 +468,7 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
         timer = window.setInterval(() => { analisador.getFloatTimeDomainData(buf); processar(buf, 0); }, 33);
       }
 
-      audio.current = { ctx, stream, timer, node, vozGain, timerAnti: vigia, timerInfo, ctxMon, streamMon, fonteMon, token };
+      audio.current = { ctx, stream, timer, node, vozGain, timerAnti: vigia, timerInfo, ctxMon, streamMon, fonteMon, monitorNode, token };
       setAtivoId(stream.getAudioTracks()[0]?.getSettings().deviceId ?? id);
       setStatus('ativo');
       void listar();
@@ -489,13 +593,70 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
     return { atrasoMs: m === null || inconsistente ? null : Math.round(m * 10) / 10, medidas: medidas.map((x) => Math.round(x * 10) / 10), falhas, inconsistente, razoes };
   }, [aplicarVolume]);
 
+  /**
+   * Afinar microfonia (ring-out, como os técnicos de som fazem antes do show): com a sala em silêncio, sobe a Voz na TV 1,5 dB a cada
+   * 250 ms. Cada apito vira um corte fixo (o detector faz isso) e o volume recua 4 dB antes de continuar. Para no 5o apito ou no volume
+   * máximo. Devolve o volume seguro (6 dB abaixo do último apito) e quantos cortes ficaram.
+   */
+  const afinarRetorno = useCallback(async (aoPasso?: (volume: number, apitos: number) => void): Promise<{ volumeSeguro: number; apitos: number; cortes: number }> => {
+    const a = audio.current;
+    const p = anti.current;
+    if (!a.ctxMon || !a.vozGain || !p) throw new Error('Ligue o microfone antes de afinar.');
+    if (a.afinando) throw new Error('A afinação já está rodando.');
+    await a.ctxMon.resume().catch(() => undefined);
+    const antes = { ...voz.current };
+    const token = a.token;
+    a.afinando = true;
+    a.monitorNode?.port.postMessage({ expansor: false });
+    const dB = (x: number) => Math.pow(10, x / 20);
+    const espera = (ms: number) => new Promise((res) => window.setTimeout(res, ms));
+    let v = 0.1;
+    let ultimoApito: number | null = null;
+    let apitos = 0;
+    let eventos = p.eventos;
+    try {
+      while (apitos < 5 && token === audio.current.token) {
+        voz.current = { ligada: true, volume: v };
+        p.reducaoDb = 0;
+        p.gerente.zerarReducao();
+        aplicarVolume();
+        aoPasso?.(v, apitos);
+        await espera(250);
+        if (p.eventos > eventos) {
+          apitos++;
+          ultimoApito = Math.min(ultimoApito ?? Infinity, v);
+          v = Math.max(0.05, v / dB(4));
+          voz.current = { ligada: true, volume: v };
+          aplicarVolume();
+          await espera(700);
+          eventos = p.eventos;
+          continue;
+        }
+        if (v >= 1) break;
+        v = Math.min(1, v * dB(1.5));
+      }
+    } finally {
+      p.gerente.fixarCortes();
+      a.monitorNode?.port.postMessage({ expansor: true });
+      p.reducaoDb = 0;
+      p.gerente.zerarReducao();
+      voz.current = antes;
+      a.afinando = false;
+      aplicarVolume();
+      const e = p.gerente.estado();
+      setAntiMic({ cortes: e.cortes.length, reducaoDb: 0, avisos: p.avisos });
+    }
+    const volumeSeguro = ultimoApito === null ? 1 : Math.max(0.1, Math.min(1, ultimoApito / dB(6)));
+    return { volumeSeguro: Math.round(volumeSeguro * 100) / 100, apitos, cortes: p.gerente.estado().cortes.length };
+  }, [aplicarVolume]);
+
   /** Cortes ativos (frequência e profundidade) e redução de ganho, ou null com o microfone fechado (depuração). */
   const lerAntiMic = useCallback(() => { const p = anti.current; return p ? { ...p.gerente.estado(), reducaoDb: p.reducaoDb } : null; }, []);
 
   /** Zera os cortes e a redução de ganho da anti-microfonia. */
   const resetarAntiMicrofonia = useCallback(() => {
     const p = anti.current;
-    const ctx = audio.current.ctx;
+    const ctx = audio.current.ctxMon;
     if (!p || !ctx) return;
     p.gerente.reiniciar();
     p.detector.reiniciar();
@@ -508,5 +669,5 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
   const definirOuvinte = useCallback((fn: ((q: Quadro, limiar: number, ruido: number) => void) | null) => { ouvinte.current = fn; }, []);
   const definirModoEstudio = useCallback((ligado: boolean) => { estudio.current = ligado; }, []);
 
-  return { infoMonitor, medirAtraso, lerAntiMic, ecoAtivo, antiMic, resetarAntiMicrofonia, infoAudio, definirOuvinte, definirModoEstudio, obterStream, status, erro, dispositivos, ativoId, vivo, historico, ligar, desligar, retomar, listar, iniciarGravacao, pausarGravacao, pararGravacao };
+  return { infoMonitor, afinarRetorno, medirAtraso, lerAntiMic, ecoAtivo, antiMic, resetarAntiMicrofonia, infoAudio, definirOuvinte, definirModoEstudio, obterStream, status, erro, dispositivos, ativoId, vivo, historico, ligar, desligar, retomar, listar, iniciarGravacao, pausarGravacao, pararGravacao };
 }
