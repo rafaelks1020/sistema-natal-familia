@@ -924,6 +924,8 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const afinarMicrofonia = async () => {
     setAfinarInfo(null); setAfinando('Silêncio na sala: vai apitar rapidinho...');
     try {
+      // Sem atraso medido, o cancelador adaptativo não liga: mede antes de afinar.
+      if (!pitch.infoAfc?.ativo) { setAfinando('Medindo o atraso das caixas...'); await medirAtraso(); setAfinando('Silêncio na sala: vai apitar rapidinho...'); }
       const r = await pitch.afinarRetorno((v, apitos) => setAfinando(`Subindo a voz: ${Math.round(v * 100)}%${apitos ? `, ${apitos} ${apitos === 1 ? 'apito cortado' : 'apitos cortados'}` : ''}`));
       mudarVolume(r.volumeSeguro);
       setAfinarInfo({ texto: r.apitos === 0
@@ -1123,6 +1125,9 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
           <button type="button" className={styles.botao} onClick={() => void afinarMicrofonia()} disabled={pitch.status !== 'ativo' || Boolean(afinando) || medindo}>{afinando ? 'Afinando...' : 'Afinar microfonia'}</button>
         </div>
         {afinarInfo ? <p className={afinarInfo.erro ? styles.erro : undefined}>{afinarInfo.texto}</p> : null}
+        {pitch.status === 'ativo' && pitch.infoAfc ? <p>Cancelador de retorno: {pitch.infoAfc.ativo
+          ? `ligado${pitch.infoAfc.erle !== null && vozNaTv ? `, tirando ${Math.max(0, Math.round(pitch.infoAfc.erle))} dB do som que volta das caixas` : ''}${pitch.infoAfc.resets ? ` (reaprendeu ${pitch.infoAfc.resets}x)` : ''}.`
+          : 'desligado: toque em "Medir atraso" para ligar.'}</p> : null}
         <p>{DICAS_MICROFONIA}</p>
         <p className={styles.aviso2}>Com a Voz na TV ligada o som das caixas pode voltar para o microfone e apitar (microfonia). {AVISO_MICROFONIA}. Comece com o volume baixo.</p>
       </div> : null}

@@ -17,6 +17,8 @@ export type StatusMic = 'parado' | 'abrindo' | 'ativo' | 'erro';
 export type EstadoAntiMic = { cortes: number; reducaoDb: number; avisos: number };
 /** Monitoração da Voz na TV: contexto de áudio próprio (menor buffer), taxa, latências do navegador e se o microfone cru é um stream separado. */
 export type InfoMonitor = { taxa: number; baseMs: number; saidaMs: number; separado: boolean; eco: boolean | null };
+/** Cancelador adaptativo de retorno: ativo (tem atraso medido), quanto tira do retorno nos agudos (dB) e quantas vezes reaprendeu. */
+export type InfoAfc = { ativo: boolean; erle: number | null; resets: number; atraso: number };
 export type ResultadoAtraso = { atrasoMs: number | null; medidas: number[]; falhas: number; inconsistente: boolean; razoes: number[] };
 export const AVISO_RETORNO = 'Retorno detectado: abaixei a voz na TV. Afaste o microfone da caixa.';
 
@@ -88,12 +90,15 @@ registerProcessor('karaoke-medida', Medida);
 `;
 
 /**
- * Código do AudioWorklet da Voz na TV (no caminho do som, sem atraso: processa dentro do mesmo bloco de 128 amostras).
- * 1) Deslocador de frequência (anti-microfonia clássico): os agudos (acima de ~700 Hz, onde caixa de notebook e TV apitam) saem alguns Hz
- *    acima do que entrou. A cada volta pela sala o som sobe mais um pouco, não fica parado na frequência que ressoa, e o apito não se forma
- *    (dá de 3 a 6 dB a mais de volume antes de apitar). Os graves (onde fica a altura da voz) passam intactos. Hilbert por dois ramos de
- *    passa-tudo IIR (Olli Niemitalo, 90 graus de 20 Hz a 20 kHz, sem atraso).
- * 2) Expansor: nas pausas (microfone abaixo do ruído da sala + 10 dB) baixa a voz 12 dB, abrindo em 1 ms. É na pausa que o apito começa.
+ * Código do AudioWorklet da Voz na TV (no caminho do som, sem atraso: processa dentro do mesmo bloco de 128 amostras). Ordem:
+ * 1) Cancelador adaptativo de retorno (AFC): o worklet sabe exatamente o que mandou para as caixas (é a própria saída dele) e, com o atraso
+ *    caixa -> microfone medido por "Medir atraso", um filtro NLMS de 384 coeficientes aprende o caminho da sala e subtrai do microfone o som
+ *    que voltou. Só nos agudos (acima de ~700 Hz, onde caixa de notebook e TV apitam e onde o deslocador descorrelaciona a voz do retorno,
+ *    variante AFC-FS de van Waterschoot e Moonen). Protegido contra divergência: se piorar o sinal, zera e reaprende.
+ * 2) Deslocador de frequência nos agudos (+6 Hz): a cada volta pela sala o som sobe um pouco e o apito não se forma (3 a 6 dB a mais).
+ *    Hilbert por dois ramos de passa-tudo IIR (Olli Niemitalo, 90 graus de 20 Hz a 20 kHz, sem atraso).
+ * 3) Expansor: nas pausas (voz limpa abaixo do ruído da sala + 10 dB) baixa a voz 12 dB, abrindo em 1 ms.
+ * 4) Volume e limitador (reta até 0,6 e joelho suave), aqui dentro para a referência do cancelador ser o som que sai de fato.
  */
 const CODIGO_MONITOR = `
 const A = [0.6923878, 0.9360654322959, 0.9882295226860, 0.9987488452737].map((c) => c * c);
@@ -108,12 +113,18 @@ function passaBaixas(fc, sr) {
   let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
   return (x) => { const y = b0 * x + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x; y2 = y1; y1 = y; return y; };
 }
+const limitar = (x) => { const a = Math.abs(x); return a <= 0.6 ? x : Math.sign(x) * (0.6 + 0.4 * Math.tanh((a - 0.6) / 0.4)); };
+const L = 384;          // coeficientes do cancelador (8 ms a 48 kHz)
+const ANTES = 32;       // folga antes do atraso medido (amostras)
+const TAM = 65536;      // histórico da saída (1,36 s a 48 kHz)
+const MASCARA = TAM - 1;
 class Monitor extends AudioWorkletProcessor {
-  constructor() {
+  constructor(opcoes) {
     super();
-    this.desloc = 6; this.expansor = true;
+    this.desloc = 6; this.expansor = true; this.ganho = 1; this.ganhoAlvo = 1;
     this.a = cadeia(A); this.b = cadeia(B); this.atrasoA = 0; this.fase = 0;
     this.lp1 = passaBaixas(700, sampleRate); this.lp2 = passaBaixas(700, sampleRate);
+    this.rl1 = passaBaixas(700, sampleRate); this.rl2 = passaBaixas(700, sampleRate);
     this.env = 0; this.piso = 0.003; this.g = 1; this.segura = 0;
     this.kAtaque = 1 - Math.exp(-1 / (0.001 * sampleRate));
     this.kSolta = 1 - Math.exp(-1 / (0.08 * sampleRate));
@@ -121,29 +132,78 @@ class Monitor extends AudioWorkletProcessor {
     this.kFecha = 1 - Math.exp(-1 / (0.2 * sampleRate));
     this.kPisoSobe = 1 - Math.exp(-1 / (4 * sampleRate));
     this.kPisoDesce = 1 - Math.exp(-1 / (0.3 * sampleRate));
+    this.kGanho = 1 - Math.exp(-1 / (0.03 * sampleRate));
+    this.kPot = 1 - Math.exp(-1 / (0.3 * sampleRate));
     this.seguraN = Math.round(0.15 * sampleRate);
-    this.port.onmessage = (e) => { const d = e.data || {}; if (typeof d.desloc === 'number') this.desloc = d.desloc; if (typeof d.expansor === 'boolean') this.expansor = d.expansor; };
+    // Cancelador
+    this.ref = new Float32Array(TAM); this.pos = 0; this.w = new Float32Array(L); this.potRef = 0;
+    this.atraso = 0; this.afcLigado = true; this.mu = 0.001;
+    this.px = 0; this.pe = 0; this.ruim = 0; this.reset = 0; this.cont = 0;
+    this.port.onmessage = (e) => {
+      const d = e.data || {};
+      if (typeof d.desloc === 'number') this.desloc = d.desloc;
+      if (typeof d.mu === 'number') this.mu = d.mu;
+      if (typeof d.expansor === 'boolean') this.expansor = d.expansor;
+      if (typeof d.ganho === 'number') this.ganhoAlvo = Math.max(0, Math.min(2, d.ganho));
+      if (typeof d.afc === 'boolean') { this.afcLigado = d.afc; if (!d.afc) this.w.fill(0); }
+      if (typeof d.atraso === 'number') this.definirAtraso(d.atraso);
+    };
+    const po = (opcoes && opcoes.processorOptions) || {};
+    if (typeof po.atraso === 'number') this.definirAtraso(po.atraso);
+    if (typeof po.ganho === 'number') { this.ganhoAlvo = po.ganho; this.ganho = po.ganho; }
+  }
+  definirAtraso(v) {
+    const n = Math.round(v);
+    if (n !== this.atraso) { this.atraso = n > ANTES + 1 && n + L < TAM ? n : 0; this.w.fill(0); this.recalcular(); }
+  }
+  recalcular() {
+    let s = 0;
+    for (let k = 0; k < L; k++) { const v = this.ref[(this.pos - this.atraso + ANTES - k + TAM * 2) & MASCARA]; s += v * v; }
+    this.potRef = s;
   }
   process(entradas, saidas) {
     const ent = entradas[0] && entradas[0][0];
     const sai = saidas[0] && saidas[0][0];
     if (!sai) return true;
-    if (!ent) { sai.fill(0); return true; }
     const w = 2 * Math.PI * this.desloc / sampleRate;
-    for (let n = 0; n < ent.length; n++) {
-      const x = ent[n];
-      let y = x;
+    const usarAfc = this.afcLigado && this.atraso > 0;
+    const wv = this.w; const ref = this.ref;
+    for (let n = 0; n < sai.length; n++) {
+      const x = ent ? ent[n] : 0;
+      const grave = this.lp2(this.lp1(x));
+      let agudo = x - grave;
+      // 1) Cancelador: estimativa do retorno = filtro aplicado aos agudos do que saiu há "atraso" amostras.
+      if (usarAfc) {
+        const base = this.pos - this.atraso + ANTES + TAM * 2;
+        // Janela deslizante da potência da referência (entra a mais nova, sai a mais velha).
+        const novo = ref[base & MASCARA]; const velho = ref[(base - L) & MASCARA];
+        this.potRef += novo * novo - velho * velho;
+        if (this.potRef < 0) this.potRef = 0;
+        let est = 0;
+        for (let k = 0; k < L; k++) est += wv[k] * ref[(base - k) & MASCARA];
+        const e = agudo - est;
+        this.px += this.kPot * (agudo * agudo - this.px);
+        this.pe += this.kPot * (e * e - this.pe);
+        if (this.potRef > L * 1e-7) {
+          const passo = this.mu * e / (this.potRef + 1e-6);
+          for (let k = 0; k < L; k++) wv[k] += passo * ref[(base - k) & MASCARA];
+        }
+        // Proteção: se o cancelador piorou o sinal (erro bem maior que a entrada) por 300 ms, zera e reaprende.
+        if (this.pe > 2 * this.px + 1e-9) { if (++this.ruim > 0.3 * sampleRate) { wv.fill(0); this.ruim = 0; this.reset++; } }
+        else this.ruim = 0;
+        agudo = e;
+      }
+      // 2) Deslocador de frequência nos agudos.
+      let y = grave + agudo;
       if (this.desloc !== 0) {
-        const grave = this.lp2(this.lp1(x));
-        const agudo = x - grave;
         const i = this.atrasoA; this.atrasoA = this.a(agudo);
         const q = this.b(agudo);
         this.fase += w; if (this.fase > 6.283185307179586) this.fase -= 6.283185307179586;
         y = grave + i * Math.cos(this.fase) + q * Math.sin(this.fase);
       }
-      const ax = Math.abs(x);
+      // 3) Expansor (pelo sinal já limpo do retorno).
+      const ax = Math.abs(grave + agudo);
       this.env += (ax > this.env ? this.kAtaque : this.kSolta) * (ax - this.env);
-      // Ruído da sala: o envelope mínimo (sobe devagar, desce rápido).
       this.piso += (this.env > this.piso ? this.kPisoSobe : this.kPisoDesce) * (this.env - this.piso);
       let alvo = 1;
       if (this.expansor) {
@@ -153,7 +213,20 @@ class Monitor extends AudioWorkletProcessor {
         else alvo = 0.25;
       }
       this.g += (alvo > this.g ? this.kAbre : this.kFecha) * (alvo - this.g);
-      sai[n] = y * this.g;
+      // 4) Volume e limitador.
+      this.ganho += this.kGanho * (this.ganhoAlvo - this.ganho);
+      const saida = limitar(y * this.g * this.ganho);
+      sai[n] = saida;
+      // Referência do cancelador: os agudos do que saiu (mesma divisão de bandas do microfone).
+      const rg = this.rl2(this.rl1(saida));
+      ref[this.pos & MASCARA] = saida - rg;
+      this.pos = (this.pos + 1) & 0x3fffffff;
+    }
+    if (usarAfc && (this.cont += sai.length) >= 8192) { this.cont = 0; this.recalcular(); }
+    if ((this.cont2 = (this.cont2 || 0) + sai.length) >= Math.round(sampleRate / 2)) {
+      this.cont2 = 0;
+      const erle = usarAfc && this.pe > 0 && this.px > 1e-10 ? 10 * Math.log10(this.px / this.pe) : null;
+      this.port.postMessage({ afc: { ativo: usarAfc, erle, resets: this.reset, atraso: this.atraso } });
     }
     return true;
   }
@@ -182,6 +255,14 @@ export function limitar(x: number): number {
   return a <= 0.6 ? x : Math.sign(x) * (0.6 + 0.4 * Math.tanh((a - 0.6) / 0.4));
 }
 
+const CHAVE_ATRASO = 'karaoke_afc_atraso_';
+function lerAtrasoSalvo(id: string | null): number | null {
+  try { const n = Number(window.localStorage.getItem(CHAVE_ATRASO + (id || 'padrao'))); return Number.isFinite(n) && n > 1 && n < 1000 ? n : null; } catch { return null; }
+}
+function gravarAtrasoSalvo(id: string | null, ms: number) {
+  try { window.localStorage.setItem(CHAVE_ATRASO + (id || 'padrao'), String(ms)); } catch { /* só conveniência */ }
+}
+
 const SEM_VOZ: Vivo = { midi: null, hz: 0, rms: 0, cantando: false, limiar: limiarDeVoz(0) };
 
 function mensagemDeErro(err: unknown): string {
@@ -202,6 +283,7 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
   const [ecoAtivo, setEcoAtivo] = useState<boolean | null>(null);
   const [antiMic, setAntiMic] = useState<EstadoAntiMic>({ cortes: 0, reducaoDb: 0, avisos: 0 });
   const [infoMonitor, setInfoMonitor] = useState<InfoMonitor | null>(null);
+  const [infoAfc, setInfoAfc] = useState<InfoAfc | null>(null);
   const ecoPedido = useRef(cancelarEco);
   const aoRetornoRef = useRef(opcoes.aoRetorno);
   /** Peças da anti-microfonia do microfone aberto (só no caminho da Voz na TV; o detector de tom e a gravação recebem o sinal limpo do microfone). */
@@ -239,6 +321,7 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
     a.timerInfo = undefined;
     anti.current = null;
     setInfoMonitor(null);
+    setInfoAfc(null);
     setAntiMic((x) => (x.cortes || x.reducaoDb ? { ...x, cortes: 0, reducaoDb: 0 } : x));
     if (a.node) { a.node.port.onmessage = null; a.node.disconnect(); }
     a.node = undefined;
@@ -258,7 +341,11 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
     const ctx = audio.current.ctxMon;
     if (!g || !ctx) return;
     const reducao = anti.current?.reducaoDb ?? 0;
-    g.gain.setTargetAtTime(voz.current.ligada ? voz.current.volume * Math.pow(10, -reducao / 20) : 0, ctx.currentTime, 0.03);
+    const alvo = voz.current.ligada ? voz.current.volume * Math.pow(10, -reducao / 20) : 0;
+    // Com o worklet, o volume é aplicado lá dentro (a referência do cancelador precisa ser o som que sai de fato).
+    const mon = audio.current.monitorNode;
+    if (mon) { mon.port.postMessage({ ganho: alvo }); g.gain.setValueAtTime(1, ctx.currentTime); }
+    else g.gain.setTargetAtTime(alvo, ctx.currentTime, 0.03);
   }, []);
 
   const abrir = useCallback(async (id: string | null) => {
@@ -340,9 +427,19 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
       fonteMon.connect(passaAltas);
       let cadeia: AudioNode = passaAltas;
       for (const c of cortes) { cadeia.connect(c); cadeia = c; }
-      if (monitorNode) { cadeia.connect(monitorNode); cadeia = monitorNode; }
-      cadeia.connect(limitador);
-      limitador.connect(vozGain);
+      if (monitorNode) {
+        // Volume e limitador ficam dentro do worklet; o GainNode fica em 1 só para manter a ligação com o reverb.
+        cadeia.connect(monitorNode);
+        monitorNode.connect(vozGain);
+        vozGain.gain.value = 1;
+        monitorNode.port.postMessage({ ganho: voz.current.ligada ? voz.current.volume : 0 });
+        monitorNode.port.onmessage = (e: MessageEvent<{ afc?: InfoAfc }>) => { const n = e.data?.afc; if (n) setInfoAfc((x) => (x && x.ativo === n.ativo && x.resets === n.resets && x.erle !== null && n.erle !== null && Math.abs(x.erle - n.erle) < 0.5 ? x : n)); };
+        const salvo = lerAtrasoSalvo(stream.getAudioTracks()[0]?.getSettings().deviceId ?? id);
+        if (salvo) monitorNode.port.postMessage({ atraso: (salvo / 1000) * ctxMon.sampleRate });
+      } else {
+        cadeia.connect(limitador);
+        limitador.connect(vozGain);
+      }
       vozGain.connect(ctxMon.destination);
       vozGain.connect(reverb);
       reverb.connect(reverbGain);
@@ -590,6 +687,11 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
     const validas = medidas.filter((x) => x > 0);
     const m = medianaDeAtrasos(validas);
     const inconsistente = m !== null && !medicoesConsistentes(validas);
+    // Atraso confiável: liga o cancelador adaptativo com ele e guarda para a próxima vez (por microfone).
+    if (m !== null && !inconsistente) {
+      a.monitorNode?.port.postMessage({ atraso: (m / 1000) * ctx.sampleRate });
+      gravarAtrasoSalvo(a.stream?.getAudioTracks()[0]?.getSettings().deviceId ?? null, m);
+    }
     return { atrasoMs: m === null || inconsistente ? null : Math.round(m * 10) / 10, medidas: medidas.map((x) => Math.round(x * 10) / 10), falhas, inconsistente, razoes };
   }, [aplicarVolume]);
 
@@ -669,5 +771,5 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
   const definirOuvinte = useCallback((fn: ((q: Quadro, limiar: number, ruido: number) => void) | null) => { ouvinte.current = fn; }, []);
   const definirModoEstudio = useCallback((ligado: boolean) => { estudio.current = ligado; }, []);
 
-  return { infoMonitor, afinarRetorno, medirAtraso, lerAntiMic, ecoAtivo, antiMic, resetarAntiMicrofonia, infoAudio, definirOuvinte, definirModoEstudio, obterStream, status, erro, dispositivos, ativoId, vivo, historico, ligar, desligar, retomar, listar, iniciarGravacao, pausarGravacao, pararGravacao };
+  return { infoAfc, infoMonitor, afinarRetorno, medirAtraso, lerAntiMic, ecoAtivo, antiMic, resetarAntiMicrofonia, infoAudio, definirOuvinte, definirModoEstudio, obterStream, status, erro, dispositivos, ativoId, vivo, historico, ligar, desligar, retomar, listar, iniciarGravacao, pausarGravacao, pararGravacao };
 }
