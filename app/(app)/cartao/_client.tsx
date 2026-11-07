@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Download, ImagePlus, Loader2, Send, Share2 } from 'lucide-react';
 import PageHeader from '@/app/ui/PageHeader';
 import { api, thumb, uploadImage } from '@/app/ui/client';
+import { ehArquivoNosso } from '@/app/lib/hosts-arquivos';
 import { useToast } from '@/app/ui/toast';
 import { useMe } from '@/app/ui/user';
 import { FRASES, MAX_ASSINATURA, MAX_TEXTO, MODELOS, queryCartao, type ModeloId } from '@/app/api/cartao/_modelo';
 
-const ehBlob = (u: string | null | undefined): u is string => !!u && /^https:\/\/[^/]+\.public\.blob\.vercel-storage\.com\//.test(u);
+const ehBlob = (u: string | null | undefined): u is string => ehArquivoNosso(u);
 
 export default function CartaoClient() {
   const me = useMe();

@@ -1,9 +1,9 @@
-import { put } from '@vercel/blob';
+import { enviarArquivo, sufixo } from '@/app/lib/arquivos';
 import { HttpError, ok, requireAdmin, route, toInt } from '@/app/lib/api';
 import { lerFilaParaAlbum, publicarNoAlbum } from '../_album';
 
 // POST /api/karaoke/foto (multipart: fila_id, foto JPEG até 4 MB, nota opcional) -> { url }.
-// Só admin (o telão). Sobe para o Vercel Blob e publica no álbum da família (album_photos), autor = admin.
+// Só admin (o telão). Sobe para o armazenamento (Storage Box) e publica no álbum da família (album_photos), autor = admin.
 
 export const dynamic = 'force-dynamic';
 
@@ -11,9 +11,6 @@ const MAX_BYTES = 4 * 1024 * 1024;
 
 export const POST = route(async (req) => {
   const admin = await requireAdmin();
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) throw new HttpError(503, 'Envio de fotos ainda não configurado.');
-
   const form = await req.formData().catch(() => null);
   const filaId = toInt(form?.get('fila_id'), 'fila_id');
   const foto = form?.get('foto');
@@ -30,13 +27,8 @@ export const POST = route(async (req) => {
   const notaForm = Number(form?.get('nota'));
   const nota = fila.nota ?? (Number.isInteger(notaForm) && notaForm >= 0 && notaForm <= 100 ? notaForm : null);
 
-  const blob = await put(`karaoke/fotos/${fila.ano}/${filaId}-${Date.now()}.jpg`, foto, {
-    access: 'public',
-    token,
-    addRandomSuffix: true,
-    contentType: 'image/jpeg',
-  });
+  const url = await enviarArquivo(`karaoke/fotos/${fila.ano}/${filaId}-${Date.now()}-${sufixo()}.jpg`, foto, 'image/jpeg');
 
-  await publicarNoAlbum(fila, admin.id, filaId, blob.url, nota);
-  return ok({ url: blob.url }, 201);
+  await publicarNoAlbum(fila, admin.id, filaId, url, nota);
+  return ok({ url }, 201);
 });

@@ -4,7 +4,6 @@
 // MediaRecorders alternados (ver momentos.ts) e o envio em segundo plano para o Vercel Blob. Tudo só roda se o telão pedir (iniciar).
 
 import { useEffect, useMemo, useState } from 'react';
-import { put } from '@vercel/blob/client';
 import { api } from '@/app/ui/client';
 import {
   COMBO_CLIPE, PASSO_SEGMENTO_MS, PERFEICAO_FRASE, POS_ROLL_MS, PlanejadorMomentos, ROTULO_MOTIVO, VIDA_SEGMENTO_MS,
@@ -21,7 +20,6 @@ const BITRATE_VIDEO = 2_500_000;
 const BITRATE_AUDIO = 128_000;
 const TIMESLICE_MS = 1000;
 const MIN_BYTES_CLIPE = 20_000;
-const MULTIPART_ACIMA = 8 * 1024 * 1024;
 const TENTATIVAS_ENVIO = 2;
 const INTERVALO_ENVIO_MS = 2000;
 const FILAS_NA_MEMORIA = 3;
@@ -591,19 +589,15 @@ class GravadorMomentos {
     } finally { this.enviando = false; }
   }
 
-  /** Token de cliente do servidor, envio direto ao Blob (sem passar o arquivo pelo servidor) e registro. 2 tentativas. */
+  /** URL assinada pelo servidor, envio direto ao armazenamento (sem passar o arquivo pela Vercel) e registro. 2 tentativas. */
   private async enviar(item: ItemEnvio): Promise<boolean> {
     for (let t = 0; t < TENTATIVAS_ENVIO; t++) {
       if (t > 0) await esperar(INTERVALO_ENVIO_MS);
       try {
-        const { token, pathname } = await api<{ token: string; pathname: string }>('/api/karaoke/momentos/upload', { method: 'POST', json: { fila_id: item.filaId, tipo: item.tipo } });
-        const r = await put(pathname, item.blob, {
-          access: 'public',
-          token,
-          contentType: item.tipo === 'foto' ? 'image/jpeg' : 'video/webm',
-          multipart: item.blob.size > MULTIPART_ACIMA,
-        });
-        await api('/api/karaoke/momentos', { method: 'POST', json: { fila_id: item.filaId, tipo: item.tipo, url: r.url, ms: item.ms, duracao_ms: item.duracao_ms, motivo: item.motivo } });
+        const { uploadUrl, url } = await api<{ uploadUrl: string; url: string }>('/api/karaoke/momentos/upload', { method: 'POST', json: { fila_id: item.filaId, tipo: item.tipo } });
+        const r = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': item.tipo === 'foto' ? 'image/jpeg' : 'video/webm' }, body: item.blob });
+        if (!r.ok) throw new Error(`envio recusado (HTTP ${r.status})`);
+        await api('/api/karaoke/momentos', { method: 'POST', json: { fila_id: item.filaId, tipo: item.tipo, url, ms: item.ms, duracao_ms: item.duracao_ms, motivo: item.motivo } });
         return true;
       } catch (e) { console.error('karaoke: envio do momento', e); }
     }

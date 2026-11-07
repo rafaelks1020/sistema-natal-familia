@@ -1,4 +1,5 @@
 import { del } from '@vercel/blob';
+import { apagarArquivos, caminhoDaUrl } from '@/app/lib/arquivos';
 import { parsePostImages } from '@/app/api/posts/_utils';
 import { NextResponse } from 'next/server';
 import { cleanText, HttpError, isBlobUrl, ok, readJson, requireUser, route } from '@/app/lib/api';
@@ -70,9 +71,12 @@ export const DELETE = route(async (req) => {
     await q('DELETE FROM family_users WHERE id = $1', [me.id]);
     return [...new Set(images)].filter(isBlobUrl);
   });
-  if (urls.length) {
+  const nossas = urls.filter((u) => caminhoDaUrl(u));
+  if (nossas.length && (await apagarArquivos(nossas))) console.error('[conta] Falha ao apagar alguns arquivos do armazenamento');
+  const doBlob = urls.filter((u) => !caminhoDaUrl(u));
+  if (doBlob.length) {
     try {
-      await del(urls, { token: process.env.BLOB_READ_WRITE_TOKEN });
+      await del(doBlob, { token: process.env.BLOB_READ_WRITE_TOKEN });
     } catch (error) {
       console.error('[conta] Falha ao apagar fotos do Blob:', error instanceof Error ? error.name : 'Erro desconhecido');
     }

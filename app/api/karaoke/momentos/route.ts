@@ -102,7 +102,7 @@ export const GET = route(comMigracao(async (req) => {
 
 /**
  * POST (só admin, o telão): registra um momento já enviado ao Blob. Corpo: { fila_id, tipo: 'foto' | 'clipe', url, ms, duracao_ms, motivo }.
- * A url precisa ser do nosso Blob e estar na pasta karaoke/momentos/<ano>/<fila_id>/. A foto também vai para o álbum da família.
+ * A url precisa ser do nosso armazenamento e estar na pasta karaoke/momentos/<ano>/<fila_id>/. A foto também vai para o álbum da família.
  */
 export const POST = route(comMigracao(async (req) => {
   const admin = await requireAdmin();
@@ -116,7 +116,9 @@ export const POST = route(comMigracao(async (req) => {
   const { rows } = await query<{ ano: number; user_id: number }>('SELECT ano, user_id FROM karaoke_fila WHERE id = $1', [filaId]);
   const f = rows[0];
   if (!f) throw new HttpError(404, 'Música não encontrada na fila.');
-  if (!new URL(urlBlob).pathname.startsWith(`/karaoke/momentos/${f.ano}/${filaId}/`)) throw new HttpError(400, 'Endereço do arquivo inválido.');
+  // No armazenamento novo o caminho vem depois de /f (no Blob antigo, direto).
+  const caminho = new URL(urlBlob).pathname.replace(/^\/f\//, '/');
+  if (!caminho.startsWith(`/karaoke/momentos/${f.ano}/${filaId}/`)) throw new HttpError(400, 'Endereço do arquivo inválido.');
 
   const ms = inteiroOpcional(body.ms, 0, 4 * 3600 * 1000, 'ms');
   const duracao = inteiroOpcional(body.duracao_ms, 0, 120_000, 'duracao_ms');
