@@ -206,3 +206,16 @@
 .fotoNota { position: absolute; z-index: 3; right: 3vmin; bottom: calc(var(--faixa) + 3vmin); width: 34vmin; margin: 0; padding: 1.2vmin 1.2vmin 0.8vmin; background: #f3ebdc; border-radius: 0.8vmin; box-shadow: 0 2vmin 6vmin rgba(0, 0, 0, 0.6); transform: rotate(3deg); animation: aparecer 0.8s ease 2.2s both; }
 .fotoNota img { display: block; width: 100%; height: auto; border-radius: 0.4vmin; background: #000; }
 .fotoNota figcaption { margin-top: 0.8vmin; text-align: center; font-size: 1.9vmin; font-weight: 800; color: #171b18; text-shadow: none; }
+
+/* Modo Estrela (gesto de braços para cima): luz dourada na borda, faixa no topo e dica. */
+.estrelaVeu { position: absolute; z-index: 4; inset: 0; pointer-events: none; box-shadow: inset 0 0 14vmin rgba(255, 190, 60, 0.75), inset 0 0 3vmin rgba(255, 226, 140, 0.9); background: radial-gradient(120% 90% at 50% 50%, rgba(255, 200, 70, 0) 40%, rgba(255, 180, 40, 0.22) 100%); animation: estrelaPulsa 0.7s ease-in-out infinite alternate; }
+.estrelaBanner { position: absolute; z-index: 7; left: 50%; top: 2.2vmin; transform: translateX(-50%); padding: 1.2vmin 4vmin; border-radius: 999px; background: rgba(23, 27, 24, 0.85); border: 0.35vmin solid #ffe28c; color: #ffd45e; font-size: 3.6vmin; font-weight: 800; letter-spacing: 0.12em; text-shadow: 0 0 2vmin rgba(255, 200, 70, 0.9); box-shadow: 0 0 5vmin rgba(255, 190, 60, 0.7); pointer-events: none; animation: estrelaPulsa 0.7s ease-in-out infinite alternate; }
+.dicaEstrela { position: absolute; z-index: 7; left: 50%; bottom: calc(var(--faixa) + 1.6vmin); transform: translateX(-50%); padding: 0.8vmin 2.2vmin; border-radius: 999px; background: rgba(23, 27, 24, 0.8); border: 0.2vmin solid rgba(255, 212, 94, 0.8); color: #ffd45e; font-size: 1.9vmin; font-weight: 700; pointer-events: none; animation: aparecer 0.6s ease both; }
+@keyframes estrelaPulsa { from { opacity: 0.75; } to { opacity: 1; } }
+
+/* Tela da nota: faixa de miniaturas dos melhores momentos e o contador. */
+.momentosFaixa { position: absolute; z-index: 3; left: 3vmin; bottom: calc(var(--faixa) + 3vmin); max-width: 56vw; display: flex; flex-direction: column; gap: 1vmin; animation: aparecer 0.8s ease 2.4s both; }
+.momentosFaixa ul { display: flex; gap: 1vmin; margin: 0; padding: 0; list-style: none; }
+.momentosFaixa li { width: 11vmin; aspect-ratio: 16 / 9; border-radius: 0.6vmin; overflow: hidden; background: #000; border: 0.2vmin solid rgba(255, 214, 120, 0.8); box-shadow: 0 1vmin 3vmin rgba(0, 0, 0, 0.6); }
+.momentosFaixa img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.momentosContagem { margin: 0; font-size: 2.2vmin; font-weight: 800; color: #ffd45e; text-shadow: 0 0.3vmin 1.2vmin rgba(0, 0, 0, 0.9); }

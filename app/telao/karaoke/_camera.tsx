@@ -4,7 +4,8 @@
 // detecção de quem está cantando e faíscas douradas. Veja camera.md para ligar no telão.
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import type { FaceLandmarker, FaceLandmarkerResult } from '@mediapipe/tasks-vision';
+import type { FaceLandmarker, FaceLandmarkerResult, PoseLandmarker, PoseLandmarkerResult } from '@mediapipe/tasks-vision';
+import type { Postura, Pt } from './gestos';
 import styles from './_camera.module.css';
 
 // ---------- constantes ----------
@@ -14,7 +15,10 @@ const VERSAO_MEDIAPIPE = '1.2.2';
 const WASM_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VERSAO_MEDIAPIPE}/wasm`;
 const MODELO_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 
+const MODELO_POSE_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+
 const INTERVALO_DETECCAO_MS = 55; // ~18 detecções por segundo
+const INTERVALO_POSE_MS = 100; // ~10 poses por segundo (gestos do estilo Kinect)
 const LIMIAR_VOLUME = 0.05; // abaixo disso ninguém está cantando
 const SILENCIO_SOLTA_MS = 2500; // sem volume por tanto tempo, ninguém é o cantor
 const SUAVIZA_JAW = 0.25; // peso da média móvel do jawOpen
@@ -68,6 +72,10 @@ export interface OpcoesCamera {
   deviceId?: string;
   /** Volume atual do microfone (0..1). Número (re-renderiza a cada mudança) ou função lida a cada detecção (recomendado: () => vivo.current.rms normalizado). */
   volume?: number | (() => number);
+  /** Liga a detecção de pose (corpo) a ~10 por segundo, junto com o rosto. O modelo carrega com a câmera; ligar e desligar depois não recarrega. */
+  pose?: boolean;
+  /** Recebe as posturas (uma por pessoa, até 2) a cada detecção de pose, e uma lista vazia quando ninguém aparece. Não re-renderiza. */
+  aoPostura?: (posturas: Postura[], agoraMs: number) => void;
 }
 
 export interface DispositivoCamera { deviceId: string; label: string }
@@ -137,7 +145,18 @@ function extrairRostos(r: FaceLandmarkerResult, larg: number, alt: number): Rost
   return rostos;
 }
 
-export function useCameraKaraoke({ ligada, deviceId, volume }: OpcoesCamera): RetornoCamera {
+/** Índices do PoseLandmarker (33 pontos): 0 nariz, 11 e 12 ombros, 15 e 16 pulsos. */
+function extrairPosturas(r: PoseLandmarkerResult): Postura[] {
+  const saida: Postura[] = [];
+  for (const pts of r.landmarks) {
+    if (pts.length < 17) continue;
+    const p = (k: number): Pt => ({ x: pts[k].x, y: pts[k].y, v: pts[k].visibility ?? 0 });
+    saida.push({ nariz: p(0), ombroE: p(11), ombroD: p(12), pulsoE: p(15), pulsoD: p(16) });
+  }
+  return saida;
+}
+
+export function useCameraKaraoke({ ligada, deviceId, volume, pose = false, aoPostura }: OpcoesCamera): RetornoCamera {
   const [manual, setManual] = useState<boolean | undefined>(undefined);
   const [anterior, setAnterior] = useState(ligada);
   if (anterior !== ligada) { setAnterior(ligada); setManual(undefined); }
@@ -154,7 +173,9 @@ export function useCameraKaraoke({ ligada, deviceId, volume }: OpcoesCamera): Re
   const rostosRef = useRef<Rosto[]>([]);
   const cantandoRef = useRef(-1);
   const volumeRef = useRef(volume);
-  useEffect(() => { volumeRef.current = volume; });
+  const poseAtivaRef = useRef(pose);
+  const aoPosturaRef = useRef(aoPostura);
+  useEffect(() => { volumeRef.current = volume; poseAtivaRef.current = pose; aoPosturaRef.current = aoPostura; });
 
   // 1) abre a câmera
   useEffect(() => {
@@ -207,6 +228,9 @@ export function useCameraKaraoke({ ligada, deviceId, volume }: OpcoesCamera): Re
     let cancelado = false;
     let raf = 0;
     let landmarker: FaceLandmarker | null = null;
+    let poseLm: PoseLandmarker | null = null;
+    let ultimoPoseMs = 0;
+    let ultimoTempoPose = -1;
 
     let ultimoMs = 0;
     let ultimoTempoVideo = -1;
@@ -249,7 +273,15 @@ export function useCameraKaraoke({ ligada, deviceId, volume }: OpcoesCamera): Re
       const v = videoRef.current;
       const agora = performance.now();
       if (!v || v.readyState < 2 || v.videoWidth === 0) return;
-      if (agora - ultimoMs < INTERVALO_DETECCAO_MS || v.currentTime === ultimoTempoVideo) return;
+      if (agora - ultimoMs < INTERVALO_DETECCAO_MS || v.currentTime === ultimoTempoVideo) {
+        // Pose num quadro em que o rosto não rodou (as duas detecções no mesmo quadro travariam o vídeo).
+        if (poseLm && poseAtivaRef.current && agora - ultimoPoseMs >= INTERVALO_POSE_MS && v.currentTime !== ultimoTempoPose && v.currentTime !== ultimoTempoVideo) {
+          ultimoPoseMs = agora;
+          ultimoTempoPose = v.currentTime;
+          try { aoPosturaRef.current?.(extrairPosturas(poseLm.detectForVideo(v, agora)), agora); } catch { /* quadro ruim: ignora */ }
+        }
+        return;
+      }
       ultimoMs = agora;
       ultimoTempoVideo = v.currentTime;
       try {
@@ -276,12 +308,24 @@ export function useCameraKaraoke({ ligada, deviceId, volume }: OpcoesCamera): Re
       landmarker = lm;
       setModeloPronto(true);
       raf = requestAnimationFrame(passo);
+      // Pose (lite): falhar aqui só desliga os gestos; o rosto e os filtros seguem.
+      try {
+        const { PoseLandmarker: PL } = await import('@mediapipe/tasks-vision');
+        const opcoesPose = (delegate: 'GPU' | 'CPU') => ({ baseOptions: { modelAssetPath: MODELO_POSE_URL, delegate }, runningMode: 'VIDEO' as const, numPoses: 2 });
+        let pl: PoseLandmarker;
+        try { pl = await PL.createFromOptions(arquivos, opcoesPose('GPU')); }
+        catch { pl = await PL.createFromOptions(arquivos, opcoesPose('CPU')); }
+        if (cancelado) { pl.close(); return; }
+        poseLm = pl;
+      } catch (e) { console.error('karaoke: pose indisponível', e); }
     })().catch((e) => { if (!cancelado) setErro(e instanceof Error ? `Não consegui carregar a detecção de rostos: ${e.message}` : 'Não consegui carregar a detecção de rostos.'); });
 
     return () => {
       cancelado = true;
       cancelAnimationFrame(raf);
       landmarker?.close();
+      poseLm?.close();
+      poseLm = null;
       rostosRef.current = [];
       cantandoRef.current = -1;
       setModeloPronto(false);
@@ -381,7 +425,27 @@ function desenharFiltros(ctx: CanvasRenderingContext2D, q: Quadro, r: Rosto, efe
   }
 }
 
-function desenharCantor(ctx: CanvasRenderingContext2D, q: Quadro, r: Rosto, nome: string | undefined, tempoMs: number) {
+/** Modo Estrela: aura dourada pulsando em volta de qualquer rosto. */
+function desenharAura(ctx: CanvasRenderingContext2D, q: Quadro, r: Rosto, tempoMs: number) {
+  const testa = mapear(q, r.testa), queixo = mapear(q, r.queixo);
+  const centro = { x: (testa.x + queixo.x) / 2, y: (testa.y + queixo.y) / 2 };
+  const altura = dist(testa, queixo);
+  const pulso = 0.5 + 0.5 * Math.sin(tempoMs / 140);
+  const raio = altura * (1.25 + 0.25 * pulso);
+  const g = ctx.createRadialGradient(centro.x, centro.y, altura * 0.3, centro.x, centro.y, raio);
+  g.addColorStop(0, 'rgba(255, 226, 140, 0.55)');
+  g.addColorStop(0.55, 'rgba(255, 190, 60, 0.28)');
+  g.addColorStop(1, 'rgba(255, 170, 40, 0)');
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(centro.x, centro.y, raio, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function desenharCantor(ctx: CanvasRenderingContext2D, q: Quadro, r: Rosto, nome: string | undefined, tempoMs: number, estrela = false) {
   const testa = mapear(q, r.testa), queixo = mapear(q, r.queixo);
   const temporas = dist(mapear(q, r.temporaE), mapear(q, r.temporaD));
   const olhoE = mapear(q, r.olhoE), olhoD = mapear(q, r.olhoD);
@@ -396,9 +460,9 @@ function desenharCantor(ctx: CanvasRenderingContext2D, q: Quadro, r: Rosto, nome
   ctx.translate(centro.x, centro.y);
   ctx.rotate(rolagem);
   ctx.shadowColor = 'rgba(255, 205, 90, 0.9)';
-  ctx.shadowBlur = (26 + 14 * pulso) * esc;
-  ctx.strokeStyle = `rgba(255, 214, 120, ${0.55 + 0.3 * pulso})`;
-  ctx.lineWidth = 4 * esc;
+  ctx.shadowBlur = (26 + 14 * pulso) * esc * (estrela ? 2.2 : 1);
+  ctx.strokeStyle = estrela ? `rgba(255, 232, 150, ${0.85 + 0.15 * pulso})` : `rgba(255, 214, 120, ${0.55 + 0.3 * pulso})`;
+  ctx.lineWidth = (estrela ? 8 : 4) * esc;
   ctx.beginPath();
   ctx.ellipse(0, 0, temporas * 0.64, altura * 0.68, 0, 0, Math.PI * 2);
   ctx.stroke();
@@ -475,18 +539,21 @@ export interface PropsCameraFundo {
   faiscas?: Ou<number>;
   /** 0..1, quanto escurecer o vídeo (padrão 0.35). */
   escurecer?: number;
+  /** Modo Estrela ativo (booleano ou ref, sem re-render): luz dourada na tela e aura nos rostos. */
+  estrela?: Ou<boolean>;
   zIndex?: number;
   /** Para tirarFoto(canvasRef.current). */
   canvasRef?: RefObject<HTMLCanvasElement | null>;
 }
 
-export function CameraFundo({ video, rostos, cantandoIdx, nomes, efeitos, faiscas = 0, escurecer = 0.35, zIndex = 0, canvasRef }: PropsCameraFundo) {
+export function CameraFundo({ video, rostos, cantandoIdx, nomes, efeitos, faiscas = 0, escurecer = 0.35, estrela = false, zIndex = 0, canvasRef }: PropsCameraFundo) {
   const interno = useRef<HTMLCanvasElement | null>(null);
   const pendentes = useRef(0);
   const alvo = canvasRef ?? interno;
-  const props = useRef({ video, rostos, cantandoIdx, nomes, efeitos, escurecer, faiscas });
-  useEffect(() => { props.current = { video, rostos, cantandoIdx, nomes, efeitos, escurecer, faiscas }; });
+  const props = useRef({ video, rostos, cantandoIdx, nomes, efeitos, escurecer, faiscas, estrela });
+  useEffect(() => { props.current = { video, rostos, cantandoIdx, nomes, efeitos, escurecer, faiscas, estrela }; });
   const anteriorFaiscas = useRef<number | null>(null);
+  const ultimaChuva = useRef(0);
 
   useEffect(() => {
     const canvas = alvo.current;
@@ -541,11 +608,32 @@ export function CameraFundo({ video, rostos, cantandoIdx, nomes, efeitos, faisca
       ctx.fillStyle = vin;
       ctx.fillRect(0, 0, cw, ch);
 
+      const emEstrela = ler(p.estrela);
+      if (emEstrela) {
+        // Luz dourada forte: vinheta dourada pulsando e faíscas contínuas.
+        const pulsoE = 0.5 + 0.5 * Math.sin(agora / 200);
+        const ouro = ctx.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.2, cw / 2, ch / 2, Math.hypot(cw, ch) * 0.6);
+        ouro.addColorStop(0, `rgba(255, 200, 70, ${0.1 + 0.08 * pulsoE})`);
+        ouro.addColorStop(1, `rgba(255, 170, 30, ${0.42 + 0.14 * pulsoE})`);
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = ouro;
+        ctx.fillRect(0, 0, cw, ch);
+        ctx.restore();
+        ctx.strokeStyle = `rgba(255, 226, 140, ${0.7 + 0.3 * pulsoE})`;
+        ctx.lineWidth = 10 * esc;
+        ctx.strokeRect(5 * esc, 5 * esc, cw - 10 * esc, ch - 10 * esc);
+      }
       lista.forEach((r, i) => {
+        if (emEstrela) desenharAura(ctx, q, r, agora);
         desenharFiltros(ctx, q, r, p.efeitos);
-        if (i === idx) desenharCantor(ctx, q, r, p.nomes?.[i], agora);
+        if (i === idx) desenharCantor(ctx, q, r, p.nomes?.[i], agora, Boolean(emEstrela));
       });
 
+      if (emEstrela && agora - ultimaChuva.current > 90) {
+        ultimaChuva.current = agora;
+        pendentes.current += 1;
+      }
       if (pendentes.current > 0) {
         const cantor = lista[idx] ?? lista[0];
         const origem = cantor ? mapear(q, { x: (cantor.testa.x + cantor.queixo.x) / 2, y: (cantor.testa.y + cantor.queixo.y) / 2 }) : { x: cw / 2, y: ch / 2 };

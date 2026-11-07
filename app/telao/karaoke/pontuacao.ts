@@ -25,6 +25,8 @@ export type Detalhes = {
   maiorCombo?: number;
   maiorSequencia?: number;
   perfeitas?: number;
+  /** Só no modo estúdio: pontos extras que o Modo Estrela deu às notas (ausente se não foi usado). */
+  estrelaPontos?: number;
 };
 
 export type Resultado = { nota: number; estrelas: number; detalhes: Detalhes };
@@ -278,6 +280,10 @@ export function limiarDeVozEstudio(ruido: number): number {
   return limitar(ruido * 2, 0.008, 0.03);
 }
 
+/** Modo Estrela: os pontos das notas valem x2 durante 8 s. */
+export const ESTRELA_MULT = 2;
+export const ESTRELA_DURACAO_MS = 8000;
+
 /** Multiplicador da sequência: x1, x2 (5 notas seguidas), x3 (10) e x4 (20). */
 export function multiplicadorDeCombo(sequencia: number): number {
   return sequencia >= 20 ? 4 : sequencia >= 10 ? 3 : sequencia >= 5 ? 2 : 1;
@@ -295,6 +301,8 @@ export type EstadoAoVivo = {
   pontosNotas: number;
   pontosLinhas: number;
   pontosSequencia: number;
+  /** Pontos extras das notas dados pelo Modo Estrela (já somados em pontosNotas). */
+  pontosEstrela: number;
   /** Nota 0 a 100 equivalente. */
   nota: number;
   combo: number;
@@ -348,6 +356,9 @@ export class PontuacaoAoVivo {
   private droneI = 0;
   private proximo = 0;
   private somaGanho = 0;
+  /** Modo Estrela: janelas (ms da posição do áudio) com multiplicador explícito e o ganho extra acumulado (ganho * (mult - 1)). */
+  private readonly janelasEstrela: { de: number; ate: number; mult: number }[] = [];
+  private extraEstrela = 0;
   private pontosLinhas = 0;
   private pontosSequencia = 0;
   private sequencia = 0;
@@ -388,6 +399,22 @@ export class PontuacaoAoVivo {
 
   definirLimiar(limiar: number) { this.limiar = limiar; }
   definirAjuste(latenciaMs: number, offsetMs: number) { this.latenciaMs = latenciaMs; this.offsetMs = offsetMs; }
+
+  /**
+   * Modo Estrela: de ms (posição do áudio, a mesma de adicionarQuadro) até ms + duracaoMs, o ganho de pontos das notas vale mult vezes.
+   * Só os pontos das notas dobram (acerto, sequência e linhas não mudam); o limite final de 10000 continua valendo.
+   */
+  iniciarEstrela(ms: number, duracaoMs = ESTRELA_DURACAO_MS, mult = ESTRELA_MULT) {
+    if (!Number.isFinite(ms) || !(duracaoMs > 0) || !(mult > 1)) return;
+    this.janelasEstrela.push({ de: ms, ate: ms + duracaoMs, mult });
+  }
+  /** Multiplicador dos pontos das notas na posição ms (1 fora de qualquer janela; janelas não se acumulam, vale a maior). */
+  multiplicadorEstrela(ms: number): number {
+    let m = 1;
+    for (const j of this.janelasEstrela) if (ms >= j.de && ms < j.ate && j.mult > m) m = j.mult;
+    return m;
+  }
+  estrelaAtiva(ms: number): boolean { return this.multiplicadorEstrela(ms) > 1; }
   get notasPreparadas(): readonly NotaEstudio[] { return this.notas; }
   /** Pontos já ganhos pela nota i, com a cobertura esperada (uma voz perfeita enche a nota com 70% do tempo em tom). */
   private efetivo(i: number): number { return Math.min(this.peso[i], this.ganho[i] / this.cobertura); }
@@ -420,7 +447,10 @@ export class PontuacaoAoVivo {
       const n = this.notas[indice];
       const antes = this.efetivo(indice);
       this.ganho[indice] = Math.min(this.peso[indice], this.ganho[indice] + multiplicadorDaNota(n) * fator * dt);
-      this.somaGanho += this.efetivo(indice) - antes;
+      const delta = this.efetivo(indice) - antes;
+      this.somaGanho += delta;
+      const mEstrela = this.multiplicadorEstrela(ms);
+      if (mEstrela > 1) this.extraEstrela += delta * (mEstrela - 1);
       this.tempoValido += dt;
       this.somaFator += fator * dt;
       this.validos++;
@@ -484,7 +514,8 @@ export class PontuacaoAoVivo {
     }
   }
 
-  private pontosNotas(): number { return this.maximo > 0 ? PONTOS_NOTAS * limitar(this.somaGanho / this.maximo) : 0; }
+  private pontosNotas(): number { return this.maximo > 0 ? PONTOS_NOTAS * (limitar(this.somaGanho / this.maximo) + this.extraEstrela / this.maximo) : 0; }
+  private pontosEstrela(): number { return this.maximo > 0 ? PONTOS_NOTAS * (this.extraEstrela / this.maximo) : 0; }
   private bruto(): number { return this.pontosNotas() + this.pontosLinhas + this.pontosSequencia; }
 
   /** Fecha as notas que faltam (fim da música). Devolve os eventos gerados. */
@@ -499,7 +530,7 @@ export class PontuacaoAoVivo {
     const pontos = Math.min(PONTOS_MAX, Math.round(bruto));
     return {
       pontos, bruto,
-      pontosNotas: this.pontosNotas(), pontosLinhas: this.pontosLinhas, pontosSequencia: this.pontosSequencia,
+      pontosNotas: this.pontosNotas(), pontosLinhas: this.pontosLinhas, pontosSequencia: this.pontosSequencia, pontosEstrela: this.pontosEstrela(),
       nota: Math.round(limitar(pontos / 100, 0, 100)),
       combo: multiplicadorDeCombo(this.sequencia), sequencia: this.sequencia,
       maiorSequencia: this.maiorSequencia, maiorCombo: this.maiorCombo,
@@ -539,6 +570,7 @@ export class PontuacaoAoVivo {
         maiorCombo: e.maiorCombo,
         maiorSequencia: e.maiorSequencia,
         perfeitas: e.notasPerfeitas,
+        ...(this.extraEstrela > 0 ? { estrelaPontos: Math.round(this.pontosEstrela() * 10) / 10 } : {}),
       },
     };
   }

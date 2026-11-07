@@ -558,3 +558,87 @@ test('estúdio: limiar de voz do estúdio fica entre 0,008 e 0,03', async () => 
   assert.equal(limiarDeVozEstudio(0.1), 0.03);
   assert.ok(Math.abs(limiarDeVozEstudio(0.01) - 0.02) < 1e-9);
 });
+
+// ---------- Modo Estrela: multiplicador de pontos das notas por janela de tempo ----------
+
+function rodarEstrela(notas, { acerta, janelas = [] }) {
+  const motor = new PontuacaoAoVivo(notas, { latenciaMs: 80 });
+  for (const j of janelas) motor.iniciarEstrela(j.de, j.dur, j.mult);
+  alimentar(motor, quadrosLongos(notas, { acerta }));
+  return motor;
+}
+
+test('estrela: sem janela nada muda (estado idêntico ao de antes)', () => {
+  const notas = melodiaLonga(24);
+  const a = rodarEstrela(notas, { acerta: (i) => i % 2 === 0 });
+  const e = a.estado();
+  assert.equal(e.pontosEstrela, 0);
+  assert.equal(a.multiplicadorEstrela(1000), 1);
+  assert.equal(a.estrelaAtiva(1000), false);
+  const r = a.resultado();
+  assert.equal(r.detalhes.estrelaPontos, undefined);
+});
+
+test('estrela: janela cobrindo a música toda dobra os pontos das notas', () => {
+  const notas = melodiaLonga(24);
+  const base = rodarEstrela(notas, { acerta: (i) => i % 2 === 0 }).estado();
+  const dobro = rodarEstrela(notas, { acerta: (i) => i % 2 === 0, janelas: [{ de: 0, dur: 1e9, mult: 2 }] }).estado();
+  assert.ok(base.pontosNotas > 1000 && base.pontosNotas < 9000, `base ${base.pontosNotas}`);
+  assert.ok(Math.abs(dobro.pontosNotas - 2 * base.pontosNotas) < 1, `dobro ${dobro.pontosNotas} base ${base.pontosNotas}`);
+  assert.ok(Math.abs(dobro.pontosEstrela - base.pontosNotas) < 1);
+  // acerto, sequência e linhas não mudam
+  assert.equal(dobro.pontosSequencia, base.pontosSequencia);
+  assert.equal(dobro.pontosLinhas, base.pontosLinhas);
+  assert.equal(dobro.maiorSequencia, base.maiorSequencia);
+});
+
+test('estrela: só vale dentro da janela de tempo (8 s no meio da música)', () => {
+  const notas = melodiaLonga(24);
+  const meio = notas[10].inicio_ms;
+  const todas = (i) => i >= 0;
+  const base = rodarEstrela(notas, { acerta: todas }).estado();
+  // a janela de 8 s pega só parte das notas: ganho extra positivo e menor que o de uma janela infinita
+  const parcial = rodarEstrela(notas, { acerta: todas, janelas: [{ de: meio, dur: 8000, mult: 2 }] }).estado();
+  const total = rodarEstrela(notas, { acerta: todas, janelas: [{ de: 0, dur: 1e9, mult: 2 }] }).estado();
+  assert.ok(parcial.pontosEstrela > 0, `parcial ${parcial.pontosEstrela}`);
+  assert.ok(parcial.pontosEstrela < total.pontosEstrela, 'janela curta dá menos extra');
+  assert.ok(parcial.pontosNotas > base.pontosNotas);
+  // janela depois do fim da música: sem efeito
+  const depois = rodarEstrela(notas, { acerta: todas, janelas: [{ de: 10_000_000, dur: 8000, mult: 2 }] }).estado();
+  assert.equal(depois.pontosEstrela, 0);
+  assert.equal(depois.pontosNotas, base.pontosNotas);
+});
+
+test('estrela: multiplicador por tempo é explícito (borda inicial incluída, final excluída) e não acumula janelas', () => {
+  const motor = new PontuacaoAoVivo(melodiaLonga(4), { latenciaMs: 80 });
+  motor.iniciarEstrela(1000, 8000);
+  assert.equal(motor.multiplicadorEstrela(999), 1);
+  assert.equal(motor.multiplicadorEstrela(1000), 2);
+  assert.equal(motor.multiplicadorEstrela(8999), 2);
+  assert.equal(motor.multiplicadorEstrela(9000), 1);
+  motor.iniciarEstrela(5000, 8000); // sobrepõe: continua x2, não x4
+  assert.equal(motor.multiplicadorEstrela(6000), 2);
+  assert.equal(motor.multiplicadorEstrela(12000), 2);
+  motor.iniciarEstrela(Number.NaN); motor.iniciarEstrela(0, 0); motor.iniciarEstrela(0, 1000, 1); // entradas inválidas são ignoradas
+  assert.equal(motor.multiplicadorEstrela(100), 1);
+});
+
+test('estrela: o limite final de 10000 continua valendo e a nota final inclui o extra', () => {
+  const notas = melodiaLonga(40).map((n) => ({ ...n, golden: false }));
+  const motor = rodarEstrela(notas, { acerta: () => true, janelas: [{ de: 0, dur: 1e9, mult: 2 }] });
+  const e = motor.estado();
+  assert.equal(e.pontos, 10000);
+  assert.ok(e.bruto > 10000, `bruto ${e.bruto}`);
+  const r = motor.resultado();
+  assert.equal(r.total, 10000);
+  assert.equal(r.nota, 100);
+  assert.ok(r.detalhes.estrelaPontos > 0);
+
+  // cantor mediano: o extra entra no total final (e na nota), que fica abaixo do limite
+  const base = rodarEstrela(notas, { acerta: (i) => i % 3 !== 0 }).resultado();
+  const comEstrela = rodarEstrela(notas, { acerta: (i) => i % 3 !== 0, janelas: [{ de: notas[10].inicio_ms, dur: 8000, mult: 2 }] }).resultado();
+  assert.ok(comEstrela.total > base.total, `${comEstrela.total} contra ${base.total}`);
+  assert.ok(comEstrela.total <= 10000);
+  assert.ok(comEstrela.nota >= base.nota);
+  assert.equal(comEstrela.detalhes.estrelaPontos > 0, true);
+});

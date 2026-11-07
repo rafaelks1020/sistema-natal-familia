@@ -6,6 +6,7 @@ import PageHeader from '@/app/ui/PageHeader';
 import { api } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
 import { useMe } from '@/app/ui/user';
+import MelhoresMomentos from './_momentos';
 import { formatarDuracao, quemCanta, ROTULO_PREPARO, slugDaMusica, type EstadoKaraoke, type ItemFila, type MusicaCatalogo, type MusicaLrclib, type VideoKaraoke } from '@/app/telao/karaoke/tipos';
 
 function Estrelas({ n }: { n: number }) {
@@ -263,6 +264,8 @@ export default function KaraokeClient() {
         <span className="display shrink-0 text-2xl">{r.melhor}</span>
       </li>)}</ol>
     </section> : null}
+
+    <MelhoresMomentos />
 
     {estado?.feitas.length ? <section><h2 className="display text-2xl">Já cantaram</h2>
       <ul className="divide-y divide-linha">{estado.feitas.map((f) => <li key={f.id} className="flex items-center gap-3 py-3">

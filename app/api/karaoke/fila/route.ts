@@ -58,6 +58,7 @@ function comMigracao(h: (req: Request) => Promise<Response>) {
       const codigo = codigoPg(err);
       const msg = err instanceof Error ? err.message : '';
       if (codigo === '42703' || codigo === '42P01') {
+        if (/reel_|karaoke_momentos/.test(msg)) throw new HttpError(503, 'Rode a migração 042');
         if (/parcial/.test(msg)) throw new HttpError(503, 'Rode a migração 041');
         if (/catalogo/.test(msg)) throw new HttpError(503, 'Rode a migração 040');
         if (/candidatos|videos_falhos|karaoke_videos_bloqueados/.test(msg)) throw new HttpError(503, 'Rode a migração 039');
@@ -307,7 +308,7 @@ export const PATCH = route(comMigracao(async (req) => {
   const ano = edicaoAtual();
   const body = await readJson<{ id?: unknown; acao?: unknown; nota?: unknown; estrelas?: unknown; detalhes?: unknown; offset_ms?: unknown; video_id_falho?: unknown; codigo?: unknown; pontos?: unknown }>(req);
   const acao = typeof body.acao === 'string' ? body.acao : '';
-  const ACOES = ['subir', 'descer', 'pular', 'remover', 'comecar', 'terminar', 'offset', 'trocar_video', 'parcial'];
+  const ACOES = ['subir', 'descer', 'pular', 'remover', 'comecar', 'terminar', 'offset', 'trocar_video', 'parcial', 'reel'];
   if (!ACOES.includes(acao)) throw new HttpError(400, 'Ação inválida.');
   const id = body.id == null ? null : toInt(body.id);
   if (id === null && acao !== 'comecar' && acao !== 'terminar') throw new HttpError(400, 'Campo id inválido.');
@@ -317,6 +318,15 @@ export const PATCH = route(comMigracao(async (req) => {
     const pontos = numeroEntre(body.pontos, 0, 10000, 'pontos');
     await query(`UPDATE karaoke_fila SET parcial = $1 WHERE id = $2 AND ano = $3 AND status = 'cantando'`, [pontos, id, ano]);
     return ok({ ok: true });
+  }
+
+  if (acao === 'reel') {
+    // Fim da música com clipes enviados: pede ao worker o vídeo de melhores momentos. Não mexe em quem já está gerando ou pronto.
+    const r = await query(
+      `UPDATE karaoke_fila SET reel_status = 'pendente' WHERE id = $1 AND ano = $2 AND (reel_status IS NULL OR reel_status = 'falhou')`,
+      [id, ano],
+    );
+    return ok({ ok: true, pendente: (r.rowCount ?? 0) > 0 });
   }
 
   if (acao === 'trocar_video') {

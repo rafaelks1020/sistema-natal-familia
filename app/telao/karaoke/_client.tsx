@@ -10,7 +10,10 @@ import { MedidorAfinacao } from './_medidor';
 import { FundoLetra, LetraPalco } from './_letra';
 import { FundoEstudio, PalcoEstudio } from './_estudio';
 import { MedidorPlateia } from './_plateia';
+import { COMBO_CLIPE, PERFEICAO_FRASE, tocarWhoosh, useMomentos, type CenaMomento, type EstadoMomentos } from './_momentos';
+import { ControleEstrela, DetectorGestos, type EventoGesto, type Postura } from './gestos';
 import { janelasDaLetra, prepararLetra, type LinhaCantada } from './letra';
+import { linhaEstudioEm, linhaLetraEm, type LinhaProgresso } from './momentos';
 import { CLAREZA_MINIMA, HZ_MAX, HZ_MIN, LATENCIA_MAX_MS, LATENCIA_PADRAO_MS, PlateiaEnergia, PontuacaoAoVivo, forcaEstudio, forcaLetra, hzParaMidi, limiarDeVozEstudio, pontuar, pontuarEstudio, prepararNotas, useAfinacao, type EventoAoVivo, type Quadro, type Resultado, type ResultadoEstudio } from './_pitch';
 import { quemCanta, type DadosEstudio, type EstadoKaraoke, type ItemFila } from './tipos';
 import styles from './karaoke.module.css';
@@ -25,6 +28,7 @@ const LS_LATENCIA = 'karaoke.estudio.latencia';
 const LS_CAM_LIGADA = 'karaoke.camera.ligada';
 const LS_CAM_DISPOSITIVO = 'karaoke.camera.dispositivo';
 const LS_CAM_FOTO = 'karaoke.camera.salvarFoto';
+const LS_MOMENTOS = 'karaoke.camera.salvarMomentos';
 const LS_OFFSET_ESTUDIO = 'karaoke.estudio.offset';
 const PASSO_OFFSET_MS = 250;
 const OFFSET_MAX_MS = 30000;
@@ -39,6 +43,9 @@ const FOTO_ATE = 0.9;
 const FOTO_FALLBACK = 0.6;
 const FOTO_JANELA_MS = 4000;
 const ACERTO_FAISCA = 0.75;
+/** Modo letra: fração da linha com voz válida a partir da qual a frase vale foto e clipe (equivale ao PERFEITO do estúdio). */
+const FRASE_PERFEITA_LETRA = 0.85;
+const ACENO_PAUSA_MS = 3000;
 const FRASE_BOA = 0.6;
 const ESCURECER_CANTANDO = 0.4;
 const ESCURECER_OCIOSO = 0.2;
@@ -127,7 +134,7 @@ function useNumeroAnimado(alvo: number, ms = 1800) {
   return v;
 }
 
-function NotaCena({ item, r, posicao, foto }: { item: ItemFila; r: Resultado | null; posicao: number | null; foto: FotoNota | null }) {
+function NotaCena({ item, r, posicao, foto, momentos }: { item: ItemFila; r: Resultado | null; posicao: number | null; foto: FotoNota | null; momentos: EstadoMomentos | null }) {
   const numero = useNumeroAnimado(r?.nota ?? 0);
   const est = r && 'resumo' in r ? (r as ResultadoEstudio) : null;
   const pontos = useNumeroAnimado(Math.round(est?.total ?? 0));
@@ -137,6 +144,10 @@ function NotaCena({ item, r, posicao, foto }: { item: ItemFila; r: Resultado | n
       <img src={foto.url} alt="Foto da apresentação" />
       <figcaption>{foto.estado === 'salva' ? 'Foto salva no álbum' : foto.estado === 'enviando' ? 'Salvando no álbum...' : 'Não consegui salvar no álbum'}</figcaption>
     </figure> : null}
+    {momentos && (momentos.fotos.length > 0 || momentos.salvos > 0 || momentos.pendentes > 0) ? <div className={styles.momentosFaixa}>
+      {momentos.fotos.length > 0 ? <ul aria-label="Fotos dos melhores momentos">{momentos.fotos.map((f) => <li key={f.chave}><img src={f.url} alt="Foto de um dos melhores momentos" /></li>)}</ul> : null}
+      <p className={styles.momentosContagem} aria-live="polite">{momentos.salvos} {momentos.salvos === 1 ? 'momento salvo' : 'momentos salvos'}{momentos.pendentes > 0 ? ' (salvando...)' : ''}</p>
+    </div> : null}
     <p className={styles.kicker}>{r ? 'Nota da apresentação' : 'Apresentação encerrada'}</p>
     <p className={styles.subtitulo}>{quemCanta(item)} · {item.titulo}</p>
     {!r ? <p className={styles.frase}>Sem nota desta vez: ligue o microfone (botão Microfone) e cante pelo menos uns 20 segundos.</p> : null}
@@ -180,12 +191,28 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const [salvarFoto, setSalvarFoto] = useState(() => lerLS(LS_CAM_FOTO) !== '0');
   const [efeitos, setEfeitos] = useEfeitos();
   const [fotoNota, setFotoNota] = useState<FotoNota | null>(null);
+  const [salvarMomentos, setSalvarMomentos] = useState(() => lerLS(LS_MOMENTOS) !== '0');
+  const [estrelaOn, setEstrelaOn] = useState(false);
+  const [dicaEstrela, setDicaEstrela] = useState(false);
+
+  /** Estilo Kinect: detector de gestos, controle do Modo Estrela (libera no x3, 8 s, 1 a cada 45 s) e o tratador do gesto reconhecido. */
+  const detectorRef = useRef(new DetectorGestos());
+  const estrelaRef = useRef(new ControleEstrela());
+  const estrelaAtivaRef = useRef(false);
+  const comboRef = useRef(0);
+  const acenoAteRef = useRef(0);
+  const aoGestoRef = useRef<(g: EventoGesto) => void>(() => undefined);
+  const salvarMomentosRef = useRef(true);
+  const camAtivaRef = useRef(false);
+  const aoPostura = useCallback((posturas: Postura[], agora: number) => {
+    for (const g of detectorRef.current.atualizar(agora, posturas)) aoGestoRef.current(g);
+  }, []);
 
   const pitch = useAfinacao(deviceId, { vozNaTv, volumeVoz });
   const { iniciarGravacao, pausarGravacao, pararGravacao, retomar, ligar, definirOuvinte, definirModoEstudio } = pitch;
   /** Volume (0..1) do microfone para a câmera saber quem canta: só conta acima do limiar de voz. */
   const volumeCamera = useCallback(() => { const v = pitch.vivo.current; return v.rms > v.limiar ? Math.min(1, Math.sqrt(v.rms) * 1.6) : 0; }, [pitch.vivo]);
-  const cam = useCameraKaraoke({ ligada: admin && camLigada, deviceId: camDeviceId ?? undefined, volume: volumeCamera });
+  const cam = useCameraKaraoke({ ligada: admin && camLigada, deviceId: camDeviceId ?? undefined, volume: volumeCamera, pose: admin && camLigada && fase !== 'nota', aoPostura });
   const camAtiva = admin && camLigada && cam.pronta;
 
   const caixaRef = useRef<HTMLDivElement>(null);
@@ -231,7 +258,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const relogioRef = useRef({ v: 0, w: 0, saida: 0 });
   const trocasRef = useRef<Map<number, number>>(new Map());
 
-  useEffect(() => { autoRef.current = auto; micRef.current = pitch.status === 'ativo'; latenciaRef.current = latenciaMs; });
+  useEffect(() => { autoRef.current = auto; micRef.current = pitch.status === 'ativo'; latenciaRef.current = latenciaMs; salvarMomentosRef.current = salvarMomentos; camAtivaRef.current = camAtiva; });
 
   const definirEmCurso = useCallback((i: ItemFila | null) => { emCursoRef.current = i; setEmCurso(i); }, []);
   const mudarFase = useCallback((f: Fase) => { faseRef.current = f; setFase(f); if (f !== 'ocioso') setConfig(false); }, []);
@@ -266,6 +293,34 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   /** Instante da letra: posição do vídeo menos o ajuste (ajuste positivo atrasa a letra). */
   const lerMsLetra = useCallback(() => msVideo() - offsetRef.current, [msVideo]);
 
+  /** O que o vídeo dos melhores momentos desenha por cima da câmera: letra da vez, placar, sequência, cantor e Modo Estrela. */
+  const lerCena = useCallback((): CenaMomento | null => {
+    const it = emCursoRef.current;
+    if (!it || faseRef.current !== 'cantando') return null;
+    const ms = lerMsLetra();
+    let linha: LinhaProgresso | null = null;
+    if (usaEstudio(it)) linha = linhaEstudioEm(it.estudio.palavras.linhas, ms);
+    else if (it.modo === 'letra') linha = linhaLetraEm(linhasLetraRef.current, ms);
+    const e = motorRef.current?.estado() ?? null;
+    return {
+      cantor: quemCanta(it), musica: it.faixa ?? it.titulo, linha, pontos: e ? e.pontos : null,
+      combo: e ? e.combo : 1, sequencia: e ? e.sequencia : 0, estrelaMs: estrelaRef.current.restanteMs(performance.now()), capaUrl: it.capa_url,
+    };
+  }, [lerMsLetra]);
+  const momentos = useMomentos({
+    obterMic: pitch.obterStream,
+    audio: () => (usaEstudio(emCursoRef.current) ? audioRef.current : null),
+    lerCena,
+    fonte: () => canvasCamRef.current,
+  });
+  const { encerrar: encerrarMomentos, gatilho: gatilhoMomento, iniciar: iniciarMomentos } = momentos;
+  /** Começa a gravar os melhores momentos quando o som da música começa (estúdio e letra; só se a opção estiver ligada). */
+  const comecarMomentos = useCallback(() => {
+    const it = emCursoRef.current;
+    if (!it || !salvarMomentosRef.current || (it.modo !== 'estudio' && it.modo !== 'letra')) return;
+    iniciarMomentos(it.id, usaEstudio(it));
+  }, [iniciarMomentos]);
+
   const limparTimers = useCallback(() => {
     window.clearInterval(timerContagem.current); window.clearTimeout(timerNota.current); window.clearInterval(timerEspera.current);
   }, []);
@@ -275,10 +330,11 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     try { playerRef.current?.stopVideo(); } catch { /* player ainda não pronto */ }
     audioRef.current?.pause();
     pararGravacao(); gravandoRef.current = false;
+    if (emCursoRef.current) void encerrarMomentos(emCursoRef.current.id);
     definirEmCurso(null);
     setTocando(false);
     mudarFase('ocioso');
-  }, [limparTimers, definirEmCurso, mudarFase, pararGravacao]);
+  }, [limparTimers, definirEmCurso, mudarFase, pararGravacao, encerrarMomentos]);
 
   const tocar = useCallback((item: ItemFila) => {
     if (usaEstudio(item)) {
@@ -334,6 +390,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     setOffsetMs(offsetRef.current);
     // Placar e plateia da música que vai começar.
     eventosRef.current = []; ultimoQuadroRef.current = -1; plateiaRef.current.reiniciar();
+    estrelaRef.current.novaMusica(); detectorRef.current.reiniciar(); comboRef.current = 0; estrelaAtivaRef.current = false; setEstrelaOn(false); setDicaEstrela(false);
     fotoRef.current = null; fraseRef.current = { i: -1, total: 0, bons: 0 };
     limparFoto();
     definirModoEstudio(usaEstudio(item));
@@ -417,6 +474,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     ignoradosRef.current.add(item.id);
     const quadros = pararGravacao();
     gravandoRef.current = false;
+    void encerrarMomentos(item.id);
     setTocando(false);
     const duracao = antes && tocouMs > 0 ? tocouMs : ((estudio ? a?.duration : playerRef.current?.getDuration()) || item.duracao_s || 0) * 1000;
     let r: Resultado | null = null;
@@ -443,7 +501,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     void acaoComRetentativa({ acao: 'terminar', id: item.id, ...(r ? { nota: r.nota, estrelas: r.estrelas, detalhes: r.detalhes } : {}) }).then(() => {
       if (foto) void enviarFoto(foto, r ? r.nota : null);
     });
-  }, [acaoComRetentativa, enviarFoto, mudarFase, pararGravacao, sairDaNota]);
+  }, [acaoComRetentativa, enviarFoto, encerrarMomentos, mudarFase, pararGravacao, sairDaNota]);
 
   const erroVideo = useCallback((codigo?: number) => {
     const item = emCursoRef.current;
@@ -456,6 +514,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
       limparTimers();
       try { playerRef.current?.stopVideo(); } catch { /* player ainda não pronto */ }
       pararGravacao(); gravandoRef.current = false;
+      void encerrarMomentos(item.id);
       setTocando(false);
       mudarFase('trocando');
       void acao({ acao: 'trocar_video', id: item.id, video_id_falho: item.video_id, codigo }).then((novo) => {
@@ -478,9 +537,60 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
         if (autoRef.current && (estadoRef.current?.fila.filter((f) => f.id !== item.id).length ?? 0) > 0) void iniciar();
       });
     }, 2500);
-  }, [abortar, acao, acaoComRetentativa, avisar, entrarContagem, iniciar, limparTimers, mudarFase, pararGravacao]);
+  }, [abortar, acao, acaoComRetentativa, avisar, encerrarMomentos, entrarContagem, iniciar, limparTimers, mudarFase, pararGravacao]);
 
   useEffect(() => { tratadores.current = { finalizar, erroVideo }; }, [finalizar, erroVideo]);
+
+  // Gestos do estilo Kinect: braços para cima na música (Modo Estrela) e acenar para começar.
+  useEffect(() => {
+    aoGestoRef.current = (g: EventoGesto) => {
+      const agora = performance.now();
+      if (g === 'estrela') {
+        const it = emCursoRef.current;
+        const motor = motorRef.current;
+        if (faseRef.current !== 'cantando' || !motor || !usaEstudio(it)) return;
+        if (!estrelaRef.current.ativar(agora)) return;
+        const ms = msVideo();
+        motor.iniciarEstrela(ms);
+        estrelaAtivaRef.current = true;
+        setEstrelaOn(true); setDicaEstrela(false);
+        faiscasRef.current += 5;
+        tocarWhoosh();
+        gatilhoMomento('estrela', ms);
+        return;
+      }
+      if (agora < acenoAteRef.current) return;
+      const f = faseRef.current;
+      if (f === 'ocioso') {
+        const e = estadoRef.current;
+        const alvo = e?.atual ?? e?.fila[0];
+        if (!alvo || ocupadoRef.current) return;
+        acenoAteRef.current = agora + ACENO_PAUSA_MS;
+        void iniciar(e?.atual ? undefined : alvo.id);
+      } else if (f === 'contagem') {
+        const it = emCursoRef.current;
+        if (!it) return;
+        acenoAteRef.current = agora + ACENO_PAUSA_MS;
+        window.clearInterval(timerContagem.current);
+        tocar(it);
+      }
+    };
+  }, [msVideo, gatilhoMomento, iniciar, tocar]);
+
+  // Estado de baixa frequência do Modo Estrela (efeito dourado na tela e dica "Levante os braços").
+  useEffect(() => {
+    if (!admin) return;
+    const t = window.setInterval(() => {
+      const agora = performance.now();
+      const c = estrelaRef.current;
+      const noPalco = faseRef.current === 'cantando';
+      const ativa = noPalco && c.ativa(agora);
+      if (!ativa) estrelaAtivaRef.current = false;
+      setEstrelaOn(ativa);
+      setDicaEstrela(noPalco && camAtivaRef.current && Boolean(motorRef.current) && c.disponivel(agora));
+    }, 250);
+    return () => window.clearInterval(t);
+  }, [admin]);
 
   const ajustarLetra = useCallback((delta: number) => {
     const atualEm = emCursoRef.current;
@@ -532,6 +642,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
               setTocando(true);
               ultimoQuadroRef.current = -1;
               if (!gravandoRef.current) { iniciarGravacao(msVideo); gravandoRef.current = true; } else pausarGravacao(false);
+              comecarMomentos();
             } else if (e.data === PAUSED || e.data === BUFFERING) { setTocando(false); pausarGravacao(true); }
             else if (e.data === ENDED) tratadores.current.finalizar();
           },
@@ -546,7 +657,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
       playerRef.current = null; prontoRef.current = false;
       alvo.remove();
     };
-  }, [admin, iniciarGravacao, pausarGravacao, msVideo]);
+  }, [admin, iniciarGravacao, pausarGravacao, msVideo, comecarMomentos]);
 
   // Cada quadro do microfone alimenta a pontuação ao vivo (estúdio) e a plateia (estúdio e letra).
   useEffect(() => {
@@ -563,7 +674,15 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
         motor.definirAjuste(latenciaRef.current, offsetRef.current);
         const ev = motor.adicionarQuadro(q.m, emFaixa ? hzParaMidi(q.hz) : null, q.clareza, q.rms, dt);
         if (ev.length) {
-          for (const e of ev) if (e.tipo === 'nota' && e.razao >= ACERTO_FAISCA) faiscasRef.current++;
+          for (const e of ev) {
+            if (e.tipo === 'nota') {
+              if (e.razao >= ACERTO_FAISCA) faiscasRef.current++;
+              estrelaRef.current.registrarCombo(e.combo);
+              // Sequência chegando a x3 ou x4: clipe.
+              if (e.combo >= COMBO_CLIPE && e.combo > comboRef.current) gatilhoMomento('combo', q.m);
+              comboRef.current = e.combo;
+            } else if (e.tipo === 'linha' && e.perfeicao >= PERFEICAO_FRASE) gatilhoMomento('frase', q.m);
+          }
           const fila = eventosRef.current;
           fila.push(...ev);
           if (fila.length > 300) fila.splice(0, fila.length - 300);
@@ -578,6 +697,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
         const fr = fraseRef.current;
         if (linhaIdx !== fr.i) {
           if (fr.i >= 0 && fr.total >= 5 && fr.bons / fr.total >= FRASE_BOA) faiscasRef.current++;
+          if (fr.i >= 0 && fr.total >= 5 && fr.bons / fr.total >= FRASE_PERFEITA_LETRA) gatilhoMomento('frase', q.m);
           fr.i = linhaIdx; fr.total = 0; fr.bons = 0;
         }
         if (dentro) { fr.total++; if (vozValida) fr.bons++; }
@@ -585,7 +705,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
       }
     });
     return () => definirOuvinte(null);
-  }, [definirOuvinte]);
+  }, [definirOuvinte, gatilhoMomento]);
 
   // Câmera: religa sozinha se estava ligada (o navegador já guarda a permissão).
   useEffect(() => {
@@ -725,6 +845,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const desligarCamera = () => { setCamLigada(false); setConfigCam(false); gravarLS(LS_CAM_LIGADA, '0'); };
   const escolherCamera = (id: string) => { setCamDeviceId(id || null); gravarLS(LS_CAM_DISPOSITIVO, id || null); };
   const mudarSalvarFoto = (v: boolean) => { setSalvarFoto(v); gravarLS(LS_CAM_FOTO, v ? '1' : '0'); };
+  const mudarSalvarMomentos = (v: boolean) => { setSalvarMomentos(v); gravarLS(LS_MOMENTOS, v ? '1' : '0'); };
 
   const micLigado = useCallback(() => micRef.current, []);
   const audioRodando = useCallback(() => { const a = audioRef.current; return Boolean(a && !a.paused && !a.ended); }, []);
@@ -733,6 +854,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     setTocando(true);
     ultimoQuadroRef.current = -1;
     if (!gravandoRef.current) { iniciarGravacao(msVideo); gravandoRef.current = true; } else pausarGravacao(false);
+    comecarMomentos();
   };
   const aoPausarAudio = () => { if (faseRef.current !== 'cantando') return; setTocando(false); pausarGravacao(true); };
 
@@ -779,13 +901,15 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
 
   return <div className={styles.root + (admin ? '' : ` ${styles.semFaixa}`) + (camAtiva ? ` ${styles.camAtiva}` : '') + (letraAtiva ? ` ${styles.modoLetra}` : '') + (estudioAtivo ? ` ${styles.modoEstudio}` : '')}>
     {camAtiva ? <>
-      <CameraFundo video={cam.video} rostos={cam.rostosRef} cantandoIdx={cam.cantandoRef} nomes={nomesNaTela} efeitos={efeitos} faiscas={faiscasRef} escurecer={escurecerCamera} canvasRef={canvasCamRef} />
+      <CameraFundo video={cam.video} rostos={cam.rostosRef} cantandoIdx={cam.cantandoRef} nomes={nomesNaTela} efeitos={efeitos} faiscas={faiscasRef} escurecer={escurecerCamera} estrela={estrelaAtivaRef} canvasRef={canvasCamRef} />
       {letraAtiva || estudioAtivo ? <div className={styles.camVeu} aria-hidden="true" /> : null}
     </> : null}
     {!camAtiva && letraAtiva && item ? <FundoLetra videoId={item.video_id} /> : null}
     {!camAtiva && estudioAtivo && emCurso ? <FundoEstudio capa={emCurso.capa_url} /> : null}
     {admin ? <audio ref={audioRef} preload="auto" onPlaying={aoTocarAudio} onPause={aoPausarAudio} onWaiting={aoPausarAudio} onEnded={() => tratadores.current.finalizar()} onError={() => { if (usaEstudio(emCursoRef.current)) tratadores.current.erroVideo(); }} /> : null}
     <div className={styles.topo}><span className={styles.marca}>Natal em Família · Karaokê</span></div>
+    {estrelaOn ? <><div className={styles.estrelaVeu} aria-hidden="true" /><p className={styles.estrelaBanner} role="status">MODO ESTRELA x2</p></> : null}
+    {dicaEstrela && !estrelaOn ? <p className={styles.dicaEstrela}>Levante os braços para o Modo Estrela!</p> : null}
 
     {/* O vídeo do YouTube fica sempre visível enquanto toca (exigência do YouTube); no modo letra só encolhe para o canto. */}
     {admin ? <div ref={caixaRef} className={`${styles.videoCaixa} ${fase === 'cantando' && !estudioAtivo ? '' : styles.videoOculto} ${letraAtiva ? styles.videoPequeno : ''}`} /> : null}
@@ -831,7 +955,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
       <p className={styles.subtitulo}>Trocando para outra versão do vídeo...</p>
     </div> : null}
 
-    {fase === 'nota' && resultado ? <NotaCena foto={fotoNota} item={resultado.item} r={resultado.r} posicao={resultado.r && estado ? (() => { const i = estado.ranking.findIndex((x) => x.user_id === resultado.item.user_id); return i >= 0 ? i + 1 : null; })() : null} /> : null}
+    {fase === 'nota' && resultado ? <NotaCena foto={fotoNota} momentos={momentos.estado?.filaId === resultado.item.id ? momentos.estado : null} item={resultado.item} r={resultado.r} posicao={resultado.r && estado ? (() => { const i = estado.ranking.findIndex((x) => x.user_id === resultado.item.user_id); return i >= 0 ? i + 1 : null; })() : null} /> : null}
     {fase === 'ocioso' || fase === 'pulando' ? cartazOcioso() : null}
 
     {aviso ? <p className={styles.aviso} role="status">{aviso}</p> : null}
@@ -896,6 +1020,11 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
           Salvar foto no álbum
         </label>
         <p>Tira uma foto no melhor momento da música e guarda no álbum da família.</p>
+        <label className={styles.linhaCheck}>
+          <input type="checkbox" checked={salvarMomentos} onChange={(e) => mudarSalvarMomentos(e.target.checked)} />
+          Salvar momentos
+        </label>
+        <p>Grava clipes e fotos das frases perfeitas, das sequências x3 e x4 e do Modo Estrela, e mostra no celular de todos. Com a câmera ligada, levante os braços para ativar o Modo Estrela (pontos em dobro por 8 s) e acene para começar.</p>
       </div> : null}
     </> : <p className={styles.aviso}>Entre com a conta de quem organiza para controlar o karaokê.</p>}
   </div>;

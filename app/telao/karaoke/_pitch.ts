@@ -192,8 +192,11 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
     return q;
   }, []);
 
+  /** Fluxo do microfone aberto (para o gravador dos melhores momentos misturar a voz), ou undefined se desligado. */
+  const obterStream = useCallback((): MediaStream | undefined => audio.current.stream, []);
+
   const definirOuvinte = useCallback((fn: ((q: Quadro, limiar: number, ruido: number) => void) | null) => { ouvinte.current = fn; }, []);
   const definirModoEstudio = useCallback((ligado: boolean) => { estudio.current = ligado; }, []);
 
-  return { definirOuvinte, definirModoEstudio, status, erro, dispositivos, ativoId, vivo, historico, ligar, desligar, retomar, listar, iniciarGravacao, pausarGravacao, pararGravacao };
+  return { definirOuvinte, definirModoEstudio, obterStream, status, erro, dispositivos, ativoId, vivo, historico, ligar, desligar, retomar, listar, iniciarGravacao, pausarGravacao, pararGravacao };
 }

@@ -83,3 +83,26 @@ export function formatarDuracao(s: number | null): string {
   const m = Math.floor(s / 60);
   return `${m}:${String(s % 60).padStart(2, '0')}`;
 }
+
+/** Foto ou clipe da noite (GET /api/karaoke/momentos). */
+export type MomentoKaraoke = {
+  id: number;
+  fila_id: number;
+  user_id: number | null;
+  tipo: 'foto' | 'clipe';
+  url: string;
+  ms: number | null;
+  duracao_ms: number | null;
+  motivo: string | null;
+  created_at: string;
+  titulo: string;
+  faixa: string | null;
+  nome: string;
+  dueto_nome: string | null;
+  dueto_user_id: number | null;
+};
+
+/** Vídeo de melhores momentos pronto de uma música. */
+export type ReelKaraoke = { fila_id: number; reel_url: string; titulo: string; faixa: string | null; nome: string; dueto_nome: string | null; user_id: number; dueto_user_id: number | null };
+
+export type RespostaMomentos = { ano: number; eu: number; momentos: MomentoKaraoke[]; reels: ReelKaraoke[] };
