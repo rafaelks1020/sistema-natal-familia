@@ -25,6 +25,7 @@ const NOTA_MS = 15000;
 const LS_DISPOSITIVO = 'karaoke.mic.dispositivo';
 const LS_LIGADO = 'karaoke.mic.ligado';
 const LS_VOLUME = 'karaoke.voz.volume';
+const LS_ECO = 'karaoke.mic.eco';
 const LS_LATENCIA = 'karaoke.estudio.latencia';
 const LS_CAM_LIGADA = 'karaoke.camera.ligada';
 const LS_CAM_DISPOSITIVO = 'karaoke.camera.dispositivo';
@@ -109,6 +110,7 @@ type Fase = 'ocioso' | 'contagem' | 'cantando' | 'nota' | 'pulando' | 'trocando'
 const TENTATIVAS_PATCH = 3;
 const INTERVALO_PATCH_MS = 2000;
 const AVISO_MICROFONIA = 'Use fone ou mantenha o microfone longe das caixas para evitar microfonia';
+const DICAS_MICROFONIA = 'Aponte a caixa para longe do microfone; cante de frente para o microfone e de costas para a caixa; comece com a voz na TV baixa.';
 const esperar = (ms: number) => new Promise<void>((resolve) => { window.setTimeout(resolve, ms); });
 
 const FRASES: Record<number, string> = {
@@ -209,7 +211,9 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     for (const g of detectorRef.current.atualizar(agora, posturas)) aoGestoRef.current(g);
   }, []);
 
-  const pitch = useAfinacao(deviceId, { vozNaTv, volumeVoz });
+  const [cancelarEco, setCancelarEco] = useState(() => lerLS(LS_ECO) !== '0');
+  const avisarRef = useRef<(texto: string) => void>(() => undefined);
+  const pitch = useAfinacao(deviceId, { vozNaTv, volumeVoz, cancelarEco, aoRetorno: (m) => avisarRef.current(m) });
   const { iniciarGravacao, pausarGravacao, pararGravacao, retomar, ligar, definirOuvinte, definirModoEstudio } = pitch;
   /** Volume (0..1) do microfone para a câmera saber quem canta: só conta acima do limiar de voz. */
   const volumeCamera = useCallback(() => { const v = pitch.vivo.current; return v.rms > v.limiar ? Math.min(1, Math.sqrt(v.rms) * 1.6) : 0; }, [pitch.vivo]);
@@ -270,6 +274,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     window.clearTimeout(timerAviso.current);
     timerAviso.current = window.setTimeout(() => setAviso(''), 6000);
   }, []);
+  useEffect(() => { avisarRef.current = avisar; }, [avisar]);
 
   /** Posição do vídeo (ou do instrumental, no modo estúdio) em ms, interpolada entre as leituras (que andam em degraus) para o preenchimento ficar suave. */
   const msVideo = useCallback((): number => {
@@ -764,6 +769,9 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
 
   // Depuração (só com ?debug=1): contadores do modo estúdio em window.__karaoke.estado().
   const infoAudio = pitch.infoAudio;
+  const lerAntiMic = pitch.lerAntiMic;
+  const ecoRef = useRef<boolean | null>(null);
+  useEffect(() => { ecoRef.current = pitch.ecoAtivo; });
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('debug') !== '1') return;
     const w = window as unknown as { __karaoke?: { estado: () => unknown } };
@@ -771,11 +779,11 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
       estado: () => {
         const d = depRef.current;
         if (d) { d.info = infoAudio.current; d.latenciaMs = latenciaRef.current; d.offsetMs = offsetRef.current; }
-        return { ...(d?.estado() ?? {}), placar: motorRef.current?.estado() ?? null, fase: faseRef.current, offsetMs: offsetRef.current, latenciaMs: latenciaRef.current };
+        return { ...(d?.estado() ?? {}), antiMic: lerAntiMic(), eco: ecoRef.current, placar: motorRef.current?.estado() ?? null, fase: faseRef.current, offsetMs: offsetRef.current, latenciaMs: latenciaRef.current };
       },
     };
     return () => { delete w.__karaoke; };
-  }, [infoAudio]);
+  }, [infoAudio, lerAntiMic]);
 
   // Placar parcial para o celular ("Agora: Fulano, 4.230 pontos"): a cada 3 s, só quando mudou.
   const emCursoId = emCurso?.id;
@@ -859,6 +867,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   };
   const escolherDispositivo = (id: string) => { setDeviceId(id || null); gravarLS(LS_DISPOSITIVO, id || null); };
   const mudarVolume = (v: number) => { setVolumeVoz(v); gravarLS(LS_VOLUME, String(v)); };
+  const mudarEco = (ligado: boolean) => { setCancelarEco(ligado); gravarLS(LS_ECO, ligado ? '1' : '0'); };
   const mudarLatencia = (v: number) => { setLatenciaMs(v); gravarLS(LS_LATENCIA, String(v)); };
   const botaoCamera = () => {
     setConfig(false);
@@ -1017,9 +1026,23 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
           <input type="range" min={0} max={LATENCIA_MAX_MS} step={10} value={latenciaMs} onChange={(e) => mudarLatencia(Number(e.target.value))} />
         </label>
         <p>Se a nota parecer baixa mesmo cantando certo, aumente. O padrão é {LATENCIA_PADRAO_MS} ms.</p>
+        <label className={styles.linhaCheck}>
+          <input type="checkbox" checked={cancelarEco} onChange={(e) => mudarEco(e.target.checked)} />
+          Cancelar eco da TV
+        </label>
+        <p data-eco={pitch.status === 'ativo' ? String(pitch.ecoAtivo) : 'fechado'}>{pitch.status !== 'ativo'
+          ? 'O navegador confirma aqui se o cancelamento de eco está valendo quando o microfone liga.'
+          : pitch.ecoAtivo === true ? 'Eco: ativo de fato (confirmado pelo navegador).'
+            : pitch.ecoAtivo === false ? (cancelarEco ? 'Eco: pedido, mas o navegador NÃO ativou neste microfone.' : 'Eco: desligado.')
+              : 'Eco: o navegador não informou o estado.'}</p>
         <label>Volume da voz na TV
           <input type="range" min={0.1} max={1} step={0.05} value={volumeVoz} onChange={(e) => mudarVolume(Number(e.target.value))} />
         </label>
+        <div className={styles.linha}>
+          <span>Anti-microfonia: {pitch.antiMic.cortes} {pitch.antiMic.cortes === 1 ? 'corte ativo' : 'cortes ativos'}{pitch.antiMic.reducaoDb > 0 ? `, voz ${pitch.antiMic.reducaoDb} dB mais baixa` : ''}</span>
+          <button type="button" className={styles.botao} onClick={pitch.resetarAntiMicrofonia} disabled={pitch.status !== 'ativo' || (pitch.antiMic.cortes === 0 && pitch.antiMic.reducaoDb === 0)}>Resetar anti-microfonia</button>
+        </div>
+        <p>{DICAS_MICROFONIA}</p>
         <p className={styles.aviso2}>Com a Voz na TV ligada o som das caixas pode voltar para o microfone e apitar (microfonia). {AVISO_MICROFONIA}. Comece com o volume baixo.</p>
       </div> : null}
       {configCam ? <div ref={configCamRef} className={styles.config} role="dialog" aria-label="Configurar câmera">
