@@ -7,6 +7,19 @@ import { useToast } from '@/app/ui/toast';
 import { useMe } from '@/app/ui/user';
 import { quemCanta, type MomentoKaraoke, type ReelKaraoke, type RespostaMomentos } from '@/app/telao/karaoke/tipos';
 
+/** Vídeo da apresentação inteira (GET /api/karaoke/performance): só de quem cantou, cantor ou dueto. */
+type PerformanceKaraoke = {
+  fila_id: number;
+  video_url: string;
+  titulo: string;
+  faixa: string | null;
+  nome: string;
+  dueto_nome: string | null;
+  user_id: number;
+  dueto_user_id: number | null;
+};
+type RespostaPerformances = { ano: number; eu: number; performances: PerformanceKaraoke[] };
+
 const nomeDoArquivo = (m: { fila_id: number; id?: number }, ext: string, prefixo: string) => `karaoke-${prefixo}-${m.fila_id}${m.id ? `-${m.id}` : ''}.${ext}`;
 const musicaDe = (m: { faixa: string | null; titulo: string }) => m.faixa || m.titulo;
 
@@ -27,8 +40,23 @@ async function baixar(url: string, nome: string) {
   }
 }
 
-/** Compartilha o arquivo (Web Share API com o arquivo quando o aparelho deixa), senão o link, senão copia o link. Devolve um aviso para mostrar, se houver. */
-async function compartilhar(url: string, nome: string, mime: string, titulo: string): Promise<string | null> {
+/** Compartilha o arquivo (Web Share API com o arquivo quando o aparelho deixa), senão o link. Sem Web Share: copia o link. O vídeo inteiro (fallback "baixar") nunca passa por fetch + blob: compartilha o link ou entrega o link de download direto. */
+async function compartilhar(url: string, nome: string, mime: string, titulo: string, fallback: 'copiar' | 'baixar' = 'copiar'): Promise<string | null> {
+  if (fallback === 'baixar') {
+    // Vídeo da apresentação inteira (pesado): nada de fetch + blob. Compartilha o link, ou entrega o link de download direto.
+    try {
+      if (typeof navigator.share === 'function') { await navigator.share({ url, title: titulo }); return null; }
+    } catch (e) { if ((e as Error).name === 'AbortError') return null; }
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return null;
+  }
   try {
     const r = await fetch(url);
     if (r.ok) {
@@ -42,11 +70,11 @@ async function compartilhar(url: string, nome: string, mime: string, titulo: str
   try { await navigator.clipboard.writeText(url); return 'Link copiado.'; } catch { return 'Não consegui compartilhar neste aparelho.'; }
 }
 
-function Botoes({ url, nome, mime, titulo }: { url: string; nome: string; mime: string; titulo: string }) {
+function Botoes({ url, nome, mime, titulo, fallback = 'copiar' }: { url: string; nome: string; mime: string; titulo: string; fallback?: 'copiar' | 'baixar' }) {
   const toast = useToast();
   return <div className="flex flex-wrap gap-2">
     <button type="button" className="btn btn-quiet min-h-11 gap-1" onClick={() => void baixar(url, nome)}><Download size={18} strokeWidth={1.6} aria-hidden="true" />Baixar</button>
-    <button type="button" className="btn btn-quiet min-h-11 gap-1" onClick={() => void compartilhar(url, nome, mime, titulo).then((aviso) => { if (aviso) toast(aviso); })}><Share2 size={18} strokeWidth={1.6} aria-hidden="true" />Compartilhar</button>
+    <button type="button" className="btn btn-quiet min-h-11 gap-1" onClick={() => void compartilhar(url, nome, mime, titulo, fallback).then((aviso) => { if (aviso) toast(aviso); })}><Share2 size={18} strokeWidth={1.6} aria-hidden="true" />Compartilhar</button>
   </div>;
 }
 
@@ -58,15 +86,20 @@ function ClipeVideo({ url, nome, titulo, legenda, detalhe }: { url: string; nome
   </li>;
 }
 
-/** Seção "Melhores momentos" do celular: o vídeo de melhores momentos pronto, os clipes e as fotos da noite (de todos), com filtro "Só os meus". */
+/** Seção "Melhores momentos" do celular: o vídeo da apresentação inteira de quem cantou, o vídeo de melhores momentos pronto, os clipes e as fotos da noite (de todos), com filtro "Só os meus". */
 export default function MelhoresMomentos() {
   const me = useMe();
   const [dados, setDados] = useState<RespostaMomentos | null>(null);
+  const [videos, setVideos] = useState<PerformanceKaraoke[] | null>(null);
   const [soMeus, setSoMeus] = useState(false);
 
   const carregar = useCallback(async () => {
-    try { setDados(await api<RespostaMomentos>(`/api/karaoke/momentos${soMeus ? '?minhas=1' : ''}`)); }
-    catch { /* sem a migração ou sem rede: a seção só não aparece */ }
+    const [mom, perf] = await Promise.all([
+      api<RespostaMomentos>(`/api/karaoke/momentos${soMeus ? '?minhas=1' : ''}`).catch(() => null),
+      api<RespostaPerformances>('/api/karaoke/performance').catch(() => null),
+    ]);
+    if (mom) setDados(mom);
+    if (perf) setVideos(perf.performances);
   }, [soMeus]);
 
   useEffect(() => {
@@ -80,16 +113,24 @@ export default function MelhoresMomentos() {
   const dosOutros = reels.filter((r) => r.user_id !== me.id && r.dueto_user_id !== me.id);
   const clipes: MomentoKaraoke[] = (dados?.momentos ?? []).filter((m) => m.tipo === 'clipe');
   const fotos: MomentoKaraoke[] = (dados?.momentos ?? []).filter((m) => m.tipo === 'foto');
+  const listaVideos = videos ?? [];
   const vazio = !reels.length && !clipes.length && !fotos.length;
-  // Sem nada na noite e sem filtro ligado: a seção nem aparece. Com o filtro ligado ela fica, para dar para desligar.
-  if (!dados || (vazio && !soMeus)) return null;
+  // Sem nada na noite e sem filtro ligado: a seção nem aparece. Com o filtro ligado ela fica, para dar para desligar. Vídeo próprio também mantém a seção.
+  if (!listaVideos.length && (!dados || (vazio && !soMeus))) return null;
 
   return <section className="space-y-4" aria-label="Melhores momentos">
     <div className="flex items-center justify-between gap-3">
       <h2 className="display text-2xl">Melhores momentos</h2>
       <button type="button" className={`btn min-h-11 ${soMeus ? 'btn-primary' : 'btn-quiet'}`} aria-pressed={soMeus} onClick={() => setSoMeus((v) => !v)}>Só os meus</button>
     </div>
-    {vazio ? <p className="text-sm text-marfim-2">Você ainda não tem momentos salvos. Cante na versão estúdio: as melhores frases viram foto e clipe.</p> : null}
+    {vazio && !listaVideos.length ? <p className="text-sm text-marfim-2">Você ainda não tem momentos salvos. Cante na versão estúdio: as melhores frases viram foto e clipe.</p> : null}
+
+    {listaVideos.map((v) => <div key={`apresentacao-${v.fila_id}`} className="surface space-y-3 border border-champagne p-5">
+      <p className="kicker inline-flex items-center gap-1"><Film size={14} strokeWidth={1.6} aria-hidden="true" />Seu vídeo</p>
+      <video className="w-full rounded-xl bg-black" src={v.video_url} controls playsInline preload="metadata" aria-label={`Sua apresentação de ${musicaDe(v)}`} />
+      <p className="break-words text-sm text-marfim-2">{musicaDe(v)}</p>
+      <Botoes url={v.video_url} nome={nomeDoArquivo(v, 'webm', 'apresentacao')} mime="video/webm" titulo={`Sua apresentação: ${musicaDe(v)}`} fallback="baixar" />
+    </div>)}
 
     {seus.map((r) => <div key={r.fila_id} className="surface space-y-3 border border-champagne p-5">
       <p className="kicker inline-flex items-center gap-1"><Film size={14} strokeWidth={1.6} aria-hidden="true" />Seu vídeo de melhores momentos está pronto</p>

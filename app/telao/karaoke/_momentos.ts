@@ -1,9 +1,12 @@
 'use client';
 
 // Melhores momentos do karaokê no telão: um COMPOSITOR (canvas 1280x720 com a câmera, a letra, o placar e o cantor), a gravação em dois
-// MediaRecorders alternados (ver momentos.ts) e o envio em segundo plano para o Vercel Blob. Tudo só roda se o telão pedir (iniciar).
+// MediaRecorders alternados (ver momentos.ts) e o envio em segundo plano ao armazenamento. No mesmo compositor, um terceiro gravador
+// (opcional, padrão ligado) guarda a apresentação inteira em pedaços e sobe o webm quando a música acaba. Se esse gravador falhar,
+// a música e os clipes seguem. Tudo só roda se o telão pedir (iniciar).
 
 import { useEffect, useMemo, useState } from 'react';
+import { MAX_BYTES_PERFORMANCE, MIN_BYTES_PERFORMANCE } from '@/app/api/karaoke/performance/caminho';
 import { api } from '@/app/ui/client';
 import {
   COMBO_CLIPE, PASSO_SEGMENTO_MS, PERFEICAO_FRASE, POS_ROLL_MS, PlanejadorMomentos, ROTULO_MOTIVO, VIDA_SEGMENTO_MS,
@@ -12,6 +15,18 @@ import {
 
 export { COMBO_CLIPE, PERFEICAO_FRASE };
 export type { Motivo };
+
+/** Texto da opção no painel da câmera. Padrão: ligada. */
+export const ROTULO_GRAVAR_INTEIRA = 'Gravar a apresentação inteira';
+
+/**
+ * O que gravar nesta música. Omisso: clipes ligados (o telão de hoje só chama iniciar quando "Salvar momentos" está ligado)
+ * e a apresentação inteira conforme definirGravarInteira (padrão ligada).
+ */
+export interface EscolhaGravacao {
+  momentos?: boolean;
+  inteira?: boolean;
+}
 
 const LARG = 1280;
 const ALT = 720;
@@ -292,6 +307,24 @@ interface Recursos {
   segmentos: Segmento[];
 }
 
+function recursosVazios(): Recursos {
+  return { comp: null, ctx: null, fluxo: null, espelho: null, timerPorta: undefined, timerSeg: undefined, segmentos: [] };
+}
+
+/** Um MediaRecorder só, do começo ao fim. Os pedaços (timeslice) ficam na memória até o envio, para o navegador soltar o buffer interno. */
+interface GravacaoInteira {
+  filaId: number;
+  rec: MediaRecorder;
+  chunks: Blob[];
+  /** Cópias das faixas. Parar estas não para os clipes, que usam as originais. */
+  trilhas: MediaStreamTrack[];
+  /** Contexto só do vídeo inteiro no modo YouTube (microfone sem porta). Null no estúdio, que reusa o mix dos clipes. */
+  ctx: AudioContext | null;
+  falhou: boolean;
+  blob: Blob | null;
+  encerrada: boolean;
+}
+
 function escolherMime(): string | null {
   if (typeof MediaRecorder === 'undefined' || typeof HTMLCanvasElement === 'undefined' || typeof HTMLCanvasElement.prototype.captureStream !== 'function') return null;
   for (const m of ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']) if (MediaRecorder.isTypeSupported(m)) return m;
@@ -300,7 +333,7 @@ function escolherMime(): string | null {
 
 class GravadorMomentos {
   private readonly plano = new PlanejadorMomentos();
-  private r: Recursos = { comp: null, ctx: null, fluxo: null, espelho: null, timerPorta: undefined, timerSeg: undefined, segmentos: [] };
+  private r: Recursos = recursosVazios();
   private filaId: number | null = null;
   private mime = '';
   private pendentes: ClipePendente[] = [];
@@ -311,6 +344,11 @@ class GravadorMomentos {
   private readonly fechadas = new Set<number>();
   private readonly reelPedido = new Set<number>();
   private foco: number | null = null;
+  /** Apresentação inteira. Padrão ligada. Vale na próxima música (não corta a que já está gravando). */
+  private gravarInteira = true;
+  /** Clipes desta música. Desligado, gatilho não tira foto nem clipe. */
+  private gravarClipes = true;
+  private performance: GravacaoInteira | null = null;
 
   private opcoes: OpcoesMomentos | null = null;
 
@@ -318,6 +356,9 @@ class GravadorMomentos {
 
   /** O telão renova as funções de leitura a cada render; o gravador usa sempre as últimas. */
   definirOpcoes(o: OpcoesMomentos) { this.opcoes = o; }
+
+  /** Liga ou desliga a gravação da apresentação inteira. Padrão: ligada. Não corta a música que já está gravando. */
+  definirGravarInteira = (ligada: boolean) => { this.gravarInteira = ligada; };
 
   // ----- estado para a tela -----
 
@@ -345,15 +386,22 @@ class GravadorMomentos {
 
   // ----- gravação -----
 
-  /** Começa a gravar a música (chamar quando o som começa a tocar). Devolve false se o navegador não grava ou já está gravando. */
-  iniciar = (filaId: number, comInstrumental: boolean): boolean => {
+  /**
+   * Começa a gravar a música (chamar quando o som começa a tocar). Devolve false se o navegador não grava ou se nada foi pedido.
+   * A mesma música de novo devolve true. escolha.momentos false: só a apresentação inteira (sem foto nem clipe). escolha.inteira false: só os momentos.
+   */
+  iniciar = (filaId: number, comInstrumental: boolean, escolha?: EscolhaGravacao): boolean => {
     if (this.filaId === filaId) return true;
     if (this.filaId !== null) void this.encerrar(this.filaId);
+    const querMomentos = escolha?.momentos !== false;
+    const querInteira = escolha?.inteira ?? this.gravarInteira;
+    if (!querMomentos && !querInteira) return false;
     const mime = escolherMime();
     const d = this.opcoes;
     if (!mime || !d) return false;
     try {
       this.mime = mime;
+      this.gravarClipes = querMomentos;
       this.plano.reiniciar();
       this.abrirEstado(filaId);
       const comp = new Compositor(d.lerCena, d.fonte);
@@ -379,17 +427,130 @@ class GravadorMomentos {
       const fluxo = new MediaStream(faixas);
       this.r = { comp, ctx, fluxo, espelho, timerPorta, timerSeg: undefined, segmentos: [] };
       this.filaId = filaId;
-      this.abrirSegmento();
-      this.r.timerSeg = window.setInterval(() => this.abrirSegmento(), PASSO_SEGMENTO_MS);
+      if (querMomentos) {
+        this.abrirSegmento();
+        this.r.timerSeg = window.setInterval(() => this.abrirSegmento(), PASSO_SEGMENTO_MS);
+      }
+      if (querInteira) this.tentarGravarInteira(filaId);
       return true;
     } catch (e) {
       console.error('karaoke: não consegui iniciar a gravação dos momentos', e);
       this.filaId = null;
+      this.descartarPerformance();
       this.liberar(this.r);
-      this.r = { comp: null, ctx: null, fluxo: null, espelho: null, timerPorta: undefined, timerSeg: undefined, segmentos: [] };
+      this.r = recursosVazios();
       return false;
     }
   };
+
+  /** A apresentação inteira é à parte: qualquer falha aqui fica no console e os clipes continuam. */
+  private tentarGravarInteira(filaId: number) {
+    try { this.abrirPerformance(filaId); }
+    catch (e) {
+      console.error('karaoke: não consegui gravar a apresentação inteira', e);
+      this.descartarPerformance();
+    }
+  }
+
+  /**
+   * Estúdio (tem espelho do instrumental): as mesmas faixas dos clipes, música limpa + voz com porta.
+   * YouTube (sem espelho): microfone sem porta, senão a música que sai da TV some quando ninguém canta. Se esse áudio falhar, cai no mix dos clipes.
+   */
+  private faixasDaApresentacao(): { trilhas: MediaStreamTrack[]; ctx: AudioContext | null } {
+    const fluxo = this.r.fluxo;
+    const trilhas: MediaStreamTrack[] = [];
+    let ctx: AudioContext | null = null;
+    try {
+      if (!fluxo) return { trilhas, ctx };
+      for (const t of fluxo.getVideoTracks()) trilhas.push(t.clone());
+      const mic = !this.r.espelho ? this.opcoes?.obterMic() : undefined;
+      if (mic && mic.getAudioTracks().length) {
+        try {
+          ctx = new AudioContext();
+          void ctx.resume().catch(() => undefined);
+          const destino = ctx.createMediaStreamDestination();
+          const passaAltas = ctx.createBiquadFilter();
+          passaAltas.type = 'highpass';
+          passaAltas.frequency.value = 120;
+          passaAltas.Q.value = 0.707;
+          const nivel = ctx.createGain();
+          nivel.gain.value = 1;
+          ctx.createMediaStreamSource(mic).connect(passaAltas);
+          passaAltas.connect(nivel);
+          nivel.connect(destino);
+          trilhas.push(...destino.stream.getAudioTracks());
+          return { trilhas, ctx };
+        } catch (e) {
+          console.error('karaoke: áudio da apresentação', e);
+          void ctx?.close().catch(() => undefined);
+          ctx = null;
+        }
+      }
+      for (const t of fluxo.getAudioTracks()) trilhas.push(t.clone());
+      return { trilhas, ctx };
+    } catch (e) {
+      // O contexto do YouTube, se chegou a abrir, já foi fechado no catch de dentro. Aqui só sobra faixa clonada.
+      for (const t of trilhas) { try { t.stop(); } catch { /* já parada */ } }
+      throw e;
+    }
+  }
+
+  private abrirPerformance(filaId: number) {
+    const fluxo = this.r.fluxo;
+    if (!fluxo || fluxo.getVideoTracks().length === 0) return;
+    const { trilhas, ctx } = this.faixasDaApresentacao();
+    if (!trilhas.some((t) => t.kind === 'video')) {
+      for (const t of trilhas) { try { t.stop(); } catch { /* já parada */ } }
+      void ctx?.close().catch(() => undefined);
+      return;
+    }
+    const soltar = () => {
+      for (const t of trilhas) { try { t.stop(); } catch { /* já parada */ } }
+      void ctx?.close().catch(() => undefined);
+    };
+    const temAudio = trilhas.some((t) => t.kind === 'audio');
+    const opcoes: MediaRecorderOptions = { mimeType: this.mime, videoBitsPerSecond: BITRATE_VIDEO };
+    if (temAudio) opcoes.audioBitsPerSecond = BITRATE_AUDIO;
+    let rec: MediaRecorder;
+    try { rec = new MediaRecorder(new MediaStream(trilhas), opcoes); }
+    catch (e) { soltar(); throw e; }
+    const gravacao: GravacaoInteira = { filaId, rec, chunks: [], trilhas, ctx, falhou: false, blob: null, encerrada: false };
+    rec.ondataavailable = (e) => { if (!gravacao.blob && e.data.size > 0) gravacao.chunks.push(e.data); };
+    rec.onerror = () => { gravacao.falhou = true; console.error('karaoke: gravação da apresentação inteira'); };
+    try { rec.start(TIMESLICE_MS); }
+    catch (e) { soltar(); throw e; }
+    this.performance = gravacao;
+  }
+
+  /** Para o gravador longo, monta o Blob e solta as cópias das faixas. Não mexe nos clipes. */
+  private pararPerformance(perf: GravacaoInteira): Promise<void> {
+    if (perf.encerrada) return Promise.resolve();
+    perf.encerrada = true;
+    const finalizar = () => {
+      if (!perf.blob) {
+        perf.blob = perf.chunks.length ? new Blob(perf.chunks, { type: 'video/webm' }) : null;
+        perf.chunks = [];
+      }
+      for (const t of perf.trilhas) { try { t.stop(); } catch { /* já parada */ } }
+      void perf.ctx?.close().catch(() => undefined);
+      perf.ctx = null;
+    };
+    if (perf.rec.state === 'inactive') { finalizar(); return Promise.resolve(); }
+    return new Promise((resolve) => {
+      const limite = window.setTimeout(() => { finalizar(); resolve(); }, 4000);
+      perf.rec.onstop = () => { window.clearTimeout(limite); finalizar(); resolve(); };
+      try { perf.rec.stop(); }
+      catch { window.clearTimeout(limite); finalizar(); resolve(); }
+    });
+  }
+
+  private descartarPerformance() {
+    const perf = this.performance;
+    this.performance = null;
+    if (!perf) return;
+    perf.falhou = true;
+    void this.pararPerformance(perf);
+  }
 
   /**
    * Microfone -> passa-altas 120 Hz -> porta de ruído -> nível -> gravação. A música que a TV toca e o microfone capta não pode dobrar no vídeo:
@@ -490,7 +651,7 @@ class GravadorMomentos {
    * ms: posição da música no instante.
    */
   gatilho = (motivo: Motivo, ms: number) => {
-    if (this.filaId === null || !this.r.comp) return;
+    if (!this.gravarClipes || this.filaId === null || !this.r.comp) return;
     if (motivo === 'frase') this.tirarFoto(ms, motivo);
     const agora = performance.now();
     if (!this.plano.pedirClipe(agora)) return;
@@ -526,16 +687,26 @@ class GravadorMomentos {
     } catch (e) { console.error('karaoke: clipe', e); }
   }
 
-  /** Fim da música (ou música abortada): fecha os clipes que faltam, para tudo e deixa os envios terminarem em segundo plano. */
+  /** Fim da música (ou música abortada): fecha os clipes que faltam, fecha o vídeo inteiro, para tudo e deixa os envios terminarem em segundo plano. */
   encerrar = async (filaId: number): Promise<void> => {
     if (this.filaId !== filaId) { this.marcarFechada(filaId); return; }
     this.filaId = null;
     const recursos = this.r;
-    this.r = { comp: null, ctx: null, fluxo: null, espelho: null, timerPorta: undefined, timerSeg: undefined, segmentos: [] };
+    this.r = recursosVazios();
+    const perf = this.performance && this.performance.filaId === filaId ? this.performance : null;
+    this.performance = null;
     window.clearInterval(recursos.timerSeg);
     const meus = this.pendentes.filter((p) => p.filaId === filaId);
-    await Promise.all(meus.map((p) => this.concluirClipe(p)));
+    await Promise.all([
+      ...meus.map((p) => this.concluirClipe(p)),
+      perf ? this.pararPerformance(perf).catch((e) => { console.error('karaoke: fechar apresentação', e); perf.falhou = true; }) : Promise.resolve(),
+    ]);
     this.liberar(recursos);
+    if (perf && !perf.falhou && perf.blob) {
+      const blob = perf.blob;
+      perf.blob = null;
+      void this.enviarPerformance(perf.filaId, blob);
+    }
     this.marcarFechada(filaId);
   };
 
@@ -553,8 +724,9 @@ class GravadorMomentos {
     for (const p of this.pendentes) window.clearTimeout(p.timer);
     this.pendentes = [];
     this.filaId = null;
+    this.descartarPerformance();
     this.liberar(this.r);
-    this.r = { comp: null, ctx: null, fluxo: null, espelho: null, timerPorta: undefined, timerSeg: undefined, segmentos: [] };
+    this.r = recursosVazios();
   };
 
   // ----- envio em segundo plano -----
@@ -604,6 +776,27 @@ class GravadorMomentos {
     return false;
   }
 
+  /** Sobe a apresentação inteira por URL assinada e registra em karaoke_fila.video_url. Fora da fila dos clipes, para um arquivo grande não segurar foto nem clipe. */
+  private async enviarPerformance(filaId: number, blob: Blob): Promise<void> {
+    if (blob.size < MIN_BYTES_PERFORMANCE || blob.size > MAX_BYTES_PERFORMANCE) {
+      console.error('karaoke: apresentação inteira fora do tamanho aceito', blob.size);
+      return;
+    }
+    let destino: { uploadUrl: string; url: string } | null = null;
+    for (let t = 0; t < TENTATIVAS_ENVIO; t++) {
+      if (t > 0) await esperar(INTERVALO_ENVIO_MS);
+      try {
+        if (!destino) {
+          destino = await api<{ uploadUrl: string; url: string }>('/api/karaoke/performance/upload', { method: 'POST', json: { fila_id: filaId } });
+          const r = await fetch(destino.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'video/webm' }, body: blob });
+          if (!r.ok) { destino = null; throw new Error(`envio recusado (HTTP ${r.status})`); }
+        }
+        await api('/api/karaoke/performance', { method: 'POST', json: { fila_id: filaId, url: destino.url } });
+        return;
+      } catch (e) { console.error('karaoke: envio da apresentação', e); }
+    }
+  }
+
   private marcarFechada(filaId: number) {
     this.fechadas.add(filaId);
     this.verificarReel(filaId);
@@ -625,13 +818,15 @@ class GravadorMomentos {
   }
 }
 
-/** Gravador dos melhores momentos do telão. iniciar/gatilho/encerrar são estáveis (não mudam entre renders). */
+/** Gravador dos melhores momentos e, se estiver ligado, da apresentação inteira. iniciar, gatilho, encerrar e definirGravarInteira são estáveis. */
 export function useMomentos(opcoes: OpcoesMomentos) {
   const [estado, setEstado] = useState<EstadoMomentos | null>(null);
   const [g] = useState(() => new GravadorMomentos(setEstado));
   useEffect(() => { g.definirOpcoes(opcoes); });
   useEffect(() => () => g.destruir(), [g]);
-  return useMemo(() => ({ estado, iniciar: g.iniciar, gatilho: g.gatilho, encerrar: g.encerrar }), [estado, g]);
+  return useMemo(() => ({
+    estado, iniciar: g.iniciar, gatilho: g.gatilho, encerrar: g.encerrar, definirGravarInteira: g.definirGravarInteira,
+  }), [estado, g]);
 }
 
 // ---------- som do Modo Estrela ----------

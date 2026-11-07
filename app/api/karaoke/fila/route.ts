@@ -3,6 +3,8 @@ import { query, transaction } from '@/app/lib/db';
 import { edicaoAtual } from '@/app/lib/edicao';
 import { dentroDoLimite } from '@/app/lib/limite';
 import type { DadosEstudio, StatusCatalogo } from '@/app/telao/karaoke/tipos';
+import { ordenarFilaJusta, type EntradaFilaJusta } from '@/app/telao/karaoke/fila-justa';
+import { notasLinhasValidas, type CamposBatalhaFila } from '@/app/telao/karaoke/batalha';
 import { lerFaixa, parseLrc, type LinhaLetra } from '../_lrclib';
 import { buscarTermo, juntarVideos, melhorKaraoke, ordenarPorDuracao, type VideoKaraoke } from '../_youtube';
 import { candidatosValidos, listarBloqueados, MAX_CANDIDATOS, trocarVideo } from '../_trocar';
@@ -11,7 +13,7 @@ export const dynamic = 'force-dynamic';
 
 type Q = typeof query;
 
-interface LinhaFila {
+interface LinhaFila extends CamposBatalhaFila {
   id: number | string;
   user_id: number;
   nome: string;
@@ -24,6 +26,7 @@ interface LinhaFila {
   miniatura: string | null;
   status: 'fila' | 'cantando' | 'feita' | 'pulada';
   posicao: number;
+  prioridade_manual: number | null;
   nota: number | null;
   estrelas: number | null;
   faixa: string | null;
@@ -58,6 +61,7 @@ function comMigracao(h: (req: Request) => Promise<Response>) {
       const codigo = codigoPg(err);
       const msg = err instanceof Error ? err.message : '';
       if (codigo === '42703' || codigo === '42P01') {
+        if (/prioridade_manual|batalha_|notas_linhas|karaoke_batalhas/.test(msg)) throw new HttpError(503, 'Rode a migração 044');
         if (/reel_|karaoke_momentos/.test(msg)) throw new HttpError(503, 'Rode a migração 042');
         if (/parcial/.test(msg)) throw new HttpError(503, 'Rode a migração 041');
         if (/catalogo/.test(msg)) throw new HttpError(503, 'Rode a migração 040');
@@ -87,6 +91,7 @@ async function estado(q: Q, ano: number, meuId: number, comLetra = false) {
               f.duracao_s, f.miniatura, f.status, f.posicao, n.nota, n.estrelas,
               f.faixa, f.artista, f.lrclib_id, f.offset_ms, f.modo,
               f.parcial, f.catalogo_id, c.status AS catalogo_status, c.capa_url,
+              f.prioridade_manual, f.batalha_id, f.batalha_rodada, f.notas_linhas,
               CASE WHEN $2::boolean AND f.status = 'cantando' THEN f.letra END AS letra,
               CASE WHEN $2::boolean AND f.status = 'cantando' AND f.modo = 'estudio' AND c.status = 'pronta' THEN c.audio_url END AS est_audio,
               CASE WHEN $2::boolean AND f.status = 'cantando' AND f.modo = 'estudio' AND c.status = 'pronta' THEN c.palavras END AS est_palavras,
@@ -115,10 +120,20 @@ async function estado(q: Q, ano: number, meuId: number, comLetra = false) {
   ]);
   const todas = linhas.rows.map(item);
   const atual = todas.find((l) => l.status === 'cantando') ?? null;
-  const fila = todas.filter((l) => l.status === 'fila');
+  const fila = ordenarFilaJusta(linhas.rows).map(item);
   const feitas = todas.filter((l) => l.status === 'feita').reverse().slice(0, 10);
-  const minhasPendentes = todas.filter((l) => (l.status === 'fila' || l.status === 'cantando') && l.user_id === meuId).length;
+  // O pedido criado para o adversário de uma batalha (rodada 2) não conta no limite dele.
+  const minhasPendentes = todas.filter((l) => (l.status === 'fila' || l.status === 'cantando') && l.user_id === meuId && l.batalha_rodada !== 2).length;
   return { ano, atual, fila, feitas, ranking: ranking.rows, pessoas: pessoas.rows, minhasPendentes, maxPendentes: MAX_PENDENTES };
+}
+
+/** A mesma ordem do GET, também para começar sem id e para os controles manuais. */
+async function lerFilaOrdenada(q: Q, ano: number) {
+  const { rows } = await q<EntradaFilaJusta>(
+    `SELECT id, user_id, dueto_user_id, status, prioridade_manual, batalha_id, batalha_rodada
+       FROM karaoke_fila WHERE ano = $1 AND status IN ('fila', 'cantando', 'feita')`, [ano],
+  );
+  return ordenarFilaJusta(rows);
 }
 
 /** Pontos para o time de quem cantou (tabelas opcionais: a migração dos times pode não existir). */
@@ -247,13 +262,13 @@ export const POST = route(comMigracao(async (req) => {
     else if (body.lrclib_id == null || body.lrclib_id === '') throw new HttpError(409, 'A versão estúdio dessa música ainda não está pronta.');
   }
   if (escolha) {
-    const { rows: ja } = await query(`SELECT 1 FROM karaoke_fila WHERE ano = $1 AND user_id = $2 AND status IN ('fila', 'cantando')`, [ano, me.id]);
+    const { rows: ja } = await query(`SELECT 1 FROM karaoke_fila WHERE ano = $1 AND user_id = $2 AND status IN ('fila', 'cantando') AND batalha_rodada IS DISTINCT FROM 2`, [ano, me.id]);
     if (ja.length >= MAX_PENDENTES) throw new HttpError(400, `Você já tem ${MAX_PENDENTES} músicas esperando. Espere uma delas para pedir outra.`);
   } else if (body.lrclib_id != null && body.lrclib_id !== '') {
     const lrclibId = toInt(body.lrclib_id, 'lrclib_id');
     if (!dentroDoLimite('karaoke-escolher', me.id, 6)) throw new HttpError(429, 'Muitos pedidos seguidos. Espere um minutinho e tente de novo.');
     // Confere o limite de músicas antes de gastar buscas na rede (a conferência valendo é a da transação, abaixo).
-    const { rows: ja } = await query(`SELECT 1 FROM karaoke_fila WHERE ano = $1 AND user_id = $2 AND status IN ('fila', 'cantando')`, [ano, me.id]);
+    const { rows: ja } = await query(`SELECT 1 FROM karaoke_fila WHERE ano = $1 AND user_id = $2 AND status IN ('fila', 'cantando') AND batalha_rodada IS DISTINCT FROM 2`, [ano, me.id]);
     if (ja.length >= MAX_PENDENTES) throw new HttpError(400, `Você já tem ${MAX_PENDENTES} músicas esperando. Espere uma delas para pedir outra.`);
     escolha = await escolherPorMusica(lrclibId, await listarBloqueados());
   } else {
@@ -285,11 +300,12 @@ export const POST = route(comMigracao(async (req) => {
       const { rows } = await q('SELECT 1 FROM family_users WHERE id = $1', [dueto]);
       if (!rows.length) throw new HttpError(400, 'Essa pessoa não está na família.');
     }
-    const { rows: pend } = await q<{ video_id: string; catalogo_id: number | string | null }>(
-      `SELECT video_id, catalogo_id FROM karaoke_fila WHERE ano = $1 AND user_id = $2 AND status IN ('fila', 'cantando')`,
+    const { rows: pend } = await q<{ video_id: string; catalogo_id: number | string | null; batalha_rodada: number | null }>(
+      `SELECT video_id, catalogo_id, batalha_rodada FROM karaoke_fila WHERE ano = $1 AND user_id = $2 AND status IN ('fila', 'cantando')`,
       [ano, me.id],
     );
-    if (pend.length >= MAX_PENDENTES) throw new HttpError(400, `Você já tem ${MAX_PENDENTES} músicas esperando. Espere uma delas para pedir outra.`);
+    // O desafio recebido (rodada 2) não conta no limite, mas a música repetida continua barrada.
+    if (pend.filter((p) => p.batalha_rodada !== 2).length >= MAX_PENDENTES) throw new HttpError(400, `Você já tem ${MAX_PENDENTES} músicas esperando. Espere uma delas para pedir outra.`);
     if (pend.some((p) => p.video_id === escolhaFinal.videoId || (catalogoId !== null && Number(p.catalogo_id) === catalogoId))) throw new HttpError(400, 'Você já pediu essa música.');
     // Ajuste de tempo lembrado desse vídeo (feito pelo organizador em apresentações anteriores).
     const { rows: aj } = await q<{ offset_ms: number }>('SELECT offset_ms FROM karaoke_ajustes WHERE video_id = $1', [escolhaFinal.videoId]);
@@ -306,7 +322,7 @@ export const POST = route(comMigracao(async (req) => {
 export const PATCH = route(comMigracao(async (req) => {
   const me = await requireAdmin();
   const ano = edicaoAtual();
-  const body = await readJson<{ id?: unknown; acao?: unknown; nota?: unknown; estrelas?: unknown; detalhes?: unknown; offset_ms?: unknown; video_id_falho?: unknown; codigo?: unknown; pontos?: unknown }>(req);
+  const body = await readJson<{ id?: unknown; acao?: unknown; nota?: unknown; estrelas?: unknown; detalhes?: unknown; notas_linhas?: unknown; offset_ms?: unknown; video_id_falho?: unknown; codigo?: unknown; pontos?: unknown }>(req);
   const acao = typeof body.acao === 'string' ? body.acao : '';
   const ACOES = ['subir', 'descer', 'pular', 'remover', 'comecar', 'terminar', 'offset', 'trocar_video', 'parcial', 'reel'];
   if (!ACOES.includes(acao)) throw new HttpError(400, 'Ação inválida.');
@@ -341,14 +357,26 @@ export const PATCH = route(comMigracao(async (req) => {
     await q('SELECT pg_advisory_xact_lock(hashtext($1))', [`karaoke:${ano}`]);
 
     if (acao === 'subir' || acao === 'descer') {
-      const { rows } = await q<{ id: number | string }>(`SELECT id FROM karaoke_fila WHERE ano = $1 AND status = 'fila' ORDER BY posicao, id`, [ano]);
-      const ids = rows.map((r) => Number(r.id));
-      const i = ids.indexOf(id as number);
+      const fila = await lerFilaOrdenada(q, ano);
+      const blocos: typeof fila[] = [];
+      for (const entrada of fila) {
+        const ultimo = blocos[blocos.length - 1];
+        if (entrada.batalha_id && ultimo?.[0].batalha_id === entrada.batalha_id) ultimo.push(entrada);
+        else blocos.push([entrada]);
+      }
+      const i = blocos.findIndex((bloco) => bloco.some((entrada) => Number(entrada.id) === id));
       if (i < 0) throw new HttpError(404, 'Essa música não está na fila.');
       const j = acao === 'subir' ? i - 1 : i + 1;
-      if (j < 0 || j >= ids.length) return;
-      [ids[i], ids[j]] = [ids[j], ids[i]];
-      for (let k = 0; k < ids.length; k++) await q('UPDATE karaoke_fila SET posicao = $1 WHERE id = $2', [k + 1, ids[k]]);
+      if (j < 0 || j >= blocos.length) return;
+      // A segunda apresentação de uma batalha iniciada precisa ser a próxima.
+      if (blocos[i][0].batalha_rodada === 2 || blocos[j][0].batalha_rodada === 2) throw new HttpError(409, 'Termine a batalha antes de mudar essa posição.');
+      [blocos[i], blocos[j]] = [blocos[j], blocos[i]];
+      const ids = blocos.flat().map((entrada) => Number(entrada.id));
+      // Registra a ordem inteira escolhida pelo organizador. Novos pedidos seguem as rodadas depois dela.
+      await q(
+        `UPDATE karaoke_fila f SET posicao = o.ordem::int, prioridade_manual = o.ordem::int
+           FROM unnest($1::bigint[]) WITH ORDINALITY AS o(id, ordem) WHERE f.id = o.id AND f.ano = $2`, [ids, ano],
+      );
       return;
     }
 
@@ -365,28 +393,38 @@ export const PATCH = route(comMigracao(async (req) => {
     }
 
     if (acao === 'pular') {
-      const r = await q(`UPDATE karaoke_fila SET status = 'pulada', terminado_em = NOW() WHERE id = $1 AND ano = $2 AND status IN ('fila', 'cantando')`, [id, ano]);
-      if (!r.rowCount) throw new HttpError(404, 'Essa música não está mais esperando.');
+      const { rows } = await q<{ batalha_id: string | null }>(`UPDATE karaoke_fila SET status = 'pulada', terminado_em = NOW() WHERE id = $1 AND ano = $2 AND status IN ('fila', 'cantando') RETURNING batalha_id`, [id, ano]);
+      if (!rows.length) throw new HttpError(404, 'Essa música não está mais esperando.');
+      if (rows[0].batalha_id) await q(`UPDATE karaoke_fila SET status = 'pulada', terminado_em = NOW() WHERE batalha_id = $1 AND ano = $2 AND status IN ('fila', 'cantando')`, [rows[0].batalha_id, ano]);
       return;
     }
 
     if (acao === 'remover') {
-      const r = await q('DELETE FROM karaoke_fila WHERE id = $1 AND ano = $2', [id, ano]);
-      if (!r.rowCount) throw new HttpError(404, 'Música não encontrada.');
+      const { rows } = await q<{ batalha_id: string | null }>('DELETE FROM karaoke_fila WHERE id = $1 AND ano = $2 RETURNING batalha_id', [id, ano]);
+      if (!rows.length) throw new HttpError(404, 'Música não encontrada.');
+      if (rows[0].batalha_id) await q(`UPDATE karaoke_fila SET status = 'pulada', terminado_em = NOW() WHERE batalha_id = $1 AND ano = $2 AND status IN ('fila', 'cantando')`, [rows[0].batalha_id, ano]);
       return;
     }
 
     if (acao === 'comecar') {
       let alvo = id;
       if (alvo === null) {
-        const { rows } = await q<{ id: number | string }>(`SELECT id FROM karaoke_fila WHERE ano = $1 AND status = 'fila' ORDER BY posicao, id LIMIT 1`, [ano]);
-        if (!rows.length) throw new HttpError(404, 'A fila está vazia.');
-        alvo = Number(rows[0].id);
+        const fila = await lerFilaOrdenada(q, ano);
+        if (!fila.length) throw new HttpError(404, 'A fila está vazia.');
+        alvo = Number(fila[0].id);
       }
       const { rows } = await q<{ status: string }>('SELECT status FROM karaoke_fila WHERE id = $1 AND ano = $2', [alvo, ano]);
       if (!rows.length) throw new HttpError(404, 'Música não encontrada.');
       if (rows[0].status === 'cantando') return;
       if (rows[0].status !== 'fila') throw new HttpError(400, 'Essa música já passou.');
+      const { rows: batalha } = await q<{ batalha_id: string | null; batalha_rodada: number | null }>('SELECT batalha_id, batalha_rodada FROM karaoke_fila WHERE id = $1', [alvo]);
+      if (batalha[0]?.batalha_rodada === 2) {
+        const { rows: primeira } = await q<{ status: string }>('SELECT status FROM karaoke_fila WHERE batalha_id = $1 AND batalha_rodada = 1', [batalha[0].batalha_id]);
+        if (primeira[0]?.status !== 'feita') throw new HttpError(409, 'A primeira pessoa da batalha precisa cantar antes.');
+      }
+      // Não deixa uma seleção explícita interromper um duelo já iniciado.
+      const fila = await lerFilaOrdenada(q, ano);
+      if (fila[0]?.batalha_rodada === 2 && Number(fila[0].id) !== alvo) throw new HttpError(409, 'A segunda pessoa da batalha é a próxima.');
       await q(`UPDATE karaoke_fila SET status = 'pulada', terminado_em = NOW() WHERE ano = $1 AND status = 'cantando'`, [ano]);
       await q(`UPDATE karaoke_fila SET status = 'cantando', iniciado_em = NOW(), parcial = NULL WHERE id = $1`, [alvo]);
       // Versão estúdio ficou pronta enquanto esperava na fila: vira modo estúdio na hora de começar (o ajuste de tempo do vídeo não vale).
@@ -405,11 +443,25 @@ export const PATCH = route(comMigracao(async (req) => {
       if (!rows.length) throw new HttpError(409, 'Não há música em andamento.');
       alvo = Number(rows[0].id);
     }
+    // notas_linhas só vale se bater com os trechos da batalha. Se não bater, a nota e o status são salvos do mesmo
+    // jeito e as notas por linha são ignoradas: o organizador pode reenviar pelo PATCH da batalha.
+    let notasLinhas: number[] | null = null;
+    if (body.notas_linhas !== undefined) {
+      if (!notasLinhasValidas(body.notas_linhas)) throw new HttpError(400, 'Envie notas_linhas como frações de 0 a 1.');
+      const { rows: batalha } = await q<{ total: number }>(
+        `SELECT jsonb_array_length(b.trechos) AS total FROM karaoke_batalhas b
+           JOIN karaoke_fila f ON f.batalha_id = b.id WHERE f.id = $1 AND f.ano = $2`, [alvo, ano],
+      );
+      if (batalha.length && batalha[0].total !== body.notas_linhas.length) {
+        console.warn('[karaoke] notas_linhas não batem com os trechos da batalha, ignoradas', alvo, batalha[0].total, body.notas_linhas.length);
+      } else notasLinhas = body.notas_linhas;
+    }
     const { rows } = await q<{ user_id: number; dueto_user_id: number | null }>(
       `UPDATE karaoke_fila SET status = 'feita', terminado_em = NOW() WHERE id = $1 AND ano = $2 AND status = 'cantando' RETURNING user_id, dueto_user_id`,
       [alvo, ano],
     );
     if (!rows.length) throw new HttpError(409, 'Essa apresentação já foi encerrada.');
+    if (notasLinhas) await q('UPDATE karaoke_fila SET notas_linhas = $1::jsonb WHERE id = $2', [JSON.stringify(notasLinhas), alvo]);
     if (body.nota != null && body.estrelas != null) {
       const nota = numeroEntre(body.nota, 0, 100, 'nota');
       const estrelas = numeroEntre(body.estrelas, 1, 5, 'estrelas');

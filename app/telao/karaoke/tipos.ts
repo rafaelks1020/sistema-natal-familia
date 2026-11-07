@@ -1,4 +1,5 @@
 import type { NotaEstudio } from './pontuacao';
+import type { CamposBatalhaFila } from './batalha';
 
 // Formato das respostas de /api/karaoke/fila, /api/karaoke/buscar e /api/karaoke/musica (compartilhado pelo celular e pelo telão).
 
@@ -25,7 +26,7 @@ export function slugDaMusica(artista: string, faixa: string): string {
   return s.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'faixa';
 }
 
-export type ItemFila = {
+export type ItemFila = CamposBatalhaFila & {
   id: number;
   user_id: number;
   nome: string;

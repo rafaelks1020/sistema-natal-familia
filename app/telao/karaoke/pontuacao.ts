@@ -27,6 +27,8 @@ export type Detalhes = {
   perfeitas?: number;
   /** Só no modo estúdio: pontos extras que o Modo Estrela deu às notas (ausente se não foi usado). */
   estrelaPontos?: number;
+  /** Só no modo estúdio: nível de dificuldade com que a nota foi calculada (o telão grava ao enviar a nota; ausente em notas antigas). */
+  nivel?: 'facil' | 'normal' | 'dificil';
 };
 
 export type Resultado = { nota: number; estrelas: number; detalhes: Detalhes };
@@ -197,7 +199,7 @@ export type ResultadoEstudio = Resultado & { total: number; linhas: number[]; re
 /** Atraso padrão entre a nota tocar e a voz chegar: caixa/TV (HDMI), microfone USB e quem canta sempre vem um pouco depois. No Chrome, com a voz original alinhada, medi 100 a 250 ms. */
 export const LATENCIA_PADRAO_MS = 140;
 export const LATENCIA_MAX_MS = 400;
-/** Até esse erro (semitons) vale ponto cheio; de 0,5 até 1,5 cai linearmente a zero (modo Fácil). */
+/** Régua do nível Normal: até 0,5 semitom vale ponto cheio; até 1,5 cai linearmente a zero. */
 const ERRO_CHEIO = 0.5;
 const ERRO_ZERO = 1.5;
 const PONTOS_NOTAS = 9000;
@@ -276,6 +278,34 @@ const DRONE_FATOR = 0.1;
 const dobrar12 = (x: number) => ((((x + 6) % 12) + 12) % 12) - 6;
 /** Notas mais curtas que isso (sílabas rápidas) valem pontos, mas não aumentam nem quebram a sequência. */
 export const NOTA_MIN_SEQUENCIA_MS = 150;
+
+export type Nivel = 'facil' | 'normal' | 'dificil';
+
+/** Opções do seletor, na ordem de dificuldade. */
+export const NIVEIS: readonly { readonly valor: Nivel; readonly rotulo: string; readonly descricao: string }[] = Object.freeze([
+  Object.freeze({ valor: 'facil', rotulo: 'Fácil', descricao: 'Para crianças e quem está começando: mais tolerância na afinação e no combo.' }),
+  Object.freeze({ valor: 'normal', rotulo: 'Normal', descricao: 'Afinação, ritmo e sequência com a exigência tradicional.' }),
+  Object.freeze({ valor: 'dificil', rotulo: 'Difícil', descricao: 'Afinação precisa e mais tempo cantando dentro de cada nota.' }),
+]);
+
+export type ReguaNivel = Readonly<{
+  erroCheio: number;
+  erroZero: number;
+  cobertura: number;
+  gracaMs: number;
+  razaoAcerto: number;
+  combo: readonly [number, number, number];
+  vozNasCurtas: boolean;
+}>;
+
+const REGUAS: Readonly<Record<Nivel, ReguaNivel>> = Object.freeze({
+  facil: Object.freeze({ erroCheio: 0.8, erroZero: 2, cobertura: COBERTURA_ESPERADA, gracaMs: GRACA_ESTUDIO_MS, razaoAcerto: 0.45, combo: [3, 7, 14] as const, vozNasCurtas: true }),
+  normal: Object.freeze({ erroCheio: ERRO_CHEIO, erroZero: ERRO_ZERO, cobertura: COBERTURA_ESPERADA, gracaMs: GRACA_ESTUDIO_MS, razaoAcerto: RAZAO_ACERTO, combo: [5, 10, 20] as const, vozNasCurtas: false }),
+  dificil: Object.freeze({ erroCheio: 0.25, erroZero: 0.8, cobertura: 0.75, gracaMs: 40, razaoAcerto: RAZAO_ACERTO, combo: [5, 10, 20] as const, vozNasCurtas: false }),
+});
+
+/** Valores padrão do motor; opções explícitas de calibração continuam prevalecendo. */
+export function reguaDoNivel(nivel: Nivel = 'normal'): ReguaNivel { return REGUAS[nivel] ?? REGUAS.normal; }
 /** Ruído do ambiente no estúdio: limiar = 2 x ruído, entre 0,008 e 0,03 (a música da própria TV vaza para o microfone e não pode calar a voz). */
 export function limiarDeVozEstudio(ruido: number): number {
   return limitar(ruido * 2, 0.008, 0.03);
@@ -286,8 +316,9 @@ export const ESTRELA_MULT = 2;
 export const ESTRELA_DURACAO_MS = 8000;
 
 /** Multiplicador da sequência: x1, x2 (5 notas seguidas), x3 (10) e x4 (20). */
-export function multiplicadorDeCombo(sequencia: number): number {
-  return sequencia >= 20 ? 4 : sequencia >= 10 ? 3 : sequencia >= 5 ? 2 : 1;
+export function multiplicadorDeCombo(sequencia: number, nivel: Nivel = 'normal'): number {
+  const [x2, x3, x4] = reguaDoNivel(nivel).combo;
+  return sequencia >= x4 ? 4 : sequencia >= x3 ? 3 : sequencia >= x2 ? 2 : 1;
 }
 
 export type EventoAoVivo =
@@ -317,7 +348,7 @@ export type EstadoAoVivo = {
   quadrosValidos: number;
 };
 
-export type OpcoesMotor = { latenciaMs?: number; offsetMs?: number; limiar?: number; clarezaMinima?: number; cobertura?: number; erroCheio?: number; erroZero?: number; gracaMs?: number };
+export type OpcoesMotor = { nivel?: Nivel; latenciaMs?: number; offsetMs?: number; limiar?: number; clarezaMinima?: number; cobertura?: number; erroCheio?: number; erroZero?: number; gracaMs?: number };
 
 const SEM_EVENTOS: readonly EventoAoVivo[] = Object.freeze([]);
 
@@ -332,6 +363,8 @@ const SEM_EVENTOS: readonly EventoAoVivo[] = Object.freeze([]);
  * Quando ms passa do fim de uma nota, ela é fechada (sequência, linha). encerrar() fecha o que faltar.
  */
 export class PontuacaoAoVivo {
+  private readonly nivel: Nivel;
+  private readonly regua: ReguaNivel;
   private readonly notas: NotaEstudio[];
   private readonly peso: number[];
   private readonly maximo: number;
@@ -377,15 +410,17 @@ export class PontuacaoAoVivo {
   ultimoQuadro = { indice: -1, fator: 0, valido: false, ms: 0 };
 
   constructor(notas: readonly NotaEstudio[], opcoes: OpcoesMotor = {}) {
+    this.nivel = opcoes.nivel ?? 'normal';
+    this.regua = reguaDoNivel(this.nivel);
     this.notas = prepararNotas(notas);
     this.latenciaMs = opcoes.latenciaMs ?? LATENCIA_PADRAO_MS;
     this.offsetMs = opcoes.offsetMs ?? 0;
     this.limiar = opcoes.limiar ?? limiarDeVozEstudio(0);
     this.clarezaMinima = opcoes.clarezaMinima ?? CLAREZA_ESTUDIO;
-    this.cobertura = limitar(opcoes.cobertura ?? COBERTURA_ESPERADA, 0.1, 1);
-    this.erroCheio = opcoes.erroCheio ?? ERRO_CHEIO;
-    this.erroZero = opcoes.erroZero ?? ERRO_ZERO;
-    this.gracaMs = opcoes.gracaMs ?? GRACA_ESTUDIO_MS;
+    this.cobertura = limitar(opcoes.cobertura ?? this.regua.cobertura, 0.1, 1);
+    this.erroCheio = opcoes.erroCheio ?? this.regua.erroCheio;
+    this.erroZero = opcoes.erroZero ?? this.regua.erroZero;
+    this.gracaMs = opcoes.gracaMs ?? this.regua.gracaMs;
     this.peso = this.notas.map((n) => multiplicadorDaNota(n) * n.dur_ms);
     this.maximo = this.peso.reduce((a, b) => a + b, 0);
     this.ganho = this.notas.map(() => 0);
@@ -439,11 +474,12 @@ export class PontuacaoAoVivo {
       if (n.inicio_ms - this.gracaMs > tn) break;
       if (this.fechada[j] || tn >= n.inicio_ms + n.dur_ms + this.gracaMs) continue;
       const dentro = tn >= n.inicio_ms && tn < n.inicio_ms + n.dur_ms;
-      const fj = valido ? fatorDeAcerto(erroEmSemitons(midi as number, n.midi), this.erroCheio, this.erroZero) : 0;
+      const fj = valido ? (this.regua.vozNasCurtas && n.dur_ms < NOTA_MIN_SEQUENCIA_MS ? 1 : fatorDeAcerto(erroEmSemitons(midi as number, n.midi), this.erroCheio, this.erroZero)) : 0;
       // prefere maior acerto; empate: a que contém tn
       if (indice < 0 || fj > melhor || (fj === melhor && dentro && !(tn >= this.notas[indice].inicio_ms && tn < this.notas[indice].inicio_ms + this.notas[indice].dur_ms))) { indice = j; melhor = fj; fator = fj; }
     }
-    if (valido && indice >= 0 && fator > 0 && this.ehTomFixo(midi as number, this.notas[indice].midi)) fator *= DRONE_FATOR;
+    if (valido && indice >= 0 && fator > 0 && this.ehTomFixo(midi as number, this.notas[indice].midi)
+      && !(this.regua.vozNasCurtas && this.notas[indice].dur_ms < NOTA_MIN_SEQUENCIA_MS)) fator *= DRONE_FATOR;
     if (valido && indice >= 0 && fator > 0) {
       const n = this.notas[indice];
       const antes = this.efetivo(indice);
@@ -487,20 +523,20 @@ export class PontuacaoAoVivo {
     this.fechada[i] = true;
     this.fechadas++;
     if (n.dur_ms >= NOTA_MIN_SEQUENCIA_MS) this.fechadasLongas++;
-    const comboAntes = multiplicadorDeCombo(this.sequencia);
-    const acertou = razao >= RAZAO_ACERTO;
+    const comboAntes = multiplicadorDeCombo(this.sequencia, this.nivel);
+    const acertou = razao >= this.regua.razaoAcerto;
     const curta = n.dur_ms < NOTA_MIN_SEQUENCIA_MS;
     if (curta) {
       // sílaba rápida: vale pontos, mas não mexe na sequência
     } else if (acertou) {
       this.sequencia++;
       this.maiorSequencia = Math.max(this.maiorSequencia, this.sequencia);
-      const m = multiplicadorDeCombo(this.sequencia);
+      const m = multiplicadorDeCombo(this.sequencia, this.nivel);
       this.maiorCombo = Math.max(this.maiorCombo, m);
       if (this.maximo > 0) this.pontosSequencia += BONUS_SEQUENCIA_MAX * (this.peso[i] / this.maximo) * ((m - 1) / 3) * razao;
     } else this.sequencia = 0;
     if (razao >= RAZAO_PERFEITA && !curta) this.perfeitas++;
-    eventos.push({ tipo: 'nota', indice: i, razao, golden: n.golden, combo: multiplicadorDeCombo(this.sequencia), sequencia: this.sequencia, quebrou: !curta && !acertou && comboAntes > 1 });
+    eventos.push({ tipo: 'nota', indice: i, razao, golden: n.golden, combo: multiplicadorDeCombo(this.sequencia, this.nivel), sequencia: this.sequencia, quebrou: !curta && !acertou && comboAntes > 1 });
     this.linhaGanho.set(n.linha, (this.linhaGanho.get(n.linha) ?? 0) + this.efetivo(i));
     const restam = (this.linhaRestam.get(n.linha) ?? 1) - 1;
     this.linhaRestam.set(n.linha, restam);
@@ -533,7 +569,7 @@ export class PontuacaoAoVivo {
       pontos, bruto,
       pontosNotas: this.pontosNotas(), pontosLinhas: this.pontosLinhas, pontosSequencia: this.pontosSequencia, pontosEstrela: this.pontosEstrela(),
       nota: Math.round(limitar(pontos / 100, 0, 100)),
-      combo: multiplicadorDeCombo(this.sequencia), sequencia: this.sequencia,
+      combo: multiplicadorDeCombo(this.sequencia, this.nivel), sequencia: this.sequencia,
       maiorSequencia: this.maiorSequencia, maiorCombo: this.maiorCombo,
       notasFinalizadas: this.fechadas, notasTotal: this.notas.length, notasPerfeitas: this.perfeitas,
       perfeitasPct: this.fechadasLongas ? this.perfeitas / this.fechadasLongas : 0,

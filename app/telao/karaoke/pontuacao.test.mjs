@@ -11,6 +11,7 @@ const js = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: 
 const mod = { exports: {} };
 new Function('module', 'exports', js)(mod, mod.exports);
 const { hzParaMidi, nomeDaNota, desvioCents, medirRuido, limiarDeVoz, cantando, estrelasDaNota, pontuar, pontuarEstudio, erroEmSemitons, fatorDeAcerto, notaEm, estrelasEstudio, PontuacaoAoVivo, multiplicadorDeCombo, PlateiaEnergia, forcaEstudio, forcaLetra } = mod.exports;
+const { NIVEIS, reguaDoNivel } = mod.exports;
 
 const PASSO = 33;
 const hz = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
@@ -641,4 +642,83 @@ test('estrela: o limite final de 10000 continua valendo e a nota final inclui o 
   assert.ok(comEstrela.total <= 10000);
   assert.ok(comEstrela.nota >= base.nota);
   assert.equal(comEstrela.detalhes.estrelaPontos > 0, true);
+});
+
+// ---------- níveis de dificuldade ----------
+
+test('níveis: seletor e réguas públicas têm as tolerâncias combinadas', () => {
+  assert.deepEqual(NIVEIS.map((n) => n.valor), ['facil', 'normal', 'dificil']);
+  assert.deepEqual(NIVEIS.map((n) => n.rotulo), ['Fácil', 'Normal', 'Difícil']);
+  assert.ok(NIVEIS.every((n) => n.descricao.length > 0));
+  assert.deepEqual(NIVEIS.map((n) => [reguaDoNivel(n.valor).erroZero, reguaDoNivel(n.valor).erroCheio]), [[2, 0.8], [1.5, 0.5], [0.8, 0.25]]);
+  assert.equal(reguaDoNivel(), reguaDoNivel('normal'));
+});
+
+test('níveis: Normal explícito e padrão preservam o resultado anterior completo', () => {
+  const notas = melodiaLonga(12);
+  const quadros = quadrosLongos(notas, { acerta: (i) => i !== 7 }).map((q) => q.hz ? { ...q, hz: q.hz * 2 ** (0.85 / 12) } : q);
+  const anterior = {
+    nota: 94, estrelas: 5, total: 9381, linhas: [1, 0.75, 1],
+    resumo: { maiorCombo: 2, maiorSequencia: 7, perfeitas: 11, notas: 12, perfeitasPct: 0.917, pontos: 9381 },
+    detalhes: { cobertura: 0.916, afinacao: 0.65, estabilidade: 0, energia: 0, trechos: 11, ruido: 0.003, limiar: 0.008, modo: 'estudio', total: 9381, bonus: 916.7, comboPontos: 107.1, maiorCombo: 2, maiorSequencia: 7, perfeitas: 11 },
+  };
+  assert.deepEqual(pontuarEstudio(quadros, notas, 80), anterior);
+  assert.deepEqual(pontuarEstudio(quadros, notas, 80, 0, { nivel: 'normal' }), anterior);
+});
+
+test('níveis: mesma performance dá Fácil >= Normal >= Difícil, ao vivo e em lote', () => {
+  const notas = melodiaLonga(24);
+  for (const desvio of [0, 0.3, 0.7, 0.85, 1.25, 1.8, 3]) {
+    const quadros = quadrosLongos(notas, { acerta: (i) => i % 6 !== 5 }).map((q) => q.hz ? { ...q, hz: q.hz * 2 ** (desvio / 12) } : q);
+    const resultados = NIVEIS.map(({ valor: nivel }) => {
+      const motor = new PontuacaoAoVivo(notas, { latenciaMs: 80, nivel });
+      alimentar(motor, quadros);
+      const vivo = motor.resultado(0.003);
+      assert.deepEqual(vivo, pontuarEstudio(quadros, notas, 80, 0, { nivel }));
+      return vivo;
+    });
+    for (let i = 1; i < resultados.length; i++) {
+      assert.ok(resultados[i - 1].total >= resultados[i].total, `desvio ${desvio}: total`);
+      assert.ok(resultados[i - 1].nota >= resultados[i].nota, `desvio ${desvio}: nota`);
+    }
+  }
+});
+
+test('níveis: Fácil aceita qualquer altura com voz válida nas notas curtas, silêncio e ruído não', () => {
+  const notas = [{ inicio_ms: 2500, dur_ms: 100, midi: 60, golden: false, linha: 0 }];
+  function rodar(nivel, midi, clareza = 0.95, volume = 0.08) {
+    const motor = new PontuacaoAoVivo(notas, { nivel, latenciaMs: 0 });
+    motor.adicionarQuadro(2520, midi, clareza, volume, 50);
+    return motor.resultado();
+  }
+  assert.equal(rodar('facil', 66).total, 10000);
+  assert.equal(rodar('normal', 66).total, 0);
+  assert.equal(rodar('dificil', 66).total, 0);
+  assert.equal(rodar('facil', null).total, 0);
+  assert.equal(rodar('facil', 66, 0.4).total, 0);
+  assert.equal(rodar('facil', 66, 0.95, 0.001).total, 0);
+});
+
+test('níveis: Fácil antecipa combo e preserva sequência com acerto parcial', () => {
+  assert.deepEqual([2, 3, 7, 14].map((n) => multiplicadorDeCombo(n, 'facil')), [1, 2, 3, 4]);
+  const notas = melodiaLonga(4);
+  function rodar(nivel) {
+    const motor = new PontuacaoAoVivo(notas, { nivel, latenciaMs: 0 });
+    for (const n of notas) for (let dt = 0; dt < 250; dt += 50) motor.adicionarQuadro(n.inicio_ms + dt, n.midi, 0.95, 0.08, 50);
+    return motor.resultado();
+  }
+  assert.equal(rodar('facil').resumo.maiorSequencia, 4);
+  assert.equal(rodar('normal').resumo.maiorSequencia, 0);
+});
+
+test('níveis: Difícil cobra mais cobertura e respeita calibração explícita', () => {
+  const notas = [{ inicio_ms: 2500, dur_ms: 1000, midi: 60, golden: false, linha: 0 }];
+  function rodar(nivel, opcoes = {}) {
+    const motor = new PontuacaoAoVivo(notas, { nivel, latenciaMs: 0, ...opcoes });
+    for (let dt = 0; dt < 500; dt += 50) motor.adicionarQuadro(2500 + dt, 60, 0.95, 0.08, 50);
+    return motor.resultado();
+  }
+  assert.equal(rodar('normal').total, 10000);
+  assert.ok(rodar('dificil').total < rodar('normal').total);
+  assert.equal(rodar('dificil', { cobertura: 0.5 }).total, 10000);
 });

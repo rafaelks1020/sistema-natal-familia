@@ -1,0 +1,80 @@
+/* Painel de download do telão. Mesma paleta do karaokê (Meia-Noite). */
+.painel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(460px, 100%);
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: #171b18;
+  border: 1px solid rgba(243, 235, 220, 0.22);
+  color: #f3ebdc;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+.painel h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #bfa577;
+}
+.contagem {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.tamanho {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #cfc6b6;
+  font-variant-numeric: tabular-nums;
+}
+.barra {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(243, 235, 220, 0.14);
+  overflow: hidden;
+}
+.barraCheia {
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #607568, #bfa577, #c5292d);
+}
+.acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.botao, .principal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #f3ebdc;
+}
+.botao {
+  background: rgba(23, 27, 24, 0.9);
+  border: 1px solid rgba(243, 235, 220, 0.25);
+}
+.botao:hover { border-color: #bfa577; }
+.principal {
+  background: #c5292d;
+  border: 1px solid #c5292d;
+}
+.principal:hover { background: #d94a4e; border-color: #d94a4e; }
+.botao:disabled, .principal:disabled { opacity: 0.45; cursor: default; }
+.erro {
+  margin: 0;
+  color: #e07a7d;
+  font-size: 13px;
+  line-height: 1.4;
+}

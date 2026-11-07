@@ -2,6 +2,7 @@
 .root { position: fixed; inset: 0; overflow: hidden; background: #14181a; color: #f3ebdc; font-family: var(--font-manrope), "Manrope", system-ui, sans-serif; user-select: none; -webkit-user-select: none; --lateral: 38vmin; --faixa: 84px; }
 .semFaixa { --faixa: 0px; }
 .topo { position: absolute; z-index: 6; top: 0; left: 0; right: 0; display: flex; align-items: flex-start; justify-content: space-between; padding: 2.8vmin 3vmin; pointer-events: none; }
+.baixando { font-size: 1.6vmin; font-weight: 600; color: #cfc6b6; opacity: 0.85; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
 .marca { font-size: 2vmin; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: #bfa577; }
 .relogio { font-size: 3vmin; font-weight: 700; font-variant-numeric: tabular-nums; }
 
@@ -51,14 +52,14 @@
 .aviso { position: absolute; z-index: 8; left: 50%; top: 11vmin; transform: translateX(-50%); max-width: 90vw; padding: 1.4vmin 3vmin; border-radius: 999px; background: rgba(23, 27, 24, 0.95); border: 0.25vmin solid #bfa577; font-size: 2.4vmin; font-weight: 700; color: #f3ebdc; text-align: center; }
 
 /* ---------- faixa de controles (só admin) ---------- */
-.faixa { position: absolute; z-index: 9; left: 2.4vmin; right: calc(var(--lateral) + 4.8vmin); bottom: 1.6vmin; height: calc(var(--faixa) - 1vmin); display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.faixa { position: absolute; z-index: 9; left: 2.4vmin; right: 2.4vmin; bottom: 1.6vmin; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .botao { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; background: rgba(23, 27, 24, 0.9); border: 1px solid rgba(243, 235, 220, 0.25); color: #f3ebdc; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .botao:hover { border-color: #bfa577; }
 .botao:disabled { opacity: 0.45; cursor: default; }
 .botaoPrincipal { background: #c5292d; border-color: #c5292d; }
 .botaoPrincipal:hover { background: #d94a4e; border-color: #d94a4e; }
 .botaoLigado { border-color: #bfa577; color: #bfa577; }
-.config { position: absolute; z-index: 10; left: 2.4vmin; bottom: calc(var(--faixa) + 1vmin); width: min(460px, 60vw); display: flex; flex-direction: column; gap: 12px; padding: 18px; border-radius: 18px; background: #171b18; border: 1px solid rgba(243, 235, 220, 0.22); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); font-size: 15px; }
+.config { position: absolute; z-index: 10; left: 2.4vmin; bottom: calc(var(--faixa) + 1vmin); width: min(460px, 60vw); max-height: calc(100dvh - var(--faixa) - 4vmin); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 18px; border-radius: 18px; background: #171b18; border: 1px solid rgba(243, 235, 220, 0.22); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); font-size: 15px; }
 .config h3 { margin: 0; font-size: 17px; font-weight: 700; color: #bfa577; }
 .config label { display: flex; flex-direction: column; gap: 6px; color: #cfc6b6; }
 .config select, .config input[type="range"] { width: 100%; font-family: inherit; }
@@ -244,9 +245,15 @@
 .contagemRoda .numero { color: #f3ebdc; }
 .botao { min-height: 48px; font-size: 17px; }
 
+/* Placar solicitado pelo organizador, com foco e fechamento pelo diálogo nativo. */
+.placarDialogo { position: fixed; inset: 0; width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 8vmin 4vmin; border: 0; background: #14181a; color: #f3ebdc; }
+.placarDialogo::backdrop { background: #14181a; }
+.fecharPlacar { position: fixed; z-index: 6; right: 2vmin; top: 2vmin; }
+
 /* ---------- tela da nota: cartão com o resultado (o confete cai atrás) ---------- */
 .notaCartao { position: relative; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 1.4vmin; width: min(138vmin, 92vw); padding: 3.2vmin 8vmin 3.6vmin; border-radius: 3vmin; background: rgba(12, 15, 16, 0.58); border: 0.2vmin solid rgba(243, 235, 220, 0.16); box-shadow: 0 3vmin 9vmin rgba(0, 0, 0, 0.45); animation: aparecer 0.6s ease both; }
 .notaCartao .notaNumero { font-size: 25vmin; text-shadow: none; }
+.notaComNivel { display: flex; align-items: center; gap: 2vmin; }
 .notaCartao .estrela { width: 9vmin; height: 9vmin; }
 .notaCartao .frase { font-size: 5vmin; }
 .notaCartao .subtitulo { font-size: 3vmin; }

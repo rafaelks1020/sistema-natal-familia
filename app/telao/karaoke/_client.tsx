@@ -1,6 +1,6 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import QRCode from 'qrcode';
 import { Camera, CameraOff, FastForward, Mic, MicOff, Pause, Play, Rewind, SkipForward, Star, Volume2, VolumeX, Repeat } from 'lucide-react';
 import { api } from '@/app/ui/client';
@@ -12,7 +12,15 @@ import { PalcoEstudio } from './_estudio';
 import { MedidorPlateia } from './_plateia';
 import { avaliarAtraso, latenciaDaPontuacao, type Avaliacao } from './atraso';
 import { Depuracao } from './_depuracao';
-import { COMBO_CLIPE, PERFEICAO_FRASE, tocarWhoosh, useMomentos, type CenaMomento, type EstadoMomentos } from './_momentos';
+import { COMBO_CLIPE, PERFEICAO_FRASE, ROTULO_GRAVAR_INTEIRA, tocarWhoosh, useMomentos, type CenaMomento, type EstadoMomentos } from './_momentos';
+import { PainelOffline } from './_offline-painel';
+import { assinarDownload, descartarDoCache, lerDownload, lerDownloadServidor, marcarEmUso, urlDoAudio } from './_offline';
+import ProximoCantor from './_proximo';
+import BatalhaCena from './_batalha';
+import type { EstadoBatalha } from './batalha';
+import Placar, { type PlacarNoite } from './_placar';
+import { FundoVivo } from './_visual';
+import { NIVEIS, reguaDoNivel, type Nivel } from './pontuacao';
 import { ControleEstrela, DetectorGestos, type EventoGesto, type Postura } from './gestos';
 import { janelasDaLetra, prepararLetra, type LinhaCantada } from './letra';
 import { linhaEstudioEm, linhaLetraEm, type LinhaProgresso } from './momentos';
@@ -23,6 +31,8 @@ import styles from './karaoke.module.css';
 const URL_QR = 'https://natalemfamilia.com.br/karaoke';
 const CONTAGEM_S = 3;
 const NOTA_MS = 15000;
+const BATALHA_MS = 20000;
+const PROXIMO_S = 8;
 const LS_DISPOSITIVO = 'karaoke.mic.dispositivo';
 const LS_LIGADO = 'karaoke.mic.ligado';
 const LS_VOLUME = 'karaoke.voz.volume';
@@ -32,6 +42,8 @@ const LS_CAM_LIGADA = 'karaoke.camera.ligada';
 const LS_CAM_DISPOSITIVO = 'karaoke.camera.dispositivo';
 const LS_CAM_FOTO = 'karaoke.camera.salvarFoto';
 const LS_MOMENTOS = 'karaoke.camera.salvarMomentos';
+const LS_GRAVAR_INTEIRA = 'karaoke.camera.gravarInteira';
+const LS_NIVEL = 'karaoke.nivel';
 const LS_OFFSET_ESTUDIO = 'karaoke.estudio.offset';
 const PASSO_OFFSET_MS = 250;
 const OFFSET_MAX_MS = 30000;
@@ -106,7 +118,7 @@ function offsetEstudioSalvo(): number {
   return Number.isFinite(n) ? Math.max(-OFFSET_MAX_MS, Math.min(OFFSET_MAX_MS, Math.round(n))) : 0;
 }
 
-type Fase = 'ocioso' | 'contagem' | 'cantando' | 'nota' | 'pulando' | 'trocando';
+type Fase = 'ocioso' | 'contagem' | 'cantando' | 'nota' | 'pulando' | 'trocando' | 'proximo' | 'batalha';
 
 const TENTATIVAS_PATCH = 3;
 const INTERVALO_PATCH_MS = 2000;
@@ -138,7 +150,7 @@ function useNumeroAnimado(alvo: number, ms = 1800) {
   return v;
 }
 
-function NotaCena({ item, r, posicao, foto, momentos }: { item: ItemFila; r: Resultado | null; posicao: number | null; foto: FotoNota | null; momentos: EstadoMomentos | null }) {
+function NotaCena({ item, r, posicao, foto, momentos, nivel }: { item: ItemFila; r: Resultado | null; posicao: number | null; foto: FotoNota | null; momentos: EstadoMomentos | null; nivel: Nivel | null }) {
   const numero = useNumeroAnimado(r?.nota ?? 0);
   const est = r && 'resumo' in r ? (r as ResultadoEstudio) : null;
   const pontos = useNumeroAnimado(Math.round(est?.total ?? 0));
@@ -157,7 +169,10 @@ function NotaCena({ item, r, posicao, foto, momentos }: { item: ItemFila; r: Res
       <p className={styles.subtitulo}>{quemCanta(item)} · {item.titulo}</p>
       {!r ? <p className={styles.frase}>Sem nota desta vez: ligue o microfone (botão Microfone) e cante pelo menos uns 20 segundos.</p> : null}
       {r ? <>
-        <p className={styles.notaNumero} aria-label={`Nota ${r.nota}`}>{numero}</p>
+        <div className={styles.notaComNivel}>
+          <p className={styles.notaNumero} aria-label={`Nota ${r.nota}`}>{numero}</p>
+          {nivel ? <span className={styles.latDica}>Nível {NIVEIS.find((n) => n.valor === nivel)?.rotulo}</span> : null}
+        </div>
         <div className={styles.estrelas} aria-label={`${r.estrelas} de 5 estrelas`}>
           {[0, 1, 2, 3, 4].map((i) => i < r.estrelas
             ? <Star key={i} className={`${styles.estrela} ${styles.estrelaCheia}`} style={{ ['--atraso' as string]: `${1.6 + i * 0.28}s` }} strokeWidth={1.5} />
@@ -179,7 +194,17 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const [estado, setEstado] = useState<EstadoKaraoke | null>(null);
   const [fase, setFase] = useState<Fase>('ocioso');
   const [contagem, setContagem] = useState(CONTAGEM_S);
-  const [resultado, setResultado] = useState<{ item: ItemFila; r: Resultado | null } | null>(null);
+  const [resultado, setResultado] = useState<{ item: ItemFila; r: Resultado | null; nivel: Nivel | null } | null>(null);
+  const [batalha, setBatalha] = useState<EstadoBatalha | null>(null);
+  const batalhaRef = useRef<EstadoBatalha | null>(null);
+  const [modoPlacar, setModoPlacar] = useState<'noite' | 'podio' | null>(null);
+  const [dadosPlacar, setDadosPlacar] = useState<PlacarNoite | null>(null);
+  const [erroPlacar, setErroPlacar] = useState('');
+  const placarRef = useRef<HTMLDialogElement>(null);
+  const pedidoPlacarRef = useRef(0);
+  const modoPlacarRef = useRef<'noite' | 'podio' | null>(null);
+  const [nivel, setNivel] = useState<Nivel>(() => NIVEIS.find((n) => n.valor === lerLS(LS_NIVEL))?.valor ?? 'normal');
+  const dificuldadeRef = useRef(nivel);
   const [aviso, setAviso] = useState('');
   const [config, setConfig] = useState(false);
   const [controlesOcultos, setControlesOcultos] = useState(false);
@@ -189,6 +214,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const [atrasoInfo, setAtrasoInfo] = useState<{ ms: number; medidas: number[]; nova: number; av: Avaliacao; razoes: number[] } | { erro: string } | null>(null);
   const [tocando, setTocando] = useState(false);
   const [auto, setAuto] = useState(true);
+  const download = useSyncExternalStore(assinarDownload, lerDownload, lerDownloadServidor);
   const [vozNaTv, setVozNaTv] = useState(false);
   const [volumeVoz, setVolumeVoz] = useState(() => { const n = Number(lerLS(LS_VOLUME)); return Number.isFinite(n) && n > 0 && n <= 1 ? Math.min(n, 0.5) : 0.4; });
   const [deviceId, setDeviceId] = useState<string | null>(() => lerLS(LS_DISPOSITIVO));
@@ -203,6 +229,8 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const [efeitos, setEfeitos] = useEfeitos();
   const [fotoNota, setFotoNota] = useState<FotoNota | null>(null);
   const [salvarMomentos, setSalvarMomentos] = useState(() => lerLS(LS_MOMENTOS) !== '0');
+  const [gravarInteira, setGravarInteira] = useState(() => lerLS(LS_GRAVAR_INTEIRA) !== '0');
+  const gravarInteiraRef = useRef(gravarInteira);
   const [estrelaOn, setEstrelaOn] = useState(false);
   const [dicaEstrela, setDicaEstrela] = useState(false);
 
@@ -231,6 +259,8 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const caixaRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const preparoAudioRef = useRef(0);
+  const audioPendenteRef = useRef(false);
   const latenciaRef = useRef(LATENCIA_PADRAO_MS);
   /** Pontuação ao vivo da música em modo estúdio, fila de acontecimentos para a tela, energia da plateia e linhas da letra (modo letra). */
   const motorRef = useRef<PontuacaoAoVivo | null>(null);
@@ -263,6 +293,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const canvasCamRef = useRef<HTMLCanvasElement>(null);
   /** Acertos que soltam faíscas na câmera, foto candidata da música em andamento e o acompanhamento das frases (modo letra). */
   const faiscasRef = useRef(0);
+  const acertosRef = useRef(0);
   const fotoRef = useRef<{ id: number; blob: Blob } | null>(null);
   const fotoUrlRef = useRef<string | null>(null);
   const fraseRef = useRef({ i: -1, total: 0, bons: 0 });
@@ -331,17 +362,20 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     lerCena,
     fonte: () => canvasCamRef.current,
   });
-  const { encerrar: encerrarMomentos, gatilho: gatilhoMomento, iniciar: iniciarMomentos } = momentos;
-  /** Começa a gravar os melhores momentos quando o som da música começa (estúdio e letra; só se a opção estiver ligada). */
+  const { encerrar: encerrarMomentos, gatilho: gatilhoMomento, iniciar: iniciarMomentos, definirGravarInteira } = momentos;
+  useEffect(() => { gravarInteiraRef.current = gravarInteira; definirGravarInteira(gravarInteira); }, [gravarInteira, definirGravarInteira]);
+  /** Começa a gravar quando o som começa, somente com a câmera pronta e alguma opção de gravação ligada. */
   const comecarMomentos = useCallback(() => {
     const it = emCursoRef.current;
-    if (!it || !salvarMomentosRef.current || (it.modo !== 'estudio' && it.modo !== 'letra')) return;
-    iniciarMomentos(it.id, usaEstudio(it));
+    if (!it || !camAtivaRef.current || (!salvarMomentosRef.current && !gravarInteiraRef.current)) return;
+    iniciarMomentos(it.id, usaEstudio(it), { momentos: salvarMomentosRef.current && (it.modo === 'estudio' || it.modo === 'letra'), inteira: gravarInteiraRef.current });
   }, [iniciarMomentos]);
 
+  const cancelarPreparoAudio = useCallback(() => { preparoAudioRef.current++; }, []);
   const limparTimers = useCallback(() => {
+    cancelarPreparoAudio();
     window.clearInterval(timerContagem.current); window.clearTimeout(timerNota.current); window.clearInterval(timerEspera.current);
-  }, []);
+  }, [cancelarPreparoAudio]);
 
   const abortar = useCallback(() => {
     limparTimers();
@@ -358,6 +392,12 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     if (usaEstudio(item)) {
       const a = audioRef.current;
       if (!a) { tratadores.current.erroVideo(); return; }
+      if (audioPendenteRef.current) {
+        audioPendenteRef.current = false;
+        a.src = item.estudio.audio_url;
+        a.load();
+        marcarEmUso(null);
+      }
       mudarFase('cantando');
       a.currentTime = 0;
       a.play().catch(() => avisar('O navegador bloqueou o som. Toque na tela e aperte Continuar.'));
@@ -395,15 +435,16 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     if (fotoUrlRef.current === local) setFotoNota({ url: local, estado: enviou ? 'salva' : 'erro' });
   }, []);
 
-  const entrarContagem = useCallback((item: ItemFila, segundos = CONTAGEM_S) => {
+  const entrarContagem = useCallback(async (item: ItemFila, segundos = CONTAGEM_S) => {
     limparTimers();
+    const preparo = preparoAudioRef.current;
     definirEmCurso(item);
     gravandoRef.current = false;
     if (usaEstudio(item)) {
       // Estúdio: o ajuste é do notebook (atraso do áudio), não da música: fica no navegador. O instrumental carrega durante a contagem.
       offsetRef.current = offsetEstudioSalvo();
-      const a = audioRef.current;
-      if (a) { a.pause(); if (a.getAttribute('src') !== item.estudio.audio_url) { a.src = item.estudio.audio_url; a.load(); } else a.currentTime = 0; }
+      audioRef.current?.pause();
+      audioPendenteRef.current = true;
     } else offsetRef.current = item.offset_ms || 0;
     setOffsetMs(offsetRef.current);
     // Placar e plateia da música que vai começar.
@@ -414,16 +455,27 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     definirModoEstudio(usaEstudio(item));
     depRef.current = usaEstudio(item) && new URLSearchParams(window.location.search).get('debug') === '1'
       ? new Depuracao(prepararNotas(item.estudio.notas), latenciaRef.current, offsetRef.current) : null;
-    motorRef.current = usaEstudio(item) ? new PontuacaoAoVivo(prepararNotas(item.estudio.notas), { latenciaMs: latenciaRef.current, offsetMs: offsetRef.current }) : null;
+    motorRef.current = usaEstudio(item) ? new PontuacaoAoVivo(prepararNotas(item.estudio.notas), { nivel: dificuldadeRef.current, latenciaMs: latenciaRef.current, offsetMs: offsetRef.current }) : null;
     linhasLetraRef.current = item.modo === 'letra' ? prepararLetra(item.letra) : [];
     relogioRef.current = { v: 0, w: 0, saida: 0 };
     setResultado(null); setContagem(segundos);
+    batalhaRef.current = null; setBatalha(null);
     mudarFase('contagem');
     let n = segundos;
     timerContagem.current = window.setInterval(() => {
       n -= 1;
       if (n <= 0) { window.clearInterval(timerContagem.current); tocar(item); } else setContagem(n);
     }, 1000);
+    if (usaEstudio(item)) {
+      let src = item.estudio.audio_url;
+      try { src = await urlDoAudio(item.estudio.audio_url); } catch { /* Mantém o instrumental original se o cache falhar. */ }
+      const a = audioRef.current;
+      // A busca no cache corre durante a contagem. Se demorar, tocar() usa a URL original sem esperar.
+      if (!a || preparo !== preparoAudioRef.current || faseRef.current !== 'contagem' || emCursoRef.current?.id !== item.id) return;
+      audioPendenteRef.current = false;
+      if (a.getAttribute('src') !== src) { a.src = src; a.load(); } else a.currentTime = 0;
+      marcarEmUso(src);
+    }
   }, [limparTimers, definirEmCurso, mudarFase, tocar, definirModoEstudio, limparFoto]);
 
   const aplicar = useCallback((novo: EstadoKaraoke) => {
@@ -432,7 +484,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     if (!admin) return;
     const f = faseRef.current;
     if ((f === 'contagem' || f === 'cantando') && novo.atual?.id !== emCursoRef.current?.id) abortar();
-    else if (f === 'ocioso' && novo.atual && !ignoradosRef.current.has(novo.atual.id)) entrarContagem(novo.atual);
+    else if ((f === 'ocioso' || f === 'proximo') && novo.atual && !ignoradosRef.current.has(novo.atual.id)) void entrarContagem(novo.atual);
   }, [admin, abortar, entrarContagem]);
 
   const recarregar = useCallback(async () => {
@@ -445,25 +497,34 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   }, [aplicar]);
 
   /** Ação de admin na fila (PATCH). Pausa a sincronização enquanto roda, para a resposta antiga não desfazer o passo. */
-  const acao = useCallback(async (corpo: Record<string, unknown>): Promise<EstadoKaraoke | null> => {
+  const acao = useCallback(async (corpo: Record<string, unknown>, timeoutMs?: number): Promise<EstadoKaraoke | null> => {
     ocupadoRef.current = true; seqRef.current++;
     try {
-      const novo = await api<EstadoKaraoke>('/api/karaoke/fila', { method: 'PATCH', json: corpo });
+      const novo = await api<EstadoKaraoke>('/api/karaoke/fila', { method: 'PATCH', json: corpo, ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}) });
       ocupadoRef.current = false; seqRef.current++;
       aplicar(novo);
       return novo;
     } catch (e) {
       ocupadoRef.current = false;
       const msg = (e as Error).message;
+      if (corpo.acao === 'terminar' && /já foi encerrada/.test(msg)) {
+        // A apresentação já estava encerrada no servidor (tentativa anterior chegou): conta como sucesso e relê o estado.
+        try {
+          const atual = await api<EstadoKaraoke>('/api/karaoke/fila?letra=1');
+          seqRef.current++;
+          aplicar(atual);
+          return atual;
+        } catch { return null; }
+      }
       if (!/já foi encerrada|Não há música/.test(msg)) avisar(msg);
       return null;
     }
   }, [aplicar, avisar]);
 
   /** Repete o PATCH até 3 vezes (com intervalo) quando falha; devolve null se nenhuma deu certo. */
-  const acaoComRetentativa = useCallback(async (corpo: Record<string, unknown>): Promise<EstadoKaraoke | null> => {
+  const acaoComRetentativa = useCallback(async (corpo: Record<string, unknown>, timeoutMs?: number): Promise<EstadoKaraoke | null> => {
     for (let i = 0; i < TENTATIVAS_PATCH; i++) {
-      const novo = await acao(corpo);
+      const novo = await acao(corpo, timeoutMs);
       if (novo) return novo;
       if (i < TENTATIVAS_PATCH - 1) await esperar(INTERVALO_PATCH_MS);
     }
@@ -471,17 +532,62 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   }, [acao]);
 
   const iniciar = useCallback(async (id?: number) => {
+    if (ocupadoRef.current || (faseRef.current !== 'ocioso' && faseRef.current !== 'proximo')) return;
     await acao({ acao: 'comecar', ...(id ? { id } : {}) });
   }, [acao]);
 
   const sairDaNota = useCallback(() => {
     window.clearTimeout(timerNota.current);
+    if (modoPlacarRef.current) return;
+    if (faseRef.current === 'nota' && batalhaRef.current) { mudarFase('batalha'); return; }
+    if (estadoRef.current?.fila.length) { setContagem(PROXIMO_S); mudarFase('proximo'); return; }
     definirEmCurso(null);
     setResultado(null);
     limparFoto();
     mudarFase('ocioso');
-    if (autoRef.current && (estadoRef.current?.fila.length ?? 0) > 0) void iniciar();
-  }, [iniciar, definirEmCurso, mudarFase, limparFoto]);
+  }, [definirEmCurso, mudarFase, limparFoto]);
+
+  const abrirPlacar = async (modo: 'noite' | 'podio') => {
+    const pedido = ++pedidoPlacarRef.current;
+    modoPlacarRef.current = modo;
+    window.clearTimeout(timerNota.current);
+    setModoPlacar(modo); setDadosPlacar(null); setErroPlacar('');
+    try {
+      const dados = await api<PlacarNoite>('/api/karaoke/placar', { signal: AbortSignal.timeout(8000) });
+      if (pedido === pedidoPlacarRef.current) setDadosPlacar(dados);
+    } catch (e) { if (pedido === pedidoPlacarRef.current) setErroPlacar((e as Error).message); }
+  };
+  const fecharPlacar = () => {
+    pedidoPlacarRef.current++;
+    modoPlacarRef.current = null; setModoPlacar(null);
+    if (faseRef.current === 'nota') timerNota.current = window.setTimeout(sairDaNota, NOTA_MS);
+  };
+  useEffect(() => {
+    if (!modoPlacar) return;
+    const dialogo = placarRef.current;
+    dialogo?.showModal();
+    return () => dialogo?.close();
+  }, [modoPlacar]);
+
+  const proximoId = estado?.fila[0]?.id;
+  useEffect(() => {
+    if (fase !== 'proximo' || !auto || modoPlacar || !proximoId) return;
+    let n = PROXIMO_S;
+    const inicio = window.setTimeout(() => setContagem(n), 0);
+    const timer = window.setInterval(() => {
+      if (ocupadoRef.current || modoPlacarRef.current || faseRef.current !== 'proximo') return;
+      n = Math.max(0, n - 1); setContagem(n);
+      if (n === 0) { window.clearInterval(timer); void iniciar(); }
+    }, 1000);
+    return () => { window.clearTimeout(inicio); window.clearInterval(timer); };
+  }, [fase, auto, modoPlacar, proximoId, iniciar]);
+
+  // Cena da batalha: com "Passar sozinho" ligado, sai sozinha depois de uns 20 s (o placar aberto segura; ao fechar, conta de novo).
+  useEffect(() => {
+    if (fase !== 'batalha' || !auto || modoPlacar) return;
+    const t = window.setTimeout(sairDaNota, BATALHA_MS);
+    return () => window.clearTimeout(t);
+  }, [fase, auto, modoPlacar, sairDaNota]);
 
   const finalizar = useCallback((antes = false) => {
     const item = emCursoRef.current;
@@ -498,30 +604,41 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     setTocando(false);
     const duracao = antes && tocouMs > 0 ? tocouMs : ((estudio ? a?.duration : playerRef.current?.getDuration()) || item.duracao_s || 0) * 1000;
     let r: Resultado | null = null;
+    let resultadoEstudio: ResultadoEstudio | null = null;
     if (estudio) {
       // Estúdio: nota pelas notas da melodia; encerrando antes do fim, só valem as notas que já passaram.
       const corte = antes ? tocouMs - offsetRef.current - latenciaRef.current : Infinity;
       const notas = prepararNotas(item.estudio.notas).filter((n) => n.inicio_ms + n.dur_ms <= corte);
+      if (!antes) resultadoEstudio = motorRef.current?.resultado() ?? pontuarEstudio(quadros, notas, latenciaRef.current, offsetRef.current, { nivel: dificuldadeRef.current });
       if (micRef.current && quadros.length > 60 && notas.length >= 3) {
         // Fim natural: vale o placar ao vivo (mesma conta, termina exatamente nele). Encerrando antes, recalcula só com as notas que passaram.
-        const motor = motorRef.current;
-        r = !antes && motor ? motor.resultado() : pontuarEstudio(quadros, notas, latenciaRef.current, offsetRef.current);
+        r = resultadoEstudio ?? pontuarEstudio(quadros, notas, latenciaRef.current, offsetRef.current, { nivel: dificuldadeRef.current });
       }
     } else {
       // Com a letra na tela, a nota considera só as linhas cantadas (a posição do vídeo vem em cada quadro).
       const janelas = item.modo === 'letra' ? janelasDaLetra(prepararLetra(item.letra), offsetRef.current) : undefined;
       r = micRef.current && quadros.length > 60 && duracao > 0 ? pontuar(quadros, duracao, undefined, janelas) : null;
     }
-    setResultado({ item, r });
+    setResultado({ item, r, nivel: estudio ? dificuldadeRef.current : null });
     mudarFase('nota');
     window.clearTimeout(timerNota.current);
-    timerNota.current = window.setTimeout(sairDaNota, NOTA_MS);
     const foto = fotoRef.current?.id === item.id ? fotoRef.current : null;
     fotoRef.current = null;
-    void acaoComRetentativa({ acao: 'terminar', id: item.id, ...(r ? { nota: r.nota, estrelas: r.estrelas, detalhes: r.detalhes } : {}) }).then(() => {
+    void acaoComRetentativa({ acao: 'terminar', id: item.id, ...(r ? { nota: r.nota, estrelas: r.estrelas, detalhes: estudio ? { ...r.detalhes, nivel: dificuldadeRef.current } : r.detalhes } : {}), ...(resultadoEstudio?.linhas.length ? { notas_linhas: resultadoEstudio.linhas } : {}) }, 8000).then(async (novo) => {
       if (foto) void enviarFoto(foto, r ? r.nota : null);
+      if (novo && !antes && item.batalha_id && item.batalha_rodada === 2) {
+        try {
+          const duelo = await api<EstadoBatalha>(`/api/karaoke/batalha?fila_id=${item.id}`, { signal: AbortSignal.timeout(8000) });
+          if (faseRef.current === 'nota' && emCursoRef.current?.id === item.id && duelo.resultado.completa) { batalhaRef.current = duelo; setBatalha(duelo); }
+          else if (!duelo.resultado.completa) avisar('A batalha ainda não tem as notas completas das duas apresentações.');
+        } catch { avisar('Não consegui carregar o resultado da batalha.'); }
+      }
+      if (faseRef.current === 'nota' && emCursoRef.current?.id === item.id && !modoPlacarRef.current) {
+        window.clearTimeout(timerNota.current);
+        timerNota.current = window.setTimeout(sairDaNota, NOTA_MS);
+      }
     });
-  }, [acaoComRetentativa, enviarFoto, encerrarMomentos, mudarFase, pararGravacao, sairDaNota]);
+  }, [acaoComRetentativa, avisar, enviarFoto, encerrarMomentos, mudarFase, pararGravacao, sairDaNota]);
 
   const erroVideo = useCallback((codigo?: number) => {
     const item = emCursoRef.current;
@@ -540,7 +657,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
       void acao({ acao: 'trocar_video', id: item.id, video_id_falho: item.video_id, codigo }).then((novo) => {
         if (faseRef.current !== 'trocando') return;
         const novoItem = novo?.atual;
-        if (novoItem && novoItem.id === item.id && novoItem.video_id !== item.video_id) entrarContagem(novoItem, CONTAGEM_TROCA_S);
+        if (novoItem && novoItem.id === item.id && novoItem.video_id !== item.video_id) void entrarContagem(novoItem, CONTAGEM_TROCA_S);
         else { mudarFase('cantando'); tratadores.current.erroVideo(-1); } // sem outra versão: pula como nos outros erros
       });
       return;
@@ -581,7 +698,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
       }
       if (agora < acenoAteRef.current) return;
       const f = faseRef.current;
-      if (f === 'ocioso') {
+      if (f === 'ocioso' || f === 'proximo') {
         const e = estadoRef.current;
         const alvo = e?.atual ?? e?.fila[0];
         if (!alvo || ocupadoRef.current) return;
@@ -672,12 +789,13 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     }).catch(() => setAviso('Não consegui carregar o player do YouTube. Confira a internet.'));
     return () => {
       morto = true;
+      cancelarPreparoAudio();
       window.clearInterval(timerContagem.current); window.clearTimeout(timerNota.current); window.clearInterval(timerEspera.current);
       try { playerRef.current?.destroy(); } catch { /* já destruído */ }
       playerRef.current = null; prontoRef.current = false;
       alvo.remove();
     };
-  }, [admin, iniciarGravacao, pausarGravacao, msVideo, comecarMomentos]);
+  }, [admin, iniciarGravacao, pausarGravacao, msVideo, comecarMomentos, cancelarPreparoAudio]);
 
   // Cada quadro do microfone alimenta a pontuação ao vivo (estúdio) e a plateia (estúdio e letra).
   useEffect(() => {
@@ -698,6 +816,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
         if (ev.length) {
           for (const e of ev) {
             if (e.tipo === 'nota') {
+              if (e.razao >= reguaDoNivel(dificuldadeRef.current).razaoAcerto) acertosRef.current++;
               if (e.razao >= ACERTO_FAISCA) faiscasRef.current++;
               estrelaRef.current.registrarCombo(e.combo);
               // Sequência chegando a x3 ou x4: clipe.
@@ -842,7 +961,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
 
   // Botões de baixo: somem com o mouse parado (e o cursor com eles) e voltam ao mexer. Com um painel aberto ficam.
   const painelAbertoRef = useRef(false);
-  useEffect(() => { painelAbertoRef.current = config || configCam; });
+  useEffect(() => { painelAbertoRef.current = config || configCam || Boolean(modoPlacar); });
   useEffect(() => {
     if (!admin) return;
     let timer = 0;
@@ -902,6 +1021,16 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const mudarVolume = (v: number) => { setVolumeVoz(v); gravarLS(LS_VOLUME, String(v)); };
   const mudarEco = (ligado: boolean) => { setCancelarEco(ligado); gravarLS(LS_ECO, ligado ? '1' : '0'); };
   const mudarLatencia = (v: number) => { setLatenciaMs(v); gravarLS(LS_LATENCIA, String(v)); };
+  const mudarNivel = (valor: string) => {
+    const escolhido = NIVEIS.find((n) => n.valor === valor)?.valor;
+    if (!escolhido || faseRef.current === 'cantando') return;
+    dificuldadeRef.current = escolhido; setNivel(escolhido); gravarLS(LS_NIVEL, escolhido);
+    const it = emCursoRef.current;
+    if (usaEstudio(it)) {
+      motorRef.current = new PontuacaoAoVivo(prepararNotas(it.estudio.notas), { nivel: escolhido, latenciaMs: latenciaRef.current, offsetMs: offsetRef.current });
+      eventosRef.current = []; comboRef.current = 0;
+    }
+  };
   /** Mede o atraso total da Voz na TV (pulso pelas caixas, gravado pelo microfone) e calibra o atraso da pontuação com ele. */
   const medirAtraso = async () => {
     setMedindo(true); setAtrasoInfo(null);
@@ -941,10 +1070,15 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     setConfig(false);
     if (!camLigada) { setCamLigada(true); gravarLS(LS_CAM_LIGADA, '1'); setConfigCam(true); } else setConfigCam((c) => !c);
   };
-  const desligarCamera = () => { setCamLigada(false); setConfigCam(false); gravarLS(LS_CAM_LIGADA, '0'); };
+  const desligarCamera = () => {
+    camAtivaRef.current = false;
+    if (emCursoRef.current) void encerrarMomentos(emCursoRef.current.id);
+    setCamLigada(false); setConfigCam(false); gravarLS(LS_CAM_LIGADA, '0');
+  };
   const escolherCamera = (id: string) => { setCamDeviceId(id || null); gravarLS(LS_CAM_DISPOSITIVO, id || null); };
   const mudarSalvarFoto = (v: boolean) => { setSalvarFoto(v); gravarLS(LS_CAM_FOTO, v ? '1' : '0'); };
   const mudarSalvarMomentos = (v: boolean) => { setSalvarMomentos(v); gravarLS(LS_MOMENTOS, v ? '1' : '0'); };
+  const mudarGravarInteira = (v: boolean) => { gravarInteiraRef.current = v; setGravarInteira(v); definirGravarInteira(v); gravarLS(LS_GRAVAR_INTEIRA, v ? '1' : '0'); };
 
   const micLigado = useCallback(() => micRef.current, []);
   const audioRodando = useCallback(() => { const a = audioRef.current; return Boolean(a && !a.paused && !a.ended); }, []);
@@ -954,6 +1088,29 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
     ultimoQuadroRef.current = -1;
     if (!gravandoRef.current) { iniciarGravacao(msVideo); gravandoRef.current = true; } else pausarGravacao(false);
     comecarMomentos();
+  };
+  /** Instrumental em cache que não tocou: descarta a cópia salva e volta para a URL original, sem pular a música. */
+  const aoErroAudio = () => {
+    const a = audioRef.current;
+    const it = emCursoRef.current;
+    if (!a || !usaEstudio(it)) return;
+    const src = a.currentSrc || a.getAttribute('src') || '';
+    if (src.startsWith('blob:')) {
+      const original = it.estudio.audio_url;
+      const pos = faseRef.current === 'cantando' ? a.currentTime : 0;
+      void descartarDoCache(src).finally(() => {
+        const atualEm = emCursoRef.current;
+        if (audioRef.current !== a || !usaEstudio(atualEm) || atualEm.id !== it.id) return;
+        audioPendenteRef.current = false;
+        marcarEmUso(null);
+        a.src = original;
+        a.load();
+        if (pos > 0) a.addEventListener('loadedmetadata', () => { a.currentTime = pos; }, { once: true });
+        if (faseRef.current === 'cantando') a.play().catch(() => avisar('O navegador bloqueou o som. Toque na tela e aperte Continuar.'));
+      });
+      return;
+    }
+    if (!audioPendenteRef.current) tratadores.current.erroVideo();
   };
   const aoPausarAudio = () => { if (faseRef.current !== 'cantando') return; setTocando(false); pausarGravacao(true); };
 
@@ -998,12 +1155,16 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
   const nomesNaTela = emCurso ? (emCurso.dueto_nome ? [emCurso.nome, emCurso.dueto_nome] : [emCurso.nome, emCurso.nome]) : [];
 
   return <div className={styles.root + (admin ? '' : ` ${styles.semFaixa}`) + (camAtiva ? ` ${styles.camAtiva}` : '') + (letraAtiva ? ` ${styles.modoLetra}` : '') + (estudioAtivo ? ` ${styles.modoEstudio}` : '') + (controlesOcultos ? ` ${styles.controlesOcultos}` : '')}>
+    <FundoVivo vivo={pitch.vivo} acerto={acertosRef} ativo={!camLigada && fase === 'cantando'} />
     {camAtiva ? <>
       <CameraFundo video={cam.video} rostos={cam.rostosRef} cantandoIdx={cam.cantandoRef} nomes={nomesNaTela} efeitos={efeitos} faiscas={faiscasRef} estrela={estrelaAtivaRef} canvasRef={canvasCamRef} />
       {letraAtiva || estudioAtivo ? <div className={styles.camFaixaLetra} aria-hidden="true" /> : null}
     </> : null}
-    {admin ? <audio ref={audioRef} preload="auto" onPlaying={aoTocarAudio} onPause={aoPausarAudio} onWaiting={aoPausarAudio} onEnded={() => tratadores.current.finalizar()} onError={() => { if (usaEstudio(emCursoRef.current)) tratadores.current.erroVideo(); }} /> : null}
-    <div className={styles.topo}><span className={styles.marca}>Natal em Família · Karaokê</span></div>
+    {admin ? <audio ref={audioRef} preload="auto" onPlaying={aoTocarAudio} onPause={aoPausarAudio} onWaiting={aoPausarAudio} onEnded={() => tratadores.current.finalizar()} onError={aoErroAudio} /> : null}
+    <div className={styles.topo}>
+      <span className={styles.marca}>Natal em Família · Karaokê</span>
+      {download.baixando ? <span className={styles.baixando} role="status">Baixando músicas {download.feitos} de {download.total}</span> : null}
+    </div>
     {estrelaOn ? <p className={styles.estrelaBanner} role="status">MODO ESTRELA x2</p> : null}
     {dicaEstrela && !estrelaOn ? <p className={styles.dicaEstrela}>Levante os braços para o Modo Estrela!</p> : null}
 
@@ -1054,7 +1215,9 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
       <p className={styles.subtitulo}>Trocando para outra versão do vídeo...</p>
     </div> : null}
 
-    {fase === 'nota' && resultado ? <NotaCena foto={fotoNota} momentos={momentos.estado?.filaId === resultado.item.id ? momentos.estado : null} item={resultado.item} r={resultado.r} posicao={resultado.r && estado ? (() => { const i = estado.ranking.findIndex((x) => x.user_id === resultado.item.user_id); return i >= 0 ? i + 1 : null; })() : null} /> : null}
+    {fase === 'nota' && resultado ? <NotaCena foto={fotoNota} momentos={momentos.estado?.filaId === resultado.item.id ? momentos.estado : null} item={resultado.item} r={resultado.r} nivel={resultado.nivel} posicao={resultado.r && estado ? (() => { const i = estado.ranking.findIndex((x) => x.user_id === resultado.item.user_id); return i >= 0 ? i + 1 : null; })() : null} /> : null}
+    {fase === 'batalha' && batalha ? <BatalhaCena batalha={batalha} onContinuar={sairDaNota} /> : null}
+    {fase === 'proximo' ? <ProximoCantor ultimo={resultado?.item ?? null} proximo={proximo} seguintes={estado?.fila.slice(1, 4) ?? []} contagem={auto && !modoPlacar ? contagem : null} qr={qr} onComecar={proximo ? () => void iniciar() : undefined} /> : null}
     {fase === 'ocioso' || fase === 'pulando' ? cartazOcioso() : null}
 
     {aviso ? <p className={styles.aviso} role="status">{aviso}</p> : null}
@@ -1074,9 +1237,17 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
         <button type="button" className={`${styles.botao} ${vozNaTv ? styles.botaoLigado : ''}`} onClick={() => { if (!vozNaTv) avisar(AVISO_MICROFONIA); setVozNaTv((v) => !v); if (pitch.status !== 'ativo') void pitch.ligar(); }} aria-pressed={vozNaTv}>{vozNaTv ? <Volume2 size={18} aria-hidden="true" /> : <VolumeX size={18} aria-hidden="true" />}Voz na TV</button>
         <button ref={botaoCamRef} type="button" className={`${styles.botao} ${camLigada ? styles.botaoLigado : ''}`} onClick={botaoCamera} aria-expanded={configCam}>{camLigada ? <Camera size={18} aria-hidden="true" /> : <CameraOff size={18} aria-hidden="true" />}Câmera</button>
         <button type="button" className={`${styles.botao} ${auto ? styles.botaoLigado : ''}`} onClick={() => setAuto((a) => !a)} aria-pressed={auto}><Repeat size={18} aria-hidden="true" />Passar sozinho</button>
+        <button type="button" className={styles.botao} onClick={() => void abrirPlacar('noite')}>Placar da noite</button>
+        <button type="button" className={styles.botao} onClick={() => void abrirPlacar('podio')}>Pódio final</button>
       </div>
       {config ? <div ref={configRef} className={styles.config} role="dialog" aria-label="Configurar microfone">
         <h3>Microfone</h3>
+        <label>Dificuldade (versão estúdio)
+          <select value={nivel} onChange={(e) => mudarNivel(e.target.value)} disabled={fase === 'cantando'}>
+            {NIVEIS.map((n) => <option key={n.valor} value={n.valor}>{n.rotulo}</option>)}
+          </select>
+        </label>
+        <p>{fase === 'cantando' ? 'Escolha o nível antes da próxima apresentação.' : NIVEIS.find((n) => n.valor === nivel)?.descricao}</p>
         <label>Dispositivo
           <select value={pitch.ativoId ?? deviceId ?? ''} onChange={(e) => escolherDispositivo(e.target.value)} onFocus={() => void pitch.listar()}>
             <option value="">Padrão do sistema</option>
@@ -1130,6 +1301,7 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
           : 'desligado: toque em "Medir atraso" para ligar.'}</p> : null}
         <p>{DICAS_MICROFONIA}</p>
         <p className={styles.aviso2}>Com a Voz na TV ligada o som das caixas pode voltar para o microfone e apitar (microfonia). {AVISO_MICROFONIA}. Comece com o volume baixo.</p>
+        <PainelOffline limparBloqueado={fase === 'contagem' || fase === 'cantando'} />
       </div> : null}
       {configCam ? <div ref={configCamRef} className={styles.config} role="dialog" aria-label="Configurar câmera">
         <h3>Câmera</h3>
@@ -1156,7 +1328,15 @@ export default function KaraokeTelao({ admin }: { admin: boolean }) {
           Salvar momentos
         </label>
         <p>Grava clipes e fotos das frases perfeitas, das sequências x3 e x4 e do Modo Estrela, e mostra no celular de todos. Com a câmera ligada, levante os braços para ativar o Modo Estrela (pontos em dobro por 8 s) e acene para começar.</p>
+        <label className={styles.linhaCheck}>
+          <input type="checkbox" checked={gravarInteira} onChange={(e) => mudarGravarInteira(e.target.checked)} />
+          {ROTULO_GRAVAR_INTEIRA}
+        </label>
       </div> : null}
     </> : <p className={styles.aviso}>Entre com a conta de quem organiza para controlar o karaokê.</p>}
+    {modoPlacar ? <dialog ref={placarRef} className={styles.placarDialogo} aria-label={modoPlacar === 'podio' ? 'Pódio final' : 'Placar da noite'} onCancel={(e) => { e.preventDefault(); fecharPlacar(); }}>
+      {dadosPlacar ? <Placar dados={dadosPlacar} modo={modoPlacar} /> : <p className={styles.subtitulo} role="status">{erroPlacar || 'Carregando o placar...'}</p>}
+      <button type="button" className={`${styles.botao} ${styles.fecharPlacar}`} onClick={fecharPlacar} autoFocus>Fechar (Esc)</button>
+    </dialog> : null}
   </div>;
 }
