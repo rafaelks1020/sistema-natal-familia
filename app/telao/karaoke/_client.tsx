@@ -27,6 +27,12 @@ import { linhaEstudioEm, linhaLetraEm, type LinhaProgresso } from './momentos';
 import { CLAREZA_MINIMA, HZ_MAX, HZ_MIN, LATENCIA_MAX_MS, LATENCIA_PADRAO_MS, PlateiaEnergia, PontuacaoAoVivo, forcaEstudio, forcaLetra, hzParaMidi, limiarDeVozEstudio, pontuar, pontuarEstudio, prepararNotas, useAfinacao, type EventoAoVivo, type Quadro, type Resultado, type ResultadoEstudio } from './_pitch';
 import { quemCanta, type DadosEstudio, type EstadoKaraoke, type ItemFila } from './tipos';
 import styles from './karaoke.module.css';
+import ProvaTelao from './_prova';
+
+export default function KaraokeTelao({ admin, prova = false }: { admin: boolean; prova?: boolean }) {
+  if (prova) return <ProvaTelao admin={admin} />;
+  return <><KaraokeLivre admin={admin} /><a href="/telao/karaoke?modo=prova" style={{ position: 'fixed', top: 48, right: 20, zIndex: 30, background: '#171b18', color: '#e6c98e', padding: 12, borderRadius: 8 }}>Prova oficial: Voz do Natal</a></>;
+}
 
 const URL_QR = 'https://natalemfamilia.com.br/karaoke';
 const CONTAGEM_S = 3;
@@ -190,7 +196,7 @@ function NotaCena({ item, r, posicao, foto, momentos, nivel }: { item: ItemFila;
   </div>;
 }
 
-export default function KaraokeTelao({ admin }: { admin: boolean }) {
+function KaraokeLivre({ admin }: { admin: boolean }) {
   const [estado, setEstado] = useState<EstadoKaraoke | null>(null);
   const [fase, setFase] = useState<Fase>('ocioso');
   const [contagem, setContagem] = useState(CONTAGEM_S);

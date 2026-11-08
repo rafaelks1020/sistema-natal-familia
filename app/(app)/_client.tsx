@@ -8,6 +8,7 @@ import LoopMedia from '@/app/ui/LoopMedia';
 import { api, brl, timeAgo, thumb } from '@/app/ui/client';
 import { useMe } from '@/app/ui/user';
 import { useToast } from '@/app/ui/toast';
+import CartaoGamificacao from './_inicio/CartaoGamificacao';
 import type { Attendance, AttendanceStatus, HomeData } from './_inicio/types';
 
 function Bokeh({ dim = false }: { dim?: boolean }) {
@@ -183,6 +184,8 @@ export default function InicioClient({ initial }: { initial: HomeData }) {
           <div role="progressbar" aria-label="Participantes com contribuição paga" aria-valuemin={0} aria-valuemax={vaquinha.total || 1} aria-valuenow={vaquinha.pagos} className="mt-5 h-1 overflow-hidden rounded-full bg-cereja/45"><div className="h-full rounded-full bg-salvia transition-[width] duration-700" style={{ width: `${progress}%` }} /></div>
           <p className="mt-3 text-xs text-marfim-3">{vaquinha.pagos} de {vaquinha.total} contribuições recebidas</p>
         </Link>
+
+        <CartaoGamificacao />
 
         <Link href="/natal" className="group flex items-center gap-4 rounded-[18px] border border-cereja/30 bg-carvao-2 p-6 focus-visible:outline-2 focus-visible:outline-champagne"><span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-cereja/60 text-cereja"><Sparkles size={24} strokeWidth={1.5} /></span><div className="min-w-0 flex-1"><p className="kicker mb-2">Novidades deste Natal</p><h2 className="display text-2xl leading-tight">Tudo do Natal</h2><p className="mt-2 text-xs text-marfim-3">Advento, ceia, caronas, jogos da noite, receitas e memórias</p></div><ArrowUpRight size={18} strokeWidth={1.5} className="shrink-0 text-champagne" /></Link>
         {secretSanta.active && !secretSanta.revealed && <Link href="/amigo-oculto" className="group relative flex items-center gap-4 overflow-hidden rounded-[18px] border border-champagne/25 bg-carvao-2 p-6"><span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-champagne/60 text-champagne"><Gift size={25} strokeWidth={1.5} /></span><div><p className="kicker mb-2">Um segredo da família</p><h2 className="display text-2xl leading-tight">Seu amigo oculto está esperando</h2><p className="mt-3 flex items-center gap-2 text-xs text-champagne">Descobrir quem é <ArrowUpRight size={15} strokeWidth={1.5} /></p></div></Link>}

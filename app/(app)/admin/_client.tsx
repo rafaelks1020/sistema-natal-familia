@@ -44,6 +44,7 @@ export default function AdminHome() {
             ['/admin/relatorio', 'Relatório da ceia'],
             ['/admin/avisos', 'Aviso agendado'],
             ['/admin/lembretes', 'Lembretes'],
+            ['/admin/gamificacao', 'Gamificação'],
           ].map(([href, rotulo]) => (
             <Link key={href} href={href} className="flex min-h-14 items-center justify-center rounded-2xl border border-linha px-3 text-center text-sm focus-visible:outline-2 focus-visible:outline-champagne">
               {rotulo}

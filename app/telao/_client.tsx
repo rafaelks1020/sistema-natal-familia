@@ -18,6 +18,8 @@ import { LareiraCena } from './cenas/Lareira';
 import { LinhaDoTempoCena } from './cenas/LinhaDoTempo';
 import { PapaiNoelCena } from './cenas/PapaiNoel';
 import { ViradaCena } from './cenas/Virada';
+import { RevelacaoBrindes } from './cenas/RevelacaoBrindes';
+import type { RevelacaoTelao } from '@/app/lib/gamificacao/tipos';
 import { useVoz } from './_voz';
 import { itemAtivo, noiteDoEvento } from './roteiro';
 import { AJUDA_VOZ, falarDuracao, falarLista, interpretarVoz, normalizar, TEXTO_AJUDA_VOZ, type AcaoVoz } from './voz';
@@ -94,6 +96,7 @@ function duracaoDe(cena: Cena, c: Ctx): number {
   if (cena === 'ceia' || cena === 'papainoel') return 30;
   if (cena === 'linha') return 30;
   if (cena === 'brinde') return BRINDE_MS / 1000;
+  if (cena === 'revelacao') return 100;
   return 25;
 }
 
@@ -136,6 +139,7 @@ export default function ScreenClient({ initial }: { initial: EstadoTelao }) {
   const [ocioso, setOcioso] = useState(false);
   const [cheia, setCheia] = useState(false);
   const [erro, setErro] = useState('');
+  const [revelacaoDisponivel, setRevelacaoDisponivel] = useState(false);
   const [qr, setQr] = useState('');
   const [qrVivo, setQrVivo] = useState('');
 
@@ -217,6 +221,33 @@ export default function ScreenClient({ initial }: { initial: EstadoTelao }) {
     }
     setCamadas((p) => [...p.slice(-1), { id, cena: nova }]);
   }, []);
+
+  useEffect(() => {
+    let vivo = true;
+    const consultar = async () => {
+      try {
+        const d = await api<RevelacaoTelao>('/api/telao/gamificacao');
+        if (!vivo || !d.revelado) return;
+        setRevelacaoDisponivel(true);
+        const contexto = ctxRef.current;
+        if (contexto && (contexto.jogoAtivo || contexto.fixa || contexto.pausado || naVirada(Date.now() + offsetRef.current, Date.parse(contexto.lean.evento.meiaNoite)))) return;
+        const chave = `telao.revelacao.${initial.ano}`;
+        let vista = false;
+        try { vista = sessionStorage.getItem(chave) === 'sim'; } catch { /* sem armazenamento, a trava local permanece */ }
+        if (vista) return;
+        try { sessionStorage.setItem(chave, 'sim'); } catch { /* navegador sem armazenamento */ }
+        if (exibida) return;
+        exibida = true;
+        const agora = Date.now() + offsetRef.current;
+        setFixaLocal({ cena: 'revelacao', ate: agora + 100000 });
+        irPara('revelacao');
+      } catch { /* a API pode aguardar a liberação dos resultados */ }
+    };
+    let exibida = false;
+    void consultar();
+    const timer = window.setInterval(() => void consultar(), 10000);
+    return () => { vivo = false; window.clearInterval(timer); };
+  }, [initial.ano, irPara]);
 
   const navegar = useCallback((delta: 1 | -1) => {
     const c = ctxRef.current;
@@ -479,8 +510,8 @@ export default function ScreenClient({ initial }: { initial: EstadoTelao }) {
             return mostrarBalao(pedido, 'Hora de cantar junto!');
         }
         if (!lista.includes(acao.cena)) {
-          const falta = { fotos: 'Ainda não tem fotos.', tocando: 'Não tem música tocando agora.', recados: 'Ainda não tem recados no mural.', advento: 'O Advento só vai de 1 a 24 de dezembro.', contagem: '' }[acao.cena];
-          return mostrarBalao(pedido, falta);
+          const falta: Partial<Record<Cena, string>> = { fotos: 'Ainda não tem fotos.', tocando: 'Não tem música tocando agora.', recados: 'Ainda não tem recados no mural.', advento: 'O Advento só vai de 1 a 24 de dezembro.', contagem: '' };
+          return mostrarBalao(pedido, falta[acao.cena] ?? 'Essa cena ainda não está disponível.');
         }
         irPara(acao.cena);
         if (acao.cena === 'tocando') return mostrarBalao(pedido, `Tocando agora: ${t?.nome}${t?.artista ? `, de ${t.artista}` : ''}.${t?.adicionada_por ? ` Pedida por ${t.adicionada_por}.` : ''}`);
@@ -588,6 +619,7 @@ export default function ScreenClient({ initial }: { initial: EstadoTelao }) {
       case 'linha': return <LinhaDoTempoCena fotos={fotosLinha} agora={now} />;
       case 'lareira': return <LareiraCena agora={now} />;
       case 'papainoel': return <PapaiNoelCena agora={now} />;
+      case 'revelacao': return <RevelacaoBrindes />;
       case 'brinde': return <BrindeCena frase={brinde?.frase ?? FRASE_BRINDE_PADRAO} inicio={brinde?.inicio ?? 0} agora={now} />;
       case 'contagem': return <ContagemCena agora={now} evento={lean.evento} />;
       case 'recados': return recados.length ? <RecadosCena recados={recados} /> : <VaziaCena />;
@@ -663,6 +695,7 @@ export default function ScreenClient({ initial }: { initial: EstadoTelao }) {
         <summary className={styles.botao}>Opções</summary>
         <div className={styles.menuCaixa}>
           <Link className="btn btn-quiet min-h-11 w-full justify-start px-4 text-sm" href="/festa">Voltar à festa</Link>
+          {revelacaoDisponivel && <button type="button" className={styles.botao} onClick={() => { setFixaLocal({ cena: 'revelacao', ate: Date.now() + offsetRef.current + 100000 }); irPara('revelacao'); }}>Revelação dos brindes</button>}
           {lean.meId && cenaAtual === 'fotos' && fotoAtual?.user_id && fotoAtual.user_id !== lean.meId && <ModerationActions key={fotoAtual.key} userId={fotoAtual.user_id} name={fotoAtual.nome} {...(fotoAtual.source === 'desafio' ? { alvoTipo: 'desafio', alvoId: fotoAtual.id } : { postId: fotoAtual.id })} />}
         </div>
       </details>

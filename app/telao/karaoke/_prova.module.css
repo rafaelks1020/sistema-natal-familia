@@ -1,0 +1,19 @@
+.raiz { min-height: 100dvh; background: #171b18; color: #f3ebdc; padding: 3vmin; }
+.topo { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; align-items: center; }
+.titulo { font: 600 clamp(2rem, 5vmin, 4rem) var(--font-display, Georgia), serif; }
+.card { border: 1px solid #bfa57766; border-radius: 18px; padding: clamp(1rem, 3vmin, 2rem); margin: 1rem auto; max-width: 1100px; }
+.card p, .card li { margin: .6rem 0; }
+.controles { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 1rem; align-items: end; }
+.controles label { display: grid; gap: .4rem; }
+.raiz button, .raiz select, .raiz input { min-height: 44px; border: 1px solid #bfa57799; border-radius: 8px; padding: .6rem 1rem; background: #242c26; color: #f3ebdc; }
+.raiz button:disabled { opacity: .45; cursor: not-allowed; }
+.raiz button { cursor: pointer; }
+.raiz a { color: #e6c98e; text-decoration: underline; }
+.oficial { background: #c5292d; color: #fff; padding: .6rem 1rem; border-radius: 40px; font-weight: 800; letter-spacing: .12em; }
+.palco { position: relative; height: 70dvh; overflow: hidden; }
+.palco header { position: relative; z-index: 3; text-align: center; padding: 1rem; font-size: 3vmin; }
+.numero { font: 700 clamp(4rem, 12vmin, 10rem) Georgia, serif; color: #e6c98e; text-align: center; }
+.erro { padding: 1rem; border: 1px solid #ef7e7e; border-radius: 10px; }
+.tabela { width: 100%; text-align: left; border-collapse: collapse; }
+.tabela td, .tabela th { padding: .6rem; border-bottom: 1px solid #bfa57744; }
+.sorteio { font: 600 clamp(2rem, 6vmin, 5rem) Georgia, serif; text-align: center; color: #e6c98e; min-height: 20vh; display: grid; align-content: center; }

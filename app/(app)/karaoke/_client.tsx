@@ -7,6 +7,7 @@ import { api } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
 import { useMe } from '@/app/ui/user';
 import MelhoresMomentos from './_momentos';
+import CardProva from './_prova';
 import { ROTULOS_ETAPA, type MusicaProcessamento } from '@/app/api/karaoke/processamento/progresso';
 import { formatarDuracao, quemCanta, ROTULO_PREPARO, slugDaMusica, type EstadoKaraoke, type ItemFila, type MusicaCatalogo, type MusicaLrclib, type VideoKaraoke } from '@/app/telao/karaoke/tipos';
 
@@ -225,6 +226,7 @@ export default function KaraokeClient() {
   const nomeFila = (f: ItemFila) => quemCanta(f);
 
   return <><PageHeader kicker="A festa canta junto" title="Karaokê da família" /><div className="space-y-6 px-5 pb-8">
+    <CardProva />
     {erro ? <div role="alert" className="surface space-y-3 p-5"><p>{erro}</p><button className="btn btn-ghost w-full" onClick={() => void carregar()}>Tentar novamente</button></div> : null}
 
     {estado?.atual ? <section className="surface space-y-1 border border-champagne p-5" aria-label="Cantando agora">

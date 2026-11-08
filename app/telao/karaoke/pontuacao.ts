@@ -22,6 +22,8 @@ export type Detalhes = {
   bonus?: number;
   /** Só no modo estúdio: pontos do bônus de sequência, maior multiplicador, maior sequência de notas e notas perfeitas. */
   comboPontos?: number;
+  pontosNotas?: number;
+  notasAcertadas?: number;
   maiorCombo?: number;
   maiorSequencia?: number;
   perfeitas?: number;
@@ -348,7 +350,7 @@ export type EstadoAoVivo = {
   quadrosValidos: number;
 };
 
-export type OpcoesMotor = { nivel?: Nivel; latenciaMs?: number; offsetMs?: number; limiar?: number; clarezaMinima?: number; cobertura?: number; erroCheio?: number; erroZero?: number; gracaMs?: number };
+export type OpcoesMotor = { nivel?: Nivel; latenciaMs?: number; offsetMs?: number; limiar?: number; clarezaMinima?: number; cobertura?: number; erroCheio?: number; erroZero?: number; gracaMs?: number; explicar?: boolean };
 
 const SEM_EVENTOS: readonly EventoAoVivo[] = Object.freeze([]);
 
@@ -578,7 +580,7 @@ export class PontuacaoAoVivo {
   }
 
   /** Fecha tudo e devolve o resultado final (a mesma conta do placar ao vivo). ruido: só para registrar nos detalhes. */
-  resultado(ruido = 0): ResultadoEstudio {
+  resultado(ruido = 0, explicar = false): ResultadoEstudio {
     this.encerrar();
     const e = this.estado();
     const ordem = [...this.linhaPerfeicao.keys()].sort((a, b) => a - b);
@@ -604,6 +606,10 @@ export class PontuacaoAoVivo {
         total,
         bonus: Math.round(this.pontosLinhas * 10) / 10,
         comboPontos: Math.round(this.pontosSequencia * 10) / 10,
+        ...(explicar ? {
+          pontosNotas: Math.round(this.pontosNotas() * 10) / 10,
+          notasAcertadas: this.notas.filter((_, i) => this.razaoDaNota(i) >= this.regua.razaoAcerto).length,
+        } : {}),
         maiorCombo: e.maiorCombo,
         maiorSequencia: e.maiorSequencia,
         perfeitas: e.notasPerfeitas,
@@ -629,7 +635,7 @@ export function pontuarEstudio(quadros: readonly Quadro[], notas: readonly NotaE
     const dt = Math.min(DT_MAX_MS, Math.max(0, proximo - f.t));
     motor.adicionarQuadro(f.m, f.hz >= HZ_MIN && f.hz <= HZ_MAX ? hzParaMidi(f.hz) : null, f.clareza, f.rms, dt);
   }
-  return motor.resultado(ruido);
+  return motor.resultado(ruido, opcoes.explicar);
 }
 
 // ---------- Medidor de plateia (energia da festa) ----------

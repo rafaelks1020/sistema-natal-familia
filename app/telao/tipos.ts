@@ -5,7 +5,7 @@ import type { ItemRoteiro } from './roteiro';
 
 export type { Slide, JogoNovo, ItemRoteiro };
 
-export const CENAS = ['fotos', 'tocando', 'contagem', 'recados', 'advento', 'virada', 'ceia', 'linha', 'lareira', 'papainoel', 'brinde', 'karaoke'] as const;
+export const CENAS = ['fotos', 'tocando', 'contagem', 'recados', 'advento', 'virada', 'ceia', 'linha', 'lareira', 'papainoel', 'brinde', 'karaoke', 'revelacao'] as const;
 export type Cena = (typeof CENAS)[number];
 
 export const NOMES_CENA: Record<Cena, string> = {
@@ -21,6 +21,7 @@ export const NOMES_CENA: Record<Cena, string> = {
   papainoel: 'Papai Noel a caminho',
   brinde: 'Hora do brinde',
   karaoke: 'Karaokê da música',
+  revelacao: 'Revelação dos brindes',
 };
 
 /** Frase da cena de brinde quando ninguém escreveu uma. */

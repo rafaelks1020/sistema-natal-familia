@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, Heart, Laugh, MessageCircle, Star, Wine, X } from 'lucide-react';
+import { Bell, Heart, Laugh, MessageCircle, Star, Trophy, Wine, X } from 'lucide-react';
 import Avatar from '@/app/ui/Avatar';
 import LoopMedia from '@/app/ui/LoopMedia';
 import { timeAgo } from '@/app/ui/client';
@@ -35,6 +35,11 @@ export function NotificationBellButton({ unread, onClick }: BellButtonProps) {
 }
 
 function describeNotification(item: NotificationItem): string {
+  if (item.type === 'conquista') {
+    if (!item.reaction_type) return 'Você desbloqueou uma nova conquista!';
+    if (item.reaction_type.startsWith('Você desbloqueou')) return item.reaction_type;
+    return `Você desbloqueou a conquista "${item.reaction_type}"!`;
+  }
   if (item.type === 'report') return 'enviou uma denúncia. Analise em Organizar.';
   if (item.type === 'post_comment') {
     return 'comentou na sua publicação.';
@@ -58,6 +63,9 @@ function describeNotification(item: NotificationItem): string {
 }
 
 function NotificationTypeBadge({ item }: { item: NotificationItem }) {
+  if (item.type === 'conquista') {
+    return <Trophy size={13} strokeWidth={1.7} className="text-champagne" />;
+  }
   if (item.type === 'post_comment') {
     return <MessageCircle size={13} strokeWidth={1.7} className="text-champagne" />;
   }
@@ -131,7 +139,9 @@ export default function NotificationsSheet({
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  if (item.type === 'report') {
+                  if (item.type === 'conquista') {
+                    window.location.href = '/conquistas';
+                  } else if (item.type === 'report') {
                     window.location.href = '/organizar';
                   } else if (item.post_id && onSelectPost) {
                     onSelectPost(item.post_id);
@@ -148,10 +158,19 @@ export default function NotificationsSheet({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm leading-snug text-marfim">
-                    <span className="font-semibold">{item.actor_name}</span>{' '}
-                    <span className="text-marfim-2">{describeNotification(item)}</span>
+                    {item.type === 'conquista' ? (
+                      <span className="font-medium text-marfim">{describeNotification(item)}</span>
+                    ) : (
+                      <>
+                        <span className="font-semibold">{item.actor_name}</span>{' '}
+                        <span className="text-marfim-2">{describeNotification(item)}</span>
+                      </>
+                    )}
                   </p>
-                  <p className="mt-1 text-xs text-marfim-3">{timeAgo(item.created_at)}</p>
+                  <p className="mt-1 text-xs text-marfim-3">
+                    {timeAgo(item.created_at)}
+                    {item.type === 'conquista' ? ' · Ver em /conquistas' : ''}
+                  </p>
                 </div>
                 {!item.read && (
                   <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-cereja" />

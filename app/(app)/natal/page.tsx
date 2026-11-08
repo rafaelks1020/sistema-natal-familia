@@ -40,7 +40,9 @@ const GRUPOS: { titulo: string; itens: Item[] }[] = [
     { href: '/capsula', titulo: 'Cápsula do tempo', texto: 'Uma mensagem que só abre no próximo Natal', icon: Hourglass },
     { href: '/arvore', titulo: 'Árvore da família', texto: 'Quem é filho de quem, de geração em geração', icon: TreePine },
     { href: '/homenagem', titulo: 'Homenagem', texto: 'Lembranças de quem partiu', icon: Flame },
-    { href: '/conquistas', titulo: 'Conquistas', texto: 'Selos e o ranking leve do ano', icon: Sparkles },
+    { href: '/pontos', titulo: 'Pontos e ranking', texto: 'Campeão do Natal, extrato de pontos e regras dos dois brindes', icon: Trophy },
+    { href: '/missoes', titulo: 'Missões relâmpago', texto: 'Desafios surpresa valendo pontos para a família', icon: Flame },
+    { href: '/conquistas', titulo: 'Conquistas', texto: 'Álbum de selos bronze, prata, ouro e lendários', icon: Sparkles },
   ] },
 ];
 

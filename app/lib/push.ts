@@ -1,10 +1,14 @@
 import { sign } from 'node:crypto';
 import { connect } from 'node:http2';
 import { after } from 'next/server';
+import { sendNotification, setVapidDetails, WebPushError } from 'web-push';
 import { query } from './db';
+import { parseAssinatura, vapidPronto } from './push-web';
 
 type Mensagem = { titulo: string; corpo: string; rota?: string };
-type Device = { id: number; user_id: number; platform: 'ios' | 'android'; token: string; last_seen_at: string };
+type Envio = 'ok' | 'invalido' | 'falhou';
+export type ResultadoPush = { recebidos: number; falharam: number };
+type Device = { id: number; user_id: number; platform: 'ios' | 'android' | 'web'; token: string; last_seen_at: string };
 type ServiceAccount = { project_id: string; client_email: string; private_key: string };
 const TIMEOUT_MS = 8_000;
 const CACHE_MS = 50 * 60 * 1000;
@@ -53,9 +57,9 @@ async function accessToken(account: ServiceAccount, key: string): Promise<string
   }
 }
 
-async function sendAndroid(device: Device, msg: Mensagem): Promise<boolean> {
+async function sendAndroid(device: Device, msg: Mensagem): Promise<Envio> {
   const key = process.env.FCM_SERVICE_ACCOUNT_B64;
-  if (!key) return false;
+  if (!key) return 'falhou';
   const account = JSON.parse(Buffer.from(key, 'base64').toString('utf8')) as ServiceAccount;
   if (!account.project_id || !account.client_email || !account.private_key) throw new Error('Conta FCM inválida');
   const token = await accessToken(account, key);
@@ -69,13 +73,13 @@ async function sendAndroid(device: Device, msg: Mensagem): Promise<boolean> {
     } }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  if (response.ok) return false;
+  if (response.ok) return 'ok';
   if (response.status === 401) fcmCache = undefined;
   const data = await response.json() as { error?: { status?: string; details?: { errorCode?: string }[] } };
   const codes = [data.error?.status, ...(data.error?.details ?? []).map((item) => item.errorCode)];
-  if (codes.some((code) => code === 'UNREGISTERED' || code === 'NOT_FOUND')) return true;
+  if (codes.some((code) => code === 'UNREGISTERED' || code === 'NOT_FOUND')) return 'invalido';
   console.error('[push:android] HTTP', response.status);
-  return false;
+  return 'falhou';
 }
 
 function apnsConfigured(): boolean {
@@ -97,8 +101,8 @@ function apnsJwt(): string {
   return token;
 }
 
-async function sendIos(device: Device, msg: Mensagem): Promise<boolean> {
-  if (!apnsConfigured()) return false;
+async function sendIos(device: Device, msg: Mensagem): Promise<Envio> {
+  if (!apnsConfigured()) return 'falhou';
   const authorization = `bearer ${apnsJwt()}`;
   const host = process.env.APNS_PRODUCTION === 'true' ? 'api.push.apple.com' : 'api.sandbox.push.apple.com';
   const result = await new Promise<{ status: number; body: string }>((resolve, reject) => {
@@ -138,27 +142,81 @@ async function sendIos(device: Device, msg: Mensagem): Promise<boolean> {
       finish(error instanceof Error ? error : new Error('Falha APNs'));
     }
   });
-  if (result.status === 200) return false;
+  if (result.status === 200) return 'ok';
   const data = result.body ? JSON.parse(result.body) as { reason?: string } : {};
-  if (result.status === 410 || data.reason === 'BadDeviceToken') return true;
+  if (result.status === 410 || data.reason === 'BadDeviceToken') return 'invalido';
   console.error('[push:ios] HTTP', result.status);
-  return false;
+  return 'falhou';
 }
 
-async function dispatch(userIds: number[], msg: Mensagem, platforms: string[]) {
+function webConfigurado(): boolean {
+  return vapidPronto({
+    publicKey: process.env.VAPID_PUBLIC_KEY,
+    privateKey: process.env.VAPID_PRIVATE_KEY,
+    subject: process.env.VAPID_SUBJECT,
+  });
+}
+
+async function sendWeb(device: Device, msg: Mensagem): Promise<Envio> {
+  const publicKey = process.env.VAPID_PUBLIC_KEY?.trim();
+  const privateKey = process.env.VAPID_PRIVATE_KEY?.trim();
+  const subject = process.env.VAPID_SUBJECT?.trim();
+  if (!publicKey || !privateKey || !subject) return 'falhou';
+  const parsed = parseAssinatura(device.token);
+  // JSON quebrado nunca vai entregar. Desativa como token inválido.
+  if (!parsed.ok) return 'invalido';
+  try {
+    setVapidDetails(subject, publicKey, privateKey);
+    await sendNotification(parsed.assinatura, JSON.stringify({
+      titulo: msg.titulo,
+      corpo: msg.corpo,
+      ...(msg.rota ? { rota: msg.rota } : {}),
+    }), { timeout: TIMEOUT_MS, TTL: 12 * 60 * 60 });
+    return 'ok';
+  } catch (error) {
+    const status = error instanceof WebPushError ? error.statusCode : undefined;
+    // 404 e 410: a assinatura morreu. Mesma saída dos tokens nativos inválidos.
+    if (status === 404 || status === 410) return 'invalido';
+    console.error('[push:web] HTTP', status ?? 'erro');
+    return 'falhou';
+  }
+}
+
+function enviar(device: Device, msg: Mensagem): Promise<Envio> {
+  if (device.platform === 'android') return sendAndroid(device, msg);
+  if (device.platform === 'web') return sendWeb(device, msg);
+  return sendIos(device, msg);
+}
+
+function plataformasConfiguradas(): string[] {
+  return [
+    ...(process.env.FCM_SERVICE_ACCOUNT_B64 ? ['android'] : []),
+    ...(apnsConfigured() ? ['ios'] : []),
+    ...(webConfigurado() ? ['web'] : []),
+  ];
+}
+
+async function dispatch(userIds: number[], msg: Mensagem, platforms: string[]): Promise<ResultadoPush> {
   const { rows } = await query<Device>(
     `SELECT id, user_id, platform, token, last_seen_at::text AS last_seen_at FROM push_devices
       WHERE user_id = ANY($1::int[]) AND disabled_at IS NULL AND platform = ANY($2::text[])`,
     [[...new Set(userIds)], platforms],
   );
+  let recebidos = 0;
+  let falharam = 0;
   // Limita conexões de rede e ao banco sem serializar todos os aparelhos.
   let next = 0;
   await Promise.all(Array.from({ length: Math.min(5, rows.length) }, async () => {
     while (next < rows.length) {
       const device = rows[next++];
       try {
-        const invalid = await (device.platform === 'android' ? sendAndroid(device, msg) : sendIos(device, msg));
-        if (invalid) {
+        const envio = await enviar(device, msg);
+        if (envio === 'ok') {
+          recebidos += 1;
+          continue;
+        }
+        falharam += 1;
+        if (envio === 'invalido') {
           // Um novo registro ou troca de dono durante o envio prevalece sobre esta resposta.
           await query(
             `UPDATE push_devices SET disabled_at = NOW()
@@ -167,19 +225,25 @@ async function dispatch(userIds: number[], msg: Mensagem, platforms: string[]) {
           );
         }
       } catch (error) {
+        falharam += 1;
         logError(device.platform, error);
       }
     }
   }));
+  return { recebidos, falharam };
+}
+
+/** Envia agora e devolve a contagem. Usado pelo teste do admin. */
+export async function enviarPushAgora(userIds: number[], msg: Mensagem): Promise<ResultadoPush> {
+  const platforms = plataformasConfiguradas();
+  if (!userIds.length || !platforms.length) return { recebidos: 0, falharam: 0 };
+  return dispatch(userIds, msg, platforms);
 }
 
 /** Agenda após a resposta, mantendo a execução viva na Vercel. Nunca rejeita. */
 export async function enviarPush(userIds: number[], msg: Mensagem): Promise<void> {
   try {
-    const platforms = [
-      ...(process.env.FCM_SERVICE_ACCOUNT_B64 ? ['android'] : []),
-      ...(apnsConfigured() ? ['ios'] : []),
-    ];
+    const platforms = plataformasConfiguradas();
     if (!userIds.length || !platforms.length) return;
     after(async () => {
       try {
