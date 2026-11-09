@@ -177,6 +177,7 @@ Cada fase sai no site na hora e no app numa versão nova das lojas (Android vers
 - [x] Play 1.1: publicada em 09/11 11h38
 - [x] Play 1.2.0 (versionCode 4, com os atalhos novos e o endereço novo de arquivos) enviada à produção em 09/11
 - [x] assetlinks.json com a chave de assinatura da Play
+- [x] Apple 1.1: rejeitada em 09/11 por 4.3 Spam / 4.2.6 (conta com muitos apps); respondidas as 9 perguntas na Central em 09/11 18h56, sem reenviar
 - [ ] Apple 1.1 aprovada e 1.2.0 (build iOS de 09/11, commit 5f1aeb2) enviada à revisão
 - [ ] (R) Reconectar o Spotify uma vez para o "tocando agora" do telão
 - [x] Telão super top no ar (/telao e /telao/controle): cenas, tocando agora, jogos ao vivo, QR, voz "Natal"
