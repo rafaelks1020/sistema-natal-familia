@@ -5,7 +5,8 @@
       "namespace": "android_app",
       "package_name": "br.com.natalemfamilia.app",
       "sha256_cert_fingerprints": [
-        "A1:6A:76:DF:97:F0:B5:A5:A8:18:6A:4E:A7:88:40:26:A3:64:1B:13:1E:89:29:96:9D:0F:BD:CC:C2:5A:B5:71"
+        "A1:6A:76:DF:97:F0:B5:A5:A8:18:6A:4E:A7:88:40:26:A3:64:1B:13:1E:89:29:96:9D:0F:BD:CC:C2:5A:B5:71",
+        "CA:06:40:5B:9F:BF:0D:5A:5F:EE:9F:C4:E1:70:53:69:96:03:67:E2:2D:10:8F:8F:88:35:24:99:8A:75:D4:3F"
       ]
     }
   }
