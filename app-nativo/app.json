@@ -21,7 +21,7 @@
         "NSUserNotificationUsageDescription": "Receba avisos da ceia e novidades da família.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "3",
+      "buildNumber": "4",
       "appleTeamId": "6XKJ3V7VW5",
       "entitlements": {
         "com.apple.security.application-groups": [
@@ -57,7 +57,7 @@
       ],
       "predictiveBackGestureEnabled": true,
       "googleServicesFile": "./google-services.json",
-      "versionCode": 3
+      "versionCode": 4
     },
     "plugins": [
       "expo-router",
