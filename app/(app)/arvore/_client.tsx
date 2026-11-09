@@ -49,7 +49,7 @@ export default function ArvoreClient({ initial }: { initial: ArvoreDados }) {
   }
 
   return <>
-    <PageHeader title="Árvore da família" kicker="Natal em Família" back="/" />
+    <PageHeader title="Árvore da família" kicker="Natal em Família" back="/familia" />
     <div className="space-y-7 px-5 pb-12">
       <p className="text-sm leading-relaxed text-marfim-2">Quem veio antes, os casais e os filhos. Toque numa pessoa para ver o cartão.</p>
       <details className="surface p-5">

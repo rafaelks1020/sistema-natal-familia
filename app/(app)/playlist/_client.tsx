@@ -131,7 +131,7 @@ export default function PlaylistClient({ initial, initialError }: { initial: Dat
     catch (cause) { toast((cause as Error).message, 'erro'); }
     finally { setSalvando(false); }
   }
-  return <><PageHeader kicker="O som da nossa festa" title="Playlist da família" /><div className="space-y-6 px-5 pb-8">
+  return <><PageHeader kicker="O som da nossa festa" title="Playlist da família" back="/familia" /><div className="space-y-6 px-5 pb-8">
     {retro?.destaque ? <Retrospectiva r={retro} /> : null}
     <div role="tablist" aria-label="Momento da noite" className="grid grid-cols-3 gap-2">{(data?.momentos || [{ id: 'jantar', nome: 'Jantar' }, { id: 'festa', nome: 'Festa' }, { id: 'amigo_oculto', nome: 'Amigo oculto' }] as { id: Momento; nome: string }[]).map(m => <button key={m.id} type="button" role="tab" aria-selected={momento === m.id} disabled={trocando} className={`btn min-h-11 px-2 text-sm ${momento === m.id ? 'btn-primary' : 'btn-ghost'}`} onClick={() => void trocarMomento(m.id)}>{m.nome}</button>)}</div>
     {data ? <p className="text-sm text-marfim-2" aria-live="polite">{data.momentos.find(m => m.id === momento)?.descricao}</p> : null}

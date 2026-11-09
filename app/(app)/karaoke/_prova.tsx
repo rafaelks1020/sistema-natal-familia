@@ -51,6 +51,6 @@ export default function CardProva() {
       {d.config.status === 'eliminatoria' ? <Link href="/telao/karaoke?modo=prova" className="btn btn-primary w-full">Abrir telão em modo Prova</Link> : null}
     </> : !erro ? <p className="text-sm text-marfim-2">A organização ainda vai confirmar as cinco músicas e as datas.</p> : null}
     {d?.admin && d.tentativas_admin ? <TentativasAdmin classe="space-y-2 text-sm" tentativas={d.tentativas_admin} aoMudar={setDados} /> : null}
-    <Link href="/karaoke/prova" className="inline-block py-2 text-sm text-champagne underline">Regulamento da Prova</Link>
+    <Link href="/karaoke/prova" className="inline-flex min-h-12 items-center text-sm text-champagne underline">Regulamento da Prova</Link>
   </section>;
 }

@@ -1,7 +1,8 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Captions, Mic2, Music4, SkipForward, Star, Trash2, Video } from 'lucide-react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { ArrowDown, ArrowUp, Captions, ChevronDown, Mic2, Music4, SkipForward, Star, Trash2, Video } from 'lucide-react';
 import PageHeader from '@/app/ui/PageHeader';
 import { api } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
@@ -17,27 +18,34 @@ function Estrelas({ n }: { n: number }) {
 
 /** Como a música vai aparecer no telão. */
 function SeloModo({ f }: { f: ItemFila }) {
-  if (f.modo === 'estudio') return <span className="mt-1 inline-flex items-center gap-1 text-xs text-champagne"><Music4 size={13} strokeWidth={1.6} aria-hidden="true" />Versão estúdio</span>;
+  if (f.modo === 'estudio') return <span className="mt-1 inline-flex items-center gap-1 text-sm text-champagne"><Music4 size={13} strokeWidth={1.6} aria-hidden="true" />Versão estúdio</span>;
   if (f.catalogo_id !== null && f.catalogo_status && f.catalogo_status !== 'pronta') {
-    return <span className="mt-1 flex flex-col text-xs text-marfim-3">
+    return <span className="mt-1 flex flex-col text-sm text-marfim-3">
       <SeloBase f={f} />
       <span className="inline-flex items-center gap-1 text-champagne"><Music4 size={13} strokeWidth={1.6} aria-hidden="true" />Versão estúdio: {ROTULO_PREPARO[f.catalogo_status]}{f.catalogo_status === 'falhou' ? ' (segue com a letra)' : ''}</span>
     </span>;
   }
   if (f.catalogo_id !== null && f.catalogo_status === 'pronta') {
-    return <span className="mt-1 flex flex-col text-xs text-marfim-3"><SeloBase f={f} /><span className="inline-flex items-center gap-1 text-champagne"><Music4 size={13} strokeWidth={1.6} aria-hidden="true" />Versão estúdio pronta: vai tocar assim</span></span>;
+    return <span className="mt-1 flex flex-col text-sm text-marfim-3"><SeloBase f={f} /><span className="inline-flex items-center gap-1 text-champagne"><Music4 size={13} strokeWidth={1.6} aria-hidden="true" />Versão estúdio pronta: vai tocar assim</span></span>;
   }
   return <SeloBase f={f} />;
 }
 
 function SeloBase({ f }: { f: ItemFila }) {
   const letra = f.modo === 'letra';
-  return <span className={`mt-1 inline-flex items-center gap-1 text-xs ${letra ? 'text-champagne' : 'text-marfim-3'}`}>
+  return <span className={`mt-1 inline-flex items-center gap-1 text-sm ${letra ? 'text-champagne' : 'text-marfim-3'}`}>
     {letra ? <Captions size={13} strokeWidth={1.6} aria-hidden="true" /> : <Video size={13} strokeWidth={1.6} aria-hidden="true" />}{letra ? 'Letra na tela' : 'Vídeo karaokê'}
   </span>;
 }
 
 const EH_LINK = /youtu\.?be|youtube\.com/i;
+const LIMITE_CATALOGO = 8;
+type Aba = 'cantar' | 'prova' | 'videos';
+const ABAS: { id: Aba; rotulo: string }[] = [
+  { id: 'cantar', rotulo: 'Cantar' },
+  { id: 'prova', rotulo: 'Prova' },
+  { id: 'videos', rotulo: 'Vídeos' },
+];
 
 function CartaoPreparo({ musica: m }: { musica: MusicaProcessamento }) {
   const terminou = m.status === 'pronta' || m.status === 'falhou';
@@ -48,7 +56,7 @@ function CartaoPreparo({ musica: m }: { musica: MusicaProcessamento }) {
     <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label={`Preparo de ${m.faixa}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={m.progresso} aria-valuetext={`${ROTULOS_ETAPA[m.etapa]}: ${m.progresso}%`}>
       <div className={`h-full rounded-full transition-[width] duration-700 ${m.status === 'falhou' ? 'bg-cereja' : 'bg-champagne'}`} style={{ width: `${m.progresso}%` }} />
     </div>
-    <p className="mt-1 text-right text-xs text-marfim-3">{m.progresso}%</p>
+    <p className="mt-1 text-right text-sm text-marfim-3">{m.progresso}%</p>
     {!terminou ? <p className="mt-1 text-sm text-marfim-2">
       {m.posicao_fila === 0 ? 'Em processamento agora' : m.posicao_fila !== null ? `${m.posicao_fila}º na fila de preparo` : 'Aguardando o preparo'}
       {m.minutos_estimados !== null ? <span className="block">Fica pronta em uns {m.minutos_estimados} {m.minutos_estimados === 1 ? 'minuto' : 'minutos'}.</span> : null}
@@ -59,6 +67,11 @@ function CartaoPreparo({ musica: m }: { musica: MusicaProcessamento }) {
 export default function KaraokeClient() {
   const me = useMe();
   const toast = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const abaParam = searchParams.get('aba');
+  const aba: Aba = abaParam === 'prova' || abaParam === 'videos' ? abaParam : 'cantar';
   const [estado, setEstado] = useState<EstadoKaraoke | null>(null);
   const [erro, setErro] = useState('');
   const [busca, setBusca] = useState('');
@@ -74,6 +87,7 @@ export default function KaraokeClient() {
   const [ocupado, setOcupado] = useState(false);
   const [catalogo, setCatalogo] = useState<MusicaCatalogo[]>([]);
   const [buscaCat, setBuscaCat] = useState('');
+  const [verTodas, setVerTodas] = useState(false);
   const [catalogoErro, setCatalogoErro] = useState('');
   const [processamentos, setProcessamentos] = useState<MusicaProcessamento[]>([]);
   const [processamentoErro, setProcessamentoErro] = useState('');
@@ -140,6 +154,7 @@ export default function KaraokeClient() {
     return () => { window.clearTimeout(t); window.clearInterval(r); };
   }, [buscaCat, carregarCatalogo]);
   const prontas = catalogo.filter((m) => m.status === 'pronta');
+  const mostradas = verTodas ? prontas : prontas.slice(0, LIMITE_CATALOGO);
   /** Música do catálogo que corresponde a um resultado do LRCLIB (pelo id ou pelo nome). */
   const doCatalogo = (m: MusicaLrclib) => catalogo.find((c) => c.lrclib_id === m.id) ?? catalogo.find((c) => c.slug === slugDaMusica(m.artista, m.faixa));
 
@@ -225,157 +240,197 @@ export default function KaraokeClient() {
   const minhas = estado ? estado.fila.map((f, i) => ({ f, pos: i + 1 })).filter(({ f }) => f.user_id === me.id || f.dueto_user_id === me.id) : [];
   const nomeFila = (f: ItemFila) => quemCanta(f);
 
-  return <><PageHeader kicker="A festa canta junto" title="Karaokê da família" /><div className="space-y-6 px-5 pb-8">
-    <CardProva />
-    {erro ? <div role="alert" className="surface space-y-3 p-5"><p>{erro}</p><button className="btn btn-ghost w-full" onClick={() => void carregar()}>Tentar novamente</button></div> : null}
+  function irParaAba(proxima: Aba) {
+    if (proxima === aba) return;
+    const params = new URLSearchParams(searchParams.toString());
+    if (proxima === 'cantar') params.delete('aba');
+    else params.set('aba', proxima);
+    const consulta = params.toString();
+    router.replace(consulta ? `${pathname}?${consulta}` : pathname, { scroll: false });
+  }
 
-    {estado?.atual ? <section className="surface space-y-1 border border-champagne p-5" aria-label="Cantando agora">
-      <p className="kicker">Cantando agora</p>
-      <p className="display break-words text-2xl">{nomeFila(estado.atual)}</p>
-      <p className="break-words text-sm text-marfim-2">{estado.atual.titulo}</p>
-      {estado.atual.modo === 'estudio' && estado.atual.parcial !== null ? <p className="text-sm text-champagne" aria-live="polite">Agora: {nomeFila(estado.atual)}, {estado.atual.parcial.toLocaleString('pt-BR')} pontos</p> : null}
-    </section> : null}
+  return <>
+    <PageHeader kicker="A festa canta junto" title="Karaokê da família" />
+    <div className="space-y-6 px-5 pb-8">
+      <div role="tablist" aria-label="Partes do karaokê" className="grid grid-cols-3 gap-1 rounded-full bg-carvao-2 p-1">
+        {ABAS.map((item) => <button key={item.id} type="button" role="tab" id={`aba-${item.id}`} aria-selected={aba === item.id} aria-controls={`painel-${item.id}`} className={`min-h-12 rounded-full px-2 text-sm font-semibold ${aba === item.id ? 'bg-cereja text-marfim' : 'text-marfim-2'}`} onClick={() => irParaAba(item.id)}>{item.rotulo}</button>)}
+      </div>
 
-    {convites.length ? <section className="surface space-y-3 border border-champagne p-5" aria-label="Desafios recebidos">
-      <p className="kicker">Você foi desafiado</p>
-      {convites.map(({ f, desafiante }) => <div key={f.id} className="space-y-2">
-        <p className="break-words font-medium">{desafiante} te desafiou em {f.titulo}</p>
-        <p className="text-sm text-marfim-2">Vocês cantam a mesma música, um de cada vez. Quando chegar a sua vez, é só cantar.</p>
-        <button type="button" className="btn btn-quiet min-h-11" disabled={ocupado} onClick={() => void recusar(f.batalha_id as string)}>Recusar</button>
-      </div>)}
-    </section> : null}
+      {aba === 'cantar' ? <div role="tabpanel" id="painel-cantar" aria-labelledby="aba-cantar" className="space-y-6">
+        {erro ? <div role="alert" className="surface space-y-3 p-5"><p>{erro}</p><button className="btn btn-ghost w-full" onClick={() => void carregar()}>Tentar novamente</button></div> : null}
 
-    {minhas.length ? <section className="surface space-y-3 p-5" aria-label="Minha posição na fila">
-      <p className="kicker">Sua vez chega já</p>
-      {minhas.map(({ f, pos }) => <div key={f.id} className="flex items-center gap-3">
-        <span className="display w-10 shrink-0 text-3xl text-champagne">{pos}º</span>
-        <div className="min-w-0"><p className="break-words font-medium">{f.titulo}</p><p className="text-sm text-marfim-2">{pos === 1 ? 'Você é o próximo! Fique perto da TV.' : `${pos - 1} ${pos === 2 ? 'pessoa' : 'pessoas'} na sua frente`}</p></div>
-      </div>)}
-    </section> : null}
-
-    {processamentos.length || processamentoErro ? <section className="surface space-y-3 p-5" aria-label="Processamento das versões estúdio">
-      <h2 className="display text-2xl">Preparando no estúdio</h2>
-      {processamentoErro ? <p className="text-sm text-marfim-2" role="status">{processamentoErro} Tentaremos atualizar novamente.</p> : null}
-      {processamentos.map((m) => <CartaoPreparo key={m.id} musica={m} />)}
-      {processamentos.some((m) => m.status !== 'pronta' && m.status !== 'falhou') ? <p className="text-xs text-marfim-3">Atualiza a cada 3 segundos. O tempo é aproximado e inclui a espera na fila.</p> : null}
-    </section> : null}
-
-    <section className="surface space-y-3 border border-champagne p-5" aria-label="Versão estúdio">
-      <h2 className="display text-2xl">Versão estúdio</h2>
-      <p className="inline-flex items-center gap-1 text-xs text-champagne"><Music4 size={14} strokeWidth={1.6} aria-hidden="true" />Estúdio: letra palavra a palavra e nota de verdade</p>
-      <label className="block text-sm">Buscar no catálogo
-        <input className="field mt-2" value={buscaCat} onChange={(e) => setBuscaCat(e.target.value)} maxLength={120} placeholder="Artista ou música" />
-      </label>
-      <label className="flex min-h-11 items-center gap-2 text-sm">
-        <input type="checkbox" checked={batalha} onChange={(e) => setBatalha(e.target.checked)} disabled={ocupado} />
-        Desafiar alguém (batalha)
-      </label>
-      {batalha ? <label className="block text-sm">Quem você quer desafiar?
-        <select className="field mt-2" value={adversario} onChange={(e) => setAdversario(e.target.value)} disabled={ocupado}>
-          <option value="">Escolha alguém da família</option>
-          {estado?.pessoas.filter((p) => p.id !== me.id).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-        </select>
-        <span className="mt-2 block text-xs text-marfim-3">Cada pessoa canta a mesma música sozinha. Vence quem ganhar mais trechos.</span>
-      </label> : null}
-      {catalogoErro ? <p className="text-sm text-marfim-2">{catalogoErro}</p> : null}
-      {!catalogoErro && !prontas.length ? <p className="text-sm text-marfim-2">{buscaCat.trim() ? 'Nada pronto com esse nome.' : 'Ainda não há músicas prontas. Peça uma na busca abaixo.'}</p> : <ul className="divide-y divide-linha">
-        {prontas.map((c) => <li key={c.id} className="flex items-center gap-3 py-3">
-          {c.capa_url ? <img src={c.capa_url} alt="" width={48} height={48} loading="lazy" className="h-12 w-12 shrink-0 rounded-lg object-cover" /> : null}
-          <div className="min-w-0 flex-1"><p className="break-words font-medium">{c.faixa}</p><p className="break-words text-sm text-marfim-2">{c.artista}</p></div>
-          <button type="button" className="btn btn-primary min-h-11 shrink-0 gap-1" disabled={ocupado || (batalha && !adversario) || (estado?.minhasPendentes ?? 0) >= (estado?.maxPendentes ?? 2)} onClick={() => void cantarEstudio(c)}><Mic2 size={18} strokeWidth={1.6} aria-hidden="true" />{batalha ? 'Desafiar' : 'Cantar'}</button>
-        </li>)}
-      </ul>}
-    </section>
-
-    <form onSubmit={buscar} className="space-y-3">
-      <h2 className="display text-2xl">Quero cantar</h2>
-      <p className="text-sm text-marfim-2">{porVideo
-        ? 'Busque um vídeo de karaokê no YouTube ou cole o link. A letra é a do próprio vídeo.'
-        : 'Busque a música: a letra aparece na TV, palavra por palavra, enquanto você canta.'} Cada pessoa pode ter até {estado?.maxPendentes ?? 2} músicas esperando.</p>
-      <label className="block text-sm">{porVideo ? 'Vídeo, música ou link' : 'Música ou artista'}
-        <input className="field mt-2" value={busca} onChange={(e) => { setBusca(e.target.value); setBuscou(false); setResultados([]); setMusicas([]); }} maxLength={120} placeholder={porVideo ? 'Então é Natal ou https://youtu.be/...' : 'Então é Natal'} required />
-      </label>
-      {estado?.pessoas.length ? <label className="block text-sm">Dueto com (opcional)
-        <select className="field mt-2" value={dueto} onChange={(e) => setDueto(e.target.value)}>
-          <option value="">Vou cantar sozinho(a)</option>
-          {estado.pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-        </select>
-      </label> : null}
-      <button className="btn btn-primary w-full" disabled={buscando || !busca.trim()}>{buscando ? 'Buscando...' : porVideo ? 'Buscar vídeo' : 'Buscar música'}</button>
-      <button type="button" className="btn btn-quiet w-full" onClick={() => { setPorVideo((v) => !v); setBuscou(false); setResultados([]); setMusicas([]); }}>{porVideo ? 'Voltar para a busca de música com letra' : 'Não achou? Buscar vídeo de karaokê no YouTube'}</button>
-    </form>
-
-    {buscou && !porVideo ? <section aria-live="polite"><h2 className="display mb-3 text-2xl">Resultado da busca</h2>
-      {!musicas.length ? <p className="text-sm text-marfim-2">Nada encontrado. Tente outro nome ou use a busca de vídeo de karaokê.</p> : <ul className="divide-y divide-linha">
-        {musicas.map((m) => <li key={m.id} className="space-y-3 py-4">
-          <div className="min-w-0">
-            <p className="break-words font-medium">{m.faixa}</p>
-            <p className="break-words text-sm text-marfim-2">{m.artista}{m.duracao_s ? ` · ${formatarDuracao(m.duracao_s)}` : ''}</p>
-            {m.sincronizada
-              ? <span className="mt-1 inline-flex items-center gap-1 text-xs text-champagne"><Captions size={13} strokeWidth={1.6} aria-hidden="true" />Letra sincronizada</span>
-              : <span className="mt-1 inline-flex items-center gap-1 text-xs text-marfim-3"><Video size={13} strokeWidth={1.6} aria-hidden="true" />Sem letra sincronizada: toca o vídeo de karaokê</span>}
-          </div>
-          {(() => {
-            const c = doCatalogo(m);
-            const cheio = ocupado || (estado?.minhasPendentes ?? 0) >= (estado?.maxPendentes ?? 2);
-            if (c?.status === 'pronta') return <>
-              <span className="inline-flex items-center gap-1 text-xs text-champagne"><Music4 size={13} strokeWidth={1.6} aria-hidden="true" />Estúdio: letra palavra a palavra e nota de verdade</span>
-              <button type="button" className="btn btn-primary w-full gap-2" disabled={cheio || (batalha && !adversario)} onClick={() => void cantarEstudio(c)}><Mic2 size={18} strokeWidth={1.6} aria-hidden="true" />{ocupado ? 'Preparando...' : batalha ? 'Desafiar nesta música' : 'Quero cantar'}</button>
-            </>;
-            return <>
-              {c && c.status !== 'falhou' ? <span className="block text-xs text-champagne">Preparando versão estúdio. Acompanhe a etapa e a previsão acima.</span> : null}
-              <button type="button" className="btn btn-primary w-full gap-2" disabled={cheio} onClick={() => void cantarMusica(m)}><Mic2 size={18} strokeWidth={1.6} aria-hidden="true" />{ocupado ? 'Preparando...' : 'Quero cantar'}</button>
-              {!c ? <span className="block text-xs text-marfim-3">Também preparamos a versão estúdio. Você acompanha o progresso ao vivo.</span> : null}
-            </>;
-          })()}
-        </li>)}
-      </ul>}
-    </section> : null}
-
-    {buscou && porVideo ? <section aria-live="polite"><h2 className="display mb-3 text-2xl">Resultado da busca</h2>
-      {!resultados.length ? <p className="text-sm text-marfim-2">Nada encontrado. Tente outro nome ou cole o link do vídeo.</p> : <ul className="divide-y divide-linha">
-        {resultados.map((v) => <li key={v.video_id} className="space-y-3 py-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <img src={v.miniatura} alt="" width={112} height={63} loading="lazy" className="h-16 w-28 shrink-0 rounded-xl object-cover" />
-            <div className="min-w-0"><p className="line-clamp-2 break-words font-medium">{v.titulo}</p><p className="break-words text-sm text-marfim-2">{v.canal}{v.duracao_s ? ` · ${formatarDuracao(v.duracao_s)}` : ''}</p></div>
-          </div>
-          <button type="button" className="btn btn-primary w-full gap-2" disabled={ocupado || (estado?.minhasPendentes ?? 0) >= (estado?.maxPendentes ?? 2)} onClick={() => void cantar(v)}><Mic2 size={18} strokeWidth={1.6} aria-hidden="true" />Quero cantar</button>
-        </li>)}
-      </ul>}
-    </section> : null}
-
-    <section><h2 className="display text-2xl">Fila da noite</h2>
-      {!estado?.fila.length ? <p className="py-4 text-sm text-marfim-2">A fila está vazia. A primeira música pode ser a sua!</p> : <ol className="divide-y divide-linha">
-        {estado.fila.map((f, i) => <li key={f.id} className="space-y-2 py-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="display w-8 shrink-0 text-xl text-champagne">{i + 1}</span>
-            <div className="min-w-0 flex-1"><p className="break-words font-medium">{nomeFila(f)}</p><p className="break-words text-sm text-marfim-2">{f.titulo}</p><SeloModo f={f} /></div>
-          </div>
-          {me.is_admin ? <div className="flex flex-wrap gap-2" role="group" aria-label={`Organizar ${f.titulo}`}>
-            <button type="button" className="btn btn-quiet min-h-11" disabled={ocupado || i === 0} aria-label="Subir na fila" onClick={() => void admin(f.id, 'subir')}><ArrowUp size={18} aria-hidden="true" /></button>
-            <button type="button" className="btn btn-quiet min-h-11" disabled={ocupado || i === estado.fila.length - 1} aria-label="Descer na fila" onClick={() => void admin(f.id, 'descer')}><ArrowDown size={18} aria-hidden="true" /></button>
-            <button type="button" className="btn btn-quiet min-h-11 gap-1" disabled={ocupado} onClick={() => void admin(f.id, 'pular')}><SkipForward size={18} aria-hidden="true" />Pular</button>
-            <button type="button" className="btn btn-quiet min-h-11 gap-1" disabled={ocupado} onClick={() => void admin(f.id, 'remover')}><Trash2 size={18} aria-hidden="true" />Remover</button>
+        <section className="space-y-4" aria-label="Fila da noite">
+          <h2 className="display text-2xl">Fila da noite</h2>
+          {estado?.atual ? <div className="surface space-y-1 border border-champagne p-5" aria-label="Cantando agora">
+            <p className="kicker">Cantando agora</p>
+            <p className="display break-words text-2xl">{nomeFila(estado.atual)}</p>
+            <p className="break-words text-sm text-marfim-2">{estado.atual.titulo}</p>
+            {estado.atual.modo === 'estudio' && estado.atual.parcial !== null ? <p className="text-sm text-champagne" aria-live="polite">Agora: {nomeFila(estado.atual)}, {estado.atual.parcial.toLocaleString('pt-BR')} pontos</p> : null}
           </div> : null}
-        </li>)}
-      </ol>}
-    </section>
 
-    {estado?.ranking.length ? <section><h2 className="display text-2xl">Ranking da noite</h2><p className="mt-2 text-xs text-marfim-3">Vale a melhor nota de cada pessoa.</p>
-      <ol className="divide-y divide-linha">{estado.ranking.map((r, i) => <li key={r.user_id} className="flex items-center gap-3 py-3">
-        <span className="display w-8 shrink-0 text-xl text-champagne">{i + 1}</span>
-        <span className="min-w-0 flex-1 break-words">{r.nome}<span className="block text-xs text-marfim-3">{r.cantadas} {r.cantadas === 1 ? 'música' : 'músicas'} · média {r.media}</span></span>
-        <span className="display shrink-0 text-2xl">{r.melhor}</span>
-      </li>)}</ol>
-    </section> : null}
+          {convites.length ? <div className="surface space-y-3 border border-champagne p-5" aria-label="Desafios recebidos">
+            <p className="kicker">Você foi desafiado</p>
+            {convites.map(({ f, desafiante }) => <div key={f.id} className="space-y-2">
+              <p className="break-words font-medium">{desafiante} te desafiou em {f.titulo}</p>
+              <p className="text-sm text-marfim-2">Vocês cantam a mesma música, um de cada vez. Quando chegar a sua vez, é só cantar.</p>
+              <button type="button" className="btn btn-quiet" style={{ minHeight: 48 }} disabled={ocupado} onClick={() => void recusar(f.batalha_id as string)}>Recusar</button>
+            </div>)}
+          </div> : null}
 
-    <MelhoresMomentos />
+          {minhas.length ? <div className="surface space-y-3 p-5" aria-label="Minha posição na fila">
+            <p className="kicker">Sua vez chega já</p>
+            {minhas.map(({ f, pos }) => <div key={f.id} className="flex items-center gap-3">
+              <span className="display w-10 shrink-0 text-3xl text-champagne">{pos}º</span>
+              <div className="min-w-0"><p className="break-words font-medium">{f.titulo}</p><p className="text-sm text-marfim-2">{pos === 1 ? 'Você é o próximo! Fique perto da TV.' : `${pos - 1} ${pos === 2 ? 'pessoa' : 'pessoas'} na sua frente`}</p></div>
+            </div>)}
+          </div> : null}
 
-    {estado?.feitas.length ? <section><h2 className="display text-2xl">Já cantaram</h2>
-      <ul className="divide-y divide-linha">{estado.feitas.map((f) => <li key={f.id} className="flex items-center gap-3 py-3">
-        <div className="min-w-0 flex-1"><p className="break-words font-medium">{nomeFila(f)}</p><p className="break-words text-sm text-marfim-2">{f.titulo}</p></div>
-        {f.nota !== null && f.estrelas !== null ? <div className="shrink-0 text-right"><p className="display text-xl">{f.nota}</p><Estrelas n={f.estrelas} /></div> : null}
-      </li>)}</ul>
-    </section> : null}
-  </div></>;
+          {estado && !estado.fila.length ? <p className="text-sm text-marfim-2">A fila está vazia. A primeira música pode ser a sua!</p> : null}
+          {estado?.fila.length ? <ol className="divide-y divide-linha">
+            {estado.fila.map((f, i) => <li key={f.id} className="space-y-2 py-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="display w-8 shrink-0 text-xl text-champagne">{i + 1}</span>
+                <div className="min-w-0 flex-1">
+                  {i === 0 ? <p className="text-sm font-medium text-champagne">Próximo</p> : null}
+                  <p className="break-words font-medium">{nomeFila(f)}</p>
+                  <p className="break-words text-sm text-marfim-2">{f.titulo}</p>
+                  <SeloModo f={f} />
+                </div>
+              </div>
+              {me.is_admin ? <div className="flex flex-wrap gap-2" role="group" aria-label={`Organizar ${f.titulo}`}>
+                <button type="button" className="btn btn-quiet" style={{ minHeight: 48 }} disabled={ocupado || i === 0} aria-label="Subir na fila" onClick={() => void admin(f.id, 'subir')}><ArrowUp size={18} aria-hidden="true" /></button>
+                <button type="button" className="btn btn-quiet" style={{ minHeight: 48 }} disabled={ocupado || i === estado.fila.length - 1} aria-label="Descer na fila" onClick={() => void admin(f.id, 'descer')}><ArrowDown size={18} aria-hidden="true" /></button>
+                <button type="button" className="btn btn-quiet gap-1" style={{ minHeight: 48 }} disabled={ocupado} onClick={() => void admin(f.id, 'pular')}><SkipForward size={18} aria-hidden="true" />Pular</button>
+                <button type="button" className="btn btn-quiet gap-1" style={{ minHeight: 48 }} disabled={ocupado} onClick={() => void admin(f.id, 'remover')}><Trash2 size={18} aria-hidden="true" />Remover</button>
+              </div> : null}
+            </li>)}
+          </ol> : null}
+        </section>
+
+        <section className="surface space-y-3 border border-champagne p-5" aria-label="Escolha sua música">
+          <h2 className="display text-2xl">Escolha sua música</h2>
+          <p className="inline-flex items-center gap-1 text-sm text-champagne"><Music4 size={16} strokeWidth={1.6} aria-hidden="true" />Versão estúdio: letra palavra a palavra e nota de verdade</p>
+          <label className="block text-sm">Buscar no catálogo
+            <input className="field mt-2" value={buscaCat} onChange={(e) => { setBuscaCat(e.target.value); setVerTodas(false); }} maxLength={120} placeholder="Artista ou música" />
+          </label>
+          <label className="flex min-h-12 items-center gap-2 text-sm">
+            <input type="checkbox" checked={batalha} onChange={(e) => setBatalha(e.target.checked)} disabled={ocupado} />
+            Desafiar alguém (batalha)
+          </label>
+          {batalha ? <label className="block text-sm">Quem você quer desafiar?
+            <select className="field mt-2" value={adversario} onChange={(e) => setAdversario(e.target.value)} disabled={ocupado}>
+              <option value="">Escolha alguém da família</option>
+              {estado?.pessoas.filter((p) => p.id !== me.id).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            </select>
+            <span className="mt-2 block text-sm text-marfim-2">Cada pessoa canta a mesma música sozinha. Vence quem ganhar mais trechos.</span>
+          </label> : null}
+          {estado?.pessoas.length ? <label className="block text-sm">Dueto com (opcional)
+            <select className="field mt-2" value={dueto} onChange={(e) => setDueto(e.target.value)}>
+              <option value="">Vou cantar sozinho(a)</option>
+              {estado.pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            </select>
+          </label> : null}
+          {catalogoErro ? <p className="text-sm text-marfim-2">{catalogoErro}</p> : null}
+          {!catalogoErro && !prontas.length ? <p className="text-sm text-marfim-2">{buscaCat.trim() ? 'Nada pronto com esse nome.' : 'Ainda não há músicas prontas. Peça uma na busca abaixo.'}</p> : <ul className="divide-y divide-linha">
+            {mostradas.map((c) => <li key={c.id} className="flex items-center gap-3 py-3">
+              {c.capa_url ? <img src={c.capa_url} alt="" width={48} height={48} loading="lazy" className="h-12 w-12 shrink-0 rounded-lg object-cover" /> : null}
+              <div className="min-w-0 flex-1"><p className="break-words font-medium">{c.faixa}</p><p className="break-words text-sm text-marfim-2">{c.artista}</p></div>
+              <button type="button" className="btn btn-primary min-h-12 shrink-0 gap-1" disabled={ocupado || (batalha && !adversario) || (estado?.minhasPendentes ?? 0) >= (estado?.maxPendentes ?? 2)} onClick={() => void cantarEstudio(c)}><Mic2 size={18} strokeWidth={1.6} aria-hidden="true" />{batalha ? 'Desafiar' : 'Cantar'}</button>
+            </li>)}
+          </ul>}
+          {!catalogoErro && prontas.length > LIMITE_CATALOGO && !verTodas ? <button type="button" className="btn btn-ghost min-h-12 w-full" onClick={() => setVerTodas(true)}>Ver todas as músicas ({prontas.length})</button> : null}
+          {!catalogoErro && prontas.length > LIMITE_CATALOGO && verTodas ? <button type="button" className="btn btn-ghost min-h-12 w-full" onClick={() => setVerTodas(false)}>Mostrar menos</button> : null}
+        </section>
+
+        {processamentos.length || processamentoErro ? <section className="surface space-y-3 p-5" aria-label="Processamento das versões estúdio">
+          <h2 className="display text-2xl">Preparando no estúdio</h2>
+          {processamentoErro ? <p className="text-sm text-marfim-2" role="status">{processamentoErro} Tentaremos atualizar novamente.</p> : null}
+          {processamentos.map((m) => <CartaoPreparo key={m.id} musica={m} />)}
+          {processamentos.some((m) => m.status !== 'pronta' && m.status !== 'falhou') ? <p className="text-sm text-marfim-3">Atualiza a cada 3 segundos. O tempo é aproximado e inclui a espera na fila.</p> : null}
+        </section> : null}
+
+        <details className="group">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 text-sm text-marfim-2 [&::-webkit-details-marker]:hidden">
+            <span>Não achou? Buscar no YouTube</span>
+            <ChevronDown size={18} strokeWidth={1.6} aria-hidden="true" className="shrink-0 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="space-y-6 pt-4">
+            <form onSubmit={buscar} className="space-y-3">
+              <h2 className="display text-2xl">Quero cantar</h2>
+              <p className="text-sm text-marfim-2">{porVideo
+                ? 'Busque um vídeo de karaokê no YouTube ou cole o link. A letra é a do próprio vídeo.'
+                : 'Busque a música: a letra aparece na TV, palavra por palavra, enquanto você canta.'} Cada pessoa pode ter até {estado?.maxPendentes ?? 2} músicas esperando.</p>
+              <label className="block text-sm">{porVideo ? 'Vídeo, música ou link' : 'Música ou artista'}
+                <input className="field mt-2" value={busca} onChange={(e) => { setBusca(e.target.value); setBuscou(false); setResultados([]); setMusicas([]); }} maxLength={120} placeholder={porVideo ? 'Então é Natal ou https://youtu.be/...' : 'Então é Natal'} required />
+              </label>
+              <button className="btn btn-primary w-full" disabled={buscando || !busca.trim()}>{buscando ? 'Buscando...' : porVideo ? 'Buscar vídeo' : 'Buscar música'}</button>
+              <button type="button" className="btn btn-quiet w-full" style={{ minHeight: 48 }} onClick={() => { setPorVideo((v) => !v); setBuscou(false); setResultados([]); setMusicas([]); }}>{porVideo ? 'Voltar para a busca de música com letra' : 'Não achou? Buscar vídeo de karaokê no YouTube'}</button>
+            </form>
+
+            {buscou && !porVideo ? <section aria-live="polite"><h2 className="display mb-3 text-2xl">Resultado da busca</h2>
+              {!musicas.length ? <p className="text-sm text-marfim-2">Nada encontrado. Tente outro nome ou use a busca de vídeo de karaokê.</p> : <ul className="divide-y divide-linha">
+                {musicas.map((m) => <li key={m.id} className="space-y-3 py-4">
+                  <div className="min-w-0">
+                    <p className="break-words font-medium">{m.faixa}</p>
+                    <p className="break-words text-sm text-marfim-2">{m.artista}{m.duracao_s ? ` · ${formatarDuracao(m.duracao_s)}` : ''}</p>
+                    {m.sincronizada
+                      ? <span className="mt-1 inline-flex items-center gap-1 text-sm text-champagne"><Captions size={16} strokeWidth={1.6} aria-hidden="true" />Letra sincronizada</span>
+                      : <span className="mt-1 inline-flex items-center gap-1 text-sm text-marfim-2"><Video size={16} strokeWidth={1.6} aria-hidden="true" />Sem letra sincronizada: toca o vídeo de karaokê</span>}
+                  </div>
+                  {(() => {
+                    const c = doCatalogo(m);
+                    const cheio = ocupado || (estado?.minhasPendentes ?? 0) >= (estado?.maxPendentes ?? 2);
+                    if (c?.status === 'pronta') return <>
+                      <span className="inline-flex items-center gap-1 text-sm text-champagne"><Music4 size={16} strokeWidth={1.6} aria-hidden="true" />Estúdio: letra palavra a palavra e nota de verdade</span>
+                      <button type="button" className="btn btn-primary w-full gap-2" disabled={cheio || (batalha && !adversario)} onClick={() => void cantarEstudio(c)}><Mic2 size={18} strokeWidth={1.6} aria-hidden="true" />{ocupado ? 'Preparando...' : batalha ? 'Desafiar nesta música' : 'Quero cantar'}</button>
+                    </>;
+                    return <>
+                      {c && c.status !== 'falhou' ? <span className="block text-sm text-champagne">Preparando versão estúdio. Acompanhe a etapa e a previsão acima.</span> : null}
+                      <button type="button" className="btn btn-primary w-full gap-2" disabled={cheio} onClick={() => void cantarMusica(m)}><Mic2 size={18} strokeWidth={1.6} aria-hidden="true" />{ocupado ? 'Preparando...' : 'Quero cantar'}</button>
+                      {!c ? <span className="block text-sm text-marfim-2">Também preparamos a versão estúdio. Você acompanha o progresso ao vivo.</span> : null}
+                    </>;
+                  })()}
+                </li>)}
+              </ul>}
+            </section> : null}
+
+            {buscou && porVideo ? <section aria-live="polite"><h2 className="display mb-3 text-2xl">Resultado da busca</h2>
+              {!resultados.length ? <p className="text-sm text-marfim-2">Nada encontrado. Tente outro nome ou cole o link do vídeo.</p> : <ul className="divide-y divide-linha">
+                {resultados.map((v) => <li key={v.video_id} className="space-y-3 py-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <img src={v.miniatura} alt="" width={112} height={63} loading="lazy" className="h-16 w-28 shrink-0 rounded-xl object-cover" />
+                    <div className="min-w-0"><p className="line-clamp-2 break-words font-medium">{v.titulo}</p><p className="break-words text-sm text-marfim-2">{v.canal}{v.duracao_s ? ` · ${formatarDuracao(v.duracao_s)}` : ''}</p></div>
+                  </div>
+                  <button type="button" className="btn btn-primary w-full gap-2" disabled={ocupado || (estado?.minhasPendentes ?? 0) >= (estado?.maxPendentes ?? 2)} onClick={() => void cantar(v)}><Mic2 size={18} strokeWidth={1.6} aria-hidden="true" />Quero cantar</button>
+                </li>)}
+              </ul>}
+            </section> : null}
+          </div>
+        </details>
+
+        {estado?.ranking.length ? <section><h2 className="display text-2xl">Ranking da noite</h2><p className="mt-2 text-sm text-marfim-2">Vale a melhor nota de cada pessoa.</p>
+          <ol className="divide-y divide-linha">{estado.ranking.map((r, i) => <li key={r.user_id} className="flex items-center gap-3 py-3">
+            <span className="display w-8 shrink-0 text-xl text-champagne">{i + 1}</span>
+            <span className="min-w-0 flex-1 break-words">{r.nome}<span className="block text-sm text-marfim-2">{r.cantadas} {r.cantadas === 1 ? 'música' : 'músicas'}, média {r.media}</span></span>
+            <span className="display shrink-0 text-2xl">{r.melhor}</span>
+          </li>)}</ol>
+        </section> : null}
+
+        {estado?.feitas.length ? <section><h2 className="display text-2xl">Já cantaram</h2>
+          <ul className="divide-y divide-linha">{estado.feitas.map((f) => <li key={f.id} className="flex items-center gap-3 py-3">
+            <div className="min-w-0 flex-1"><p className="break-words font-medium">{nomeFila(f)}</p><p className="break-words text-sm text-marfim-2">{f.titulo}</p></div>
+            {f.nota !== null && f.estrelas !== null ? <div className="shrink-0 text-right"><p className="display text-xl">{f.nota}</p><Estrelas n={f.estrelas} /></div> : null}
+          </li>)}</ul>
+        </section> : null}
+      </div> : null}
+
+      {aba === 'prova' ? <div role="tabpanel" id="painel-prova" aria-labelledby="aba-prova">
+        <CardProva />
+      </div> : null}
+
+      {aba === 'videos' ? <div role="tabpanel" id="painel-videos" aria-labelledby="aba-videos">
+        <MelhoresMomentos />
+      </div> : null}
+    </div>
+  </>;
 }

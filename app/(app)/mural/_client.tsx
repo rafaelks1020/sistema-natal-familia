@@ -432,6 +432,7 @@ export default function MuralClient({ initial }: { initial: PostItem[] }) {
       <PageHeader
         kicker="Memórias e conversas"
         title="Mural da família"
+        back="/familia"
         action={<NotificationBellButton unread={unreadCount} onClick={openNotifications} />}
       />
 

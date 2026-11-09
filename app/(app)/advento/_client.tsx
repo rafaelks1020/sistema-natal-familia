@@ -165,7 +165,7 @@ export default function AdventoClient({ initial }: { initial: CalendarioAdvento 
           100% { transform: perspective(720px) rotateY(-90deg); }
         }
       `}</style>
-      <PageHeader kicker={`Edição ${cal.ano}`} title="Advento" back="/" />
+      <PageHeader kicker={`Edição ${cal.ano}`} title="Advento" back="/ceia" />
       <div className="px-5 pb-8">
         {escolhido == null || !resumo ? (
           <>

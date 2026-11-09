@@ -84,7 +84,7 @@ export default function AmigoOcultoClient({ initialSanta, initialWishes, initial
 
   return (
     <div>
-      <PageHeader kicker="Natal em família" title="Amigo oculto" />
+      <PageHeader kicker="Natal em família" title="Amigo oculto" back="/ceia" />
       <div className="space-y-10 px-5">
         <Extras initialTheme={initialTheme} initialHints={initialHints} initialHistory={initialHistory} canSend={!!santa?.draw?.revealed} configId={santa?.config?.id ?? null} main={main} />
         {wishes && (

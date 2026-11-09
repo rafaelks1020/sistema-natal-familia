@@ -47,7 +47,7 @@ export default function BookClient({ kind, items, ano, detail = false }: { kind:
     catch (error) { toast((error as Error).message, 'erro'); } finally { setBusy(false); }
   }
   return <main className="mx-auto w-full min-w-0 max-w-3xl pb-28">
-    <PageHeader kicker={`Memórias da família · Natal ${ano}`} title={recipe ? 'Livro de receitas' : 'Histórias em áudio'} back={detail ? `/${kind}` : '/'} />
+    <PageHeader kicker={`Memórias da família · Natal ${ano}`} title={recipe ? 'Livro de receitas' : 'Histórias em áudio'} back={detail ? `/${kind}` : '/familia'} />
     <div className="space-y-6 px-5">
       <p className="text-marfim-2">{recipe ? 'O sabor que atravessa gerações. Guarde a receita e o segredo de quem faz.' : 'Como era o Natal antigamente? Sente com quem viveu e guarde essa voz para a família.'}</p>
       {!detail ? <>

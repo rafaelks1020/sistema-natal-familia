@@ -50,7 +50,7 @@ export default function CapsulaClient({ initial }: { initial: CapsulaDados }) {
       }
       .capsula-lacre { animation: capsula-lacre 1.6s ease forwards; }
     `}</style>
-    <PageHeader title="Cápsula do tempo" kicker={`Natal ${data.ano}`} back="/" />
+    <PageHeader title="Cápsula do tempo" kicker={`Natal ${data.ano}`} back="/familia" />
     <div className="space-y-7 px-5 pb-12">
       <p className="text-sm leading-relaxed text-marfim-2">Escreva hoje. A mensagem fica lacrada e só abre na ceia do ano que vem, em {data.abertura_texto}.</p>
       <section className="surface p-5">

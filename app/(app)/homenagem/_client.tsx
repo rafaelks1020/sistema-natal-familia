@@ -38,7 +38,7 @@ export default function HomenagemClient({ initial }: { initial: HomenagemDados }
   }
 
   return <>
-    <PageHeader title="Homenagens" kicker="Natal em Família" back="/" />
+    <PageHeader title="Homenagens" kicker="Natal em Família" back="/familia" />
     <div className="space-y-7 px-5 pb-12">
       <p className="text-sm leading-relaxed text-marfim-2">Um lugar quieto para lembrar de quem a gente ama.</p>
       <details className="surface p-5">

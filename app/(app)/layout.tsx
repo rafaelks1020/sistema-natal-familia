@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import AtivarNotificacoes from '@/app/components/AtivarNotificacoes';
 import { getSessionUser } from '@/app/lib/session';
 import BottomNav from '@/app/ui/BottomNav';
 import { ToastProvider } from '@/app/ui/toast';
@@ -15,7 +14,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <UserProvider user={user}>
       <ToastProvider>
         <main className="pb-nav mx-auto min-h-dvh max-w-lg">
-          <AtivarNotificacoes modo="banner" />
           {children}
         </main>
         <BottomNav />

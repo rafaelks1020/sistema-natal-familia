@@ -145,7 +145,7 @@ export default function CartaoClient() {
 
   return (
     <>
-      <PageHeader kicker="Para mandar a quem você ama" title="Cartão de Natal" back="/" />
+      <PageHeader kicker="Para mandar a quem você ama" title="Cartão de Natal" back="/familia" />
 
       <section className="rise px-5">
         <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-[18px] border border-linha bg-carvao-2" style={{ aspectRatio: '1080 / 1350' }}>

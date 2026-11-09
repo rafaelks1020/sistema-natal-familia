@@ -220,6 +220,7 @@ export default function VaquinhaClient({ initial }: { initial: VaquinhaData }) {
       <PageHeader
         kicker="Livro da ceia"
         title="Vaquinha"
+        back="/ceia"
         action={
           me.is_admin ? (
             <button
@@ -233,6 +234,10 @@ export default function VaquinhaClient({ initial }: { initial: VaquinhaData }) {
           ) : null
         }
       />
+      <div className="grid grid-cols-2 gap-3 px-5 pb-5">
+        <Link href="/contas-da-ceia" className="btn btn-ghost w-full">Contas da ceia</Link>
+        <Link href="/pagar" className="btn btn-ghost w-full">Pagar minha parte</Link>
+      </div>
 
       <div className="px-5">
         {loading && !data ? (

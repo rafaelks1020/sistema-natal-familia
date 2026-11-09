@@ -27,7 +27,7 @@ export default function CaronasClient({ initial, me }: { initial: CaronasData; m
   }
   const ofertas = data.ofertas.filter(o => o.tipo.endsWith(`_${aba}`));
   return <>
-    <PageHeader title="Caronas e hospedagem" kicker={`Natal ${data.ano}`} back="/" />
+    <PageHeader title="Caronas e hospedagem" kicker={`Natal ${data.ano}`} back="/ceia" />
     <main className="space-y-7 px-5 pb-12">
       <p className="text-sm text-marfim-2">Um lugar no carro ou em casa para celebrar juntos.</p>
       <details className="surface p-5">

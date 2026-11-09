@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import PageHeader from '@/app/ui/PageHeader';
 export default function RegulamentoProva() {
-  return <><PageHeader kicker="Brinde Voz do Natal" title="Regulamento da Prova" back="/karaoke" />
+  return <><PageHeader kicker="Brinde Voz do Natal" title="Regulamento da Prova" back="/karaoke?aba=prova" />
     <article className="space-y-5 px-5 pb-10 text-marfim-2">
       <section className="surface space-y-3 p-5"><h2 className="display text-2xl text-marfim">Uma chance para cada música</h2>
         <p>A organização confirma cinco músicas do catálogo e anuncia as datas. Na eliminatória, você canta essas músicas no telão em casa ou com a família, sempre em modo Prova.</p>

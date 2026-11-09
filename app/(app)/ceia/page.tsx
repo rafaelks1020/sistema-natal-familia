@@ -10,7 +10,7 @@ export default async function CeiaPage() {
   const inicial = await carregarCeia(me);
   return (
     <>
-      <PageHeader kicker="A mesa da família" title="Ceia" back="/" />
+      <PageHeader kicker="A mesa da família" title="Ceia" />
       <CeiaClient inicial={inicial} />
     </>
   );

@@ -30,7 +30,7 @@ export default function ContasClient({ initial, me }: { initial: ContasData; me:
     catch { toast('Não foi possível copiar. Selecione a chave e copie.', 'erro'); }
   }
   return <>
-    <PageHeader title="Contas da ceia" kicker={`Natal ${data.ano}`} back="/" />
+    <PageHeader title="Contas da ceia" kicker={`Natal ${data.ano}`} back="/vaquinha" />
     <main className="space-y-7 px-5 pb-12">
       <p className="text-sm text-marfim-2">Dividam as compras feitas por cada pessoa. Este controle é separado da vaquinha.</p>
       <section className="surface space-y-2 p-5"><p className="kicker">Despesas desta edição</p><p className="display text-4xl">{brl(data.total_centavos / 100)}</p></section>

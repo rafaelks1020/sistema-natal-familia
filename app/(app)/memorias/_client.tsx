@@ -27,7 +27,7 @@ export function EditionCard({ edition }: { edition: MemoryEdition }) {
   </article>;
 }
 export default function MemoriesClient({ today, editions, timeline = false }: { today: AlbumItem[]; editions: MemoryEdition[]; timeline?: boolean }) {
-  return <div className="pb-28"><PageHeader title={timeline ? 'Linha do tempo' : 'Nossas memórias'} kicker="Cada Natal tem uma história" back={timeline ? '/memorias' : '/album'} />
+  return <div className="pb-28"><PageHeader title={timeline ? 'Linha do tempo' : 'Nossas memórias'} kicker="Cada Natal tem uma história" back={timeline ? '/memorias' : '/familia'} />
     <div className="space-y-6 px-5">{!timeline && <section className="space-y-4 rounded-2xl border border-linha bg-carvao-2 p-4"><p className="kicker">Neste dia</p><h2 className="display text-2xl">Lembra deste momento?</h2>
       {today.length ? <div className="grid grid-cols-2 gap-3">{today.map(p => <MemoryPhoto key={p.key} photo={p} />)}</div> : <p className="text-sm text-marfim-2">Ainda não temos fotos de outros Natais tiradas neste mesmo dia e mês. Continue guardando os momentos da família.</p>}
       <Link className="btn btn-ghost w-full" href="/memorias/linha-do-tempo">Explorar a linha do tempo</Link>

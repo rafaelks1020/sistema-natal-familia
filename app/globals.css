@@ -12,7 +12,7 @@
   --carvao-3: #252b27;      /* superfície elevada / campo */
   --marfim: #f3ebdc;
   --marfim-2: #cfc6b6;      /* texto secundário */
-  --marfim-3: #8f887c;      /* texto apagado */
+  --marfim-3: #aaa395;      /* texto apagado */
   --cereja: #c5292d;
   --cereja-2: #a51f23;
   --champagne: #bfa577;
@@ -35,6 +35,10 @@
   --color-salvia: var(--salvia);
   --color-linha: var(--linha);
   --color-linha-forte: var(--linha-forte);
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.35;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.45;
   --font-display: var(--font-bodoni), "Bodoni Moda", Georgia, serif;
   --font-sans: var(--font-manrope), "Manrope", system-ui, sans-serif;
   --ease-cine: cubic-bezier(0.22, 1, 0.36, 1);
@@ -102,9 +106,9 @@ body[data-tela-limpa]::after { display: none; }
   font-weight: 400;
 }
 .kicker {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--champagne);
 }

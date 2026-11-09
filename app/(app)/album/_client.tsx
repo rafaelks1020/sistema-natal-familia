@@ -62,7 +62,7 @@ export default function AlbumClient({ initial, metadata, ano, pessoa }: { initia
   }
   const visible = items.filter(p => source === 'tudo' || p.source === source);
   const photo = visible.find(p => p.key === selected);
-  return <div className="pb-28"><PageHeader kicker="Memórias que ficam" title="Álbum da família" action={<Link className="btn btn-quiet" href="/memorias">Memórias</Link>} />
+  return <div className="pb-28"><PageHeader kicker="Memórias que ficam" title="Álbum da família" back="/familia" action={<Link className="btn btn-quiet" href="/memorias">Memórias</Link>} />
     <div className="space-y-5 px-5">
       <nav aria-label="Edição do álbum" className="flex gap-2 overflow-x-auto">{[...new Set([ano, ...metadata.years])].sort((a, b) => b - a).map(y => <Link key={y} className={`btn shrink-0 ${y === ano ? 'btn-primary' : 'btn-ghost'}`} aria-current={y === ano ? 'page' : undefined} href={`/album?ano=${y}${pessoa ? `&pessoa=${encodeURIComponent(pessoa)}` : ''}`}>{y}</Link>)}</nav>
       <label className="block text-sm text-marfim-2">Fotos de uma pessoa<select className="field mt-2" value={pessoa} onChange={e => router.push(`/album?ano=${ano}&pessoa=${encodeURIComponent(e.target.value)}`)}><option value="">Todas as pessoas</option>{metadata.people.map(p => <option key={`${p.source}:${p.id}`} value={`${p.source}:${p.id}`}>{p.name}</option>)}</select></label>
