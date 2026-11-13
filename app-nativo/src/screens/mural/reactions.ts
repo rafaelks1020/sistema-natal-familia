@@ -12,6 +12,11 @@ export const REACTIONS: { type: ReactionType; label: string; Icon: typeof Heart 
 ];
 
 export function describeNotification(item: NotificationItem): string {
+  if (item.type === 'conquista') {
+    if (!item.reaction_type) return 'Você desbloqueou uma nova conquista!';
+    if (item.reaction_type.startsWith('Você desbloqueou')) return item.reaction_type;
+    return `Você desbloqueou a conquista "${item.reaction_type}"!`;
+  }
   if (item.type === 'report') return 'enviou uma denúncia. Analise em Organizar.';
   if (item.type === 'post_comment') return 'comentou na sua publicação.';
   if (item.type === 'comment_reaction') return 'curtiu seu comentário.';

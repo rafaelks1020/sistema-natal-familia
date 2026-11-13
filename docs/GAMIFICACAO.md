@@ -144,8 +144,9 @@ transação: apaga os lançamentos do ano com origem <> 'ajuste', reinsere, inse
 (ON CONFLICT DO NOTHING RETURNING) e os lançamentos 'conquista' de todas as ganhas, aplica os ajustes.
 Depois da transação: push + notificação no sininho para cada conquista nova (marca `notificada_em`).
 Roda no cron de 5 em 5 minutos (`app/lib/tarefas/gamificacao.ts`, registrado em app/api/cron/frequente/route.ts)
-e também na hora em que alguém abre a página de pontos se o último cálculo tiver mais de 60 s (com trava
-`pg_try_advisory_xact_lock` para não rodar dois ao mesmo tempo). Também é a tarefa que:
+e, só como rede de segurança, quando alguém abre a página de pontos e o último cálculo tem mais de 7 minutos
+(sinal de que o cron falhou): a vez é reservada em `gami_config` antes da coleta, então só uma requisição
+recalcula e as outras leem o que existe. A leitura usa cache de 15 s por instância. Também é a tarefa que:
 - sorteia missão surpresa (se `missoes_surpresa`): no máximo 1 por dia, começando entre 10h e 20h SP em minuto
   aleatório, duração entre 3 h e 24 h, modelo ainda não usado no ano, só de 1/12 até `encerra_em`;
 - manda os pushes de missão (começou / falta 1 hora) para todos;

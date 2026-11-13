@@ -13,21 +13,31 @@ export const POST = route(async (req) => {
     const alvoId = toInt(body.alvo_id);
     const motivoAlvo = cleanText(body.motivo, 'o motivo', 1000);
     // Tabela e coluna vêm só do registro fixo em denuncias.ts, nunca do corpo da requisição.
-    const { rows: alvoRows } = await query(
-      `SELECT user_id, LEFT(COALESCE(${alvo.texto}::text, ''), 1000) AS trecho FROM ${alvo.tabela} WHERE id = $1`, [alvoId]);
-    if (!alvoRows.length) throw new HttpError(404, 'Conteúdo não encontrado.');
-    if (body.alvo_tipo === 'dica') {
-      // Dica anônima: só quem recebeu denuncia (ninguém mais sabe que ela existe).
-      const { rows: dono } = await query('SELECT 1 FROM secret_santa_hints WHERE id = $1 AND receiver_participant_id = $2', [alvoId, me.participant_id]);
-      if (!dono.length) throw new HttpError(404, 'Conteúdo não encontrado.');
-    }
-    const { rows } = await query(
-      `INSERT INTO content_reports (reporter_id, alvo_tipo, alvo_id, autor_id, trecho, motivo)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [me.id, body.alvo_tipo, alvoId, alvoRows[0].user_id, alvoRows[0].trecho, motivoAlvo]);
+    const criada = await transaction(async (q) => {
+      const { rows: alvoRows } = await q(
+        `SELECT user_id, LEFT(COALESCE(${alvo.texto}::text, ''), 1000) AS trecho FROM ${alvo.tabela} WHERE id = $1 FOR UPDATE`, [alvoId]);
+      if (!alvoRows.length) throw new HttpError(404, 'Conteúdo não encontrado.');
+      if (body.alvo_tipo === 'dica') {
+        // Dica anônima: só quem recebeu denuncia (ninguém mais sabe que ela existe).
+        const { rows: dono } = await q('SELECT 1 FROM secret_santa_hints WHERE id = $1 AND receiver_participant_id = $2', [alvoId, me.participant_id]);
+        if (!dono.length) throw new HttpError(404, 'Conteúdo não encontrado.');
+      }
+      const aberta = await q<{ id: number }>(
+        `SELECT id FROM content_reports
+          WHERE reporter_id = $1 AND alvo_tipo = $2 AND alvo_id = $3 AND resolved_at IS NULL
+          LIMIT 1`,
+        [me.id, body.alvo_tipo, alvoId]);
+      if (aberta.rows.length) return null;
+      const { rows } = await q<{ id: number }>(
+        `INSERT INTO content_reports (reporter_id, alvo_tipo, alvo_id, autor_id, trecho, motivo)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [me.id, body.alvo_tipo, alvoId, alvoRows[0].user_id, alvoRows[0].trecho, motivoAlvo]);
+      return rows[0];
+    });
+    if (!criada) return ok({ ok: true });
     const { rows: admins } = await query<{ id: number }>('SELECT id FROM family_users WHERE is_admin');
     void enviarPush(admins.map((a) => a.id), { titulo: 'Nova denúncia', corpo: `${alvo.rotulo} denunciado para análise.`, rota: '/organizar' });
-    return ok(rows[0], 201);
+    return ok(criada, 201);
   }
   const hasPost = body.post_id != null;
   const hasComment = body.comment_id != null;
@@ -36,9 +46,17 @@ export const POST = route(async (req) => {
   const motivo = cleanText(body.motivo, 'o motivo', 1000);
   const report = await transaction(async (q) => {
     const target = hasPost
-      ? await q('SELECT id FROM family_posts WHERE id = $1 FOR KEY SHARE', [id])
-      : await q('SELECT id, post_id FROM family_post_comments WHERE id = $1 FOR KEY SHARE', [id]);
+      ? await q('SELECT id FROM family_posts WHERE id = $1 FOR UPDATE', [id])
+      : await q('SELECT id, post_id FROM family_post_comments WHERE id = $1 FOR UPDATE', [id]);
     if (!target.rows.length) throw new HttpError(404, 'Conteúdo não encontrado.');
+    const aberta = await q<{ id: number }>(
+      `SELECT id FROM content_reports
+        WHERE reporter_id = $1 AND resolved_at IS NULL
+          AND post_id IS NOT DISTINCT FROM $2 AND comment_id IS NOT DISTINCT FROM $3
+        LIMIT 1`,
+      [me.id, hasPost ? id : null, hasComment ? id : null],
+    );
+    if (aberta.rows.length) return null;
     const { rows } = await q(
       'INSERT INTO content_reports (reporter_id, post_id, comment_id, motivo) VALUES ($1, $2, $3, $4) RETURNING id',
       [me.id, hasPost ? id : null, hasComment ? id : null, motivo],
@@ -48,6 +66,7 @@ export const POST = route(async (req) => {
       [me.id, hasPost ? id : target.rows[0].post_id, hasComment ? id : null]);
     return rows[0];
   });
+  if (!report) return ok({ ok: true });
   return ok(report, 201);
 });
 

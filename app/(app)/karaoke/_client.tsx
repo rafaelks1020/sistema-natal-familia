@@ -52,7 +52,7 @@ function CartaoPreparo({ musica: m }: { musica: MusicaProcessamento }) {
   return <article className={`rounded-xl border p-4 ${m.status === 'falhou' ? 'border-cereja/60' : 'border-linha'}`}>
     <p className="break-words font-medium">{m.faixa}</p>
     <p className="break-words text-sm text-marfim-2">{m.artista}{m.meu_pedido ? ' · Seu pedido' : ''}</p>
-    <p className={`mt-2 text-sm ${m.status === 'falhou' ? 'text-cereja' : 'text-champagne'}`} role="status">{ROTULOS_ETAPA[m.etapa]}</p>
+    <p className={`mt-2 text-sm ${m.status === 'falhou' ? 'text-cereja' : 'text-champagne'}`} role="status">{m.erro || ROTULOS_ETAPA[m.etapa]}</p>
     <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label={`Preparo de ${m.faixa}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={m.progresso} aria-valuetext={`${ROTULOS_ETAPA[m.etapa]}: ${m.progresso}%`}>
       <div className={`h-full rounded-full transition-[width] duration-700 ${m.status === 'falhou' ? 'bg-cereja' : 'bg-champagne'}`} style={{ width: `${m.progresso}%` }} />
     </div>
@@ -236,6 +236,7 @@ export default function KaraokeClient() {
     return api<EstadoKaraoke>('/api/karaoke/fila');
   }, 'Desafio recusado.');
   const admin = (id: number, acao: 'subir' | 'descer' | 'pular' | 'remover') => executar(() => api<EstadoKaraoke>('/api/karaoke/fila', { method: 'PATCH', json: { id, acao } }));
+  const removerPedido = (id: number) => executar(() => api<EstadoKaraoke>('/api/karaoke/fila', { method: 'PATCH', json: { id, acao: 'remover' } }), 'Pedido removido da fila.');
 
   const minhas = estado ? estado.fila.map((f, i) => ({ f, pos: i + 1 })).filter(({ f }) => f.user_id === me.id || f.dueto_user_id === me.id) : [];
   const nomeFila = (f: ItemFila) => quemCanta(f);
@@ -297,11 +298,13 @@ export default function KaraokeClient() {
                   <SeloModo f={f} />
                 </div>
               </div>
-              {me.is_admin ? <div className="flex flex-wrap gap-2" role="group" aria-label={`Organizar ${f.titulo}`}>
-                <button type="button" className="btn btn-quiet" style={{ minHeight: 48 }} disabled={ocupado || i === 0} aria-label="Subir na fila" onClick={() => void admin(f.id, 'subir')}><ArrowUp size={18} aria-hidden="true" /></button>
-                <button type="button" className="btn btn-quiet" style={{ minHeight: 48 }} disabled={ocupado || i === estado.fila.length - 1} aria-label="Descer na fila" onClick={() => void admin(f.id, 'descer')}><ArrowDown size={18} aria-hidden="true" /></button>
-                <button type="button" className="btn btn-quiet gap-1" style={{ minHeight: 48 }} disabled={ocupado} onClick={() => void admin(f.id, 'pular')}><SkipForward size={18} aria-hidden="true" />Pular</button>
-                <button type="button" className="btn btn-quiet gap-1" style={{ minHeight: 48 }} disabled={ocupado} onClick={() => void admin(f.id, 'remover')}><Trash2 size={18} aria-hidden="true" />Remover</button>
+              {me.is_admin || (f.user_id === me.id && f.status === 'fila') ? <div className="flex flex-wrap gap-2" role="group" aria-label={me.is_admin ? `Organizar ${f.titulo}` : `Seu pedido ${f.titulo}`}>
+                {me.is_admin ? <>
+                  <button type="button" className="btn btn-quiet" style={{ minHeight: 48 }} disabled={ocupado || i === 0} aria-label="Subir na fila" onClick={() => void admin(f.id, 'subir')}><ArrowUp size={18} aria-hidden="true" /></button>
+                  <button type="button" className="btn btn-quiet" style={{ minHeight: 48 }} disabled={ocupado || i === estado.fila.length - 1} aria-label="Descer na fila" onClick={() => void admin(f.id, 'descer')}><ArrowDown size={18} aria-hidden="true" /></button>
+                  <button type="button" className="btn btn-quiet gap-1" style={{ minHeight: 48 }} disabled={ocupado} onClick={() => void admin(f.id, 'pular')}><SkipForward size={18} aria-hidden="true" />Pular</button>
+                </> : null}
+                <button type="button" className="btn btn-quiet gap-1" style={{ minHeight: 48 }} disabled={ocupado} onClick={() => void (me.is_admin ? admin(f.id, 'remover') : removerPedido(f.id))}><Trash2 size={18} aria-hidden="true" />Remover</button>
               </div> : null}
             </li>)}
           </ol> : null}

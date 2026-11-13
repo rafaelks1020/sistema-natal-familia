@@ -7,7 +7,7 @@ import { CircleUser, Home, PartyPopper, Users, Utensils } from 'lucide-react';
 const CEIA = ['/ceia', '/vaquinha', '/contas-da-ceia', '/pagar', '/caronas', '/convidar', '/advento'];
 const FESTA = ['/festa', '/karaoke', '/ao-vivo', '/telao'];
 const FAMILIA = ['/familia', '/mural', '/album', '/memorias', '/receitas', '/historias', '/capsula', '/arvore', '/homenagem', '/playlist', '/cartao'];
-const EU = ['/conta', '/pontos', '/conquistas', '/missoes', '/organizar', '/admin'];
+const EU = ['/conta', '/pontos', '/conquistas', '/missoes', '/organizar', '/admin', '/convites'];
 
 function pertence(path: string, bases: readonly string[]) {
   return bases.some((base) => path === base || path.startsWith(`${base}/`));

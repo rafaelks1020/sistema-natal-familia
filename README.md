@@ -7,9 +7,9 @@ Feito para o celular, no visual **Meia-Noite** (carvão, marfim, cereja, champag
 ## Stack
 - Next.js 16 (App Router) + React 19 + Tailwind 4, sem ORM (`pg` puro).
 - Postgres na VPS2 (`natal_familia`), acessado pelo pgbouncer (porta 6432).
-- Fotos no Vercel Blob. Animações do ChatGPT convertidas em vídeo leve em `public/media`.
+- Fotos, vídeos e áudios na Storage Box da Hetzner, por URL assinada (serviço `natal-arquivos` na VPS; ver `app/lib/arquivos.ts`). O Vercel Blob só guarda arquivos antigos. Animações do ChatGPT convertidas em vídeo leve em `public/media`.
 - Pix pela API do C6 (BolePIX) na conta da SpeedTech.
-- Hospedagem: Vercel, região `gru1` (São Paulo), cron diário de conciliação.
+- Hospedagem: Vercel, região `gru1` (São Paulo). Cron diário às 9h (`/api/cron/diario`) e cron de 5 minutos chamado pela VPS (`/api/cron/frequente`).
 
 ## Rodar local
 ```bash
@@ -21,10 +21,10 @@ npm run dev
 ## Banco
 Migrations idempotentes em `migrations/`, aplicadas em ordem com a conexão direta:
 ```bash
-psql "$DATABASE_URL_DIRECT" -f migrations/001-schema.sql
-psql "$DATABASE_URL_DIRECT" -f migrations/002-repaginada.sql
-psql "$DATABASE_URL_DIRECT" -f migrations/003-pagamentos.sql
+for f in migrations/*.sql; do psql "$DATABASE_URL_DIRECT" -v ON_ERROR_STOP=1 -f "$f"; done
 ```
+O banco roda no fuso `America/Sao_Paulo`. Toda coluna de data e hora é `TIMESTAMPTZ` (a 050 converteu as antigas);
+não crie coluna `TIMESTAMP` sem fuso.
 
 ## Acesso
 - Cada parente cria o próprio usuário em `/entrar` com o **código da família** (variável `FAMILY_CODE`).
@@ -33,7 +33,7 @@ psql "$DATABASE_URL_DIRECT" -f migrations/003-pagamentos.sql
 
 ## Pagamento (C6)
 - `/pagar` gera um BolePIX no valor da contribuição (o banco exige CPF e endereço do pagador).
-- O status é consultado direto no C6 enquanto a tela está aberta e pelo cron `/api/cron/conciliar`.
+- O status é consultado direto no C6 enquanto a tela está aberta, pelo cron de 5 minutos (Pix em aberto) e pelo cron diário (conciliação dos últimos 3 dias).
 - **Sem webhook de propósito:** a conta do C6 só tem um webhook e ele pertence ao ContractHub.
 - Referências do Natal começam com `NF` (26 caracteres, exigência do C6).
 

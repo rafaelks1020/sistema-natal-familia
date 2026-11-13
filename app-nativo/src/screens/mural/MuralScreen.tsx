@@ -1,7 +1,7 @@
 import { ModerationActions } from '../moderacao/Actions';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, View, type ListRenderItemInfo, type ListViewToken } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -49,6 +49,7 @@ export function MuralScreen() {
   const [commentsPostId, setCommentsPostId] = useState<number | null>(null);
   const [notifs, setNotifs] = useState(false);
   const [freshIds, setFreshIds] = useState<number[]>([]);
+  const params = useLocalSearchParams<{ post?: string }>();
   const { user, feed, postsQuery, pollsQuery, notificationsQuery, deletePost, deleteComment, deletePoll, reactTo, toggleCommentLike, vote } = mural;
   const askDeletePost = useCallback((postId: number) => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
@@ -106,6 +107,22 @@ export function MuralScreen() {
     if (index < 0) { toast('Essa publicação não está nesta parte do mural.', 'error'); return; }
     setTimeout(() => { listRef.current?.scrollToIndex({ index, viewPosition: 0.08 }); }, 320);
   }
+  // "Ver no mural" do álbum chega com ?post=<id>: busca páginas até achar o post e rola até ele.
+  const alvoId = Number(params.post);
+  useEffect(() => {
+    if (!Number.isInteger(alvoId) || alvoId <= 0 || !isSuccess) return;
+    const index = feed.findIndex(entry => entry.kind === 'post' && entry.post.id === alvoId);
+    if (index >= 0) {
+      router.setParams({ post: undefined });
+      setTimeout(() => { listRef.current?.scrollToIndex({ index, viewPosition: 0.08 }); }, 320);
+      return;
+    }
+    if (hasNextPage && !isFetching && !isFetchNextPageError) { void fetchNextPage(); return; }
+    if (!hasNextPage || isFetchNextPageError) {
+      router.setParams({ post: undefined });
+      toast('Essa publicação não está nesta parte do mural.', 'error');
+    }
+  }, [alvoId, feed, isSuccess, hasNextPage, isFetching, isFetchNextPageError, fetchNextPage, toast]);
   function openNotifications() {
     const data = queryClient.getQueryData<NotificationsResponse>(muralKeys.notifications);
     setFreshIds((data?.items ?? []).filter(item => !item.read).map(item => item.id));

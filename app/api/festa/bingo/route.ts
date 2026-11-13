@@ -38,28 +38,31 @@ export const POST = route(async (req) => {
       return ok(await carregarBingo(me));
     }
 
-    const cardRes = await query<{ id: number }>(
-      `SELECT id FROM party_bingo_cards WHERE ano = $1 AND user_id = $2`,
-      [ano, me.id],
-    );
-    const card = cardRes.rows[0];
-    if (!card) {
-      throw new HttpError(404, 'Cartela não encontrada.');
-    }
+    await transaction(async (q) => {
+      // Trava a cartela: toques seguidos viram um de cada vez (marca/desmarca sem corrida)
+      const cardRes = await q<{ id: number }>(
+        `SELECT id FROM party_bingo_cards WHERE ano = $1 AND user_id = $2 FOR UPDATE`,
+        [ano, me.id],
+      );
+      const card = cardRes.rows[0];
+      if (!card) {
+        throw new HttpError(404, 'Cartela não encontrada.');
+      }
 
-    const delRes = await query(
-      `DELETE FROM party_bingo_marks WHERE ano = $1 AND card_id = $2 AND user_id = $3 AND posicao = $4`,
-      [ano, card.id, me.id, posicao],
-    );
-
-    if (!delRes.rowCount) {
-      await query(
-        `INSERT INTO party_bingo_marks (ano, card_id, user_id, posicao)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (card_id, posicao) DO NOTHING`,
+      const delRes = await q(
+        `DELETE FROM party_bingo_marks WHERE ano = $1 AND card_id = $2 AND user_id = $3 AND posicao = $4`,
         [ano, card.id, me.id, posicao],
       );
-    }
+
+      if (!delRes.rowCount) {
+        await q(
+          `INSERT INTO party_bingo_marks (ano, card_id, user_id, posicao)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (card_id, posicao) DO NOTHING`,
+          [ano, card.id, me.id, posicao],
+        );
+      }
+    });
 
     return ok(await carregarBingo(me));
   }
@@ -151,6 +154,12 @@ export const POST = route(async (req) => {
         await q(
           `DELETE FROM party_bingo_claims WHERE ano = $1 AND card_id = $2 AND status = 'pendente'`,
           [ano, cardId],
+        );
+        await q(
+          `INSERT INTO party_bingo_marks (ano, card_id, user_id, posicao)
+           VALUES ($1, $2, $3, 12)
+           ON CONFLICT (card_id, posicao) DO NOTHING`,
+          [ano, cardId, me.id],
         );
       }
     });

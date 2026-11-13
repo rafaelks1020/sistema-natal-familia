@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useSyncExternalStore, type PropsWithChildren } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type PropsWithChildren } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
 import { focusManager, useQuery } from '@tanstack/react-query';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -28,12 +28,18 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const [offer, setOffer] = useState(false);
   const [enabling, setEnabling] = useState(false);
   const toast = useToast();
+  const saiuEm = useRef<number | null>(null);
   const me = useQuery({ queryKey: queryKeys.me, queryFn: ({ signal }) => api<{ user: User | null }>('/api/auth', { signal }), enabled: state.status === 'authenticated' });
   useEffect(() => { void sessionStore.hydrate(); }, []);
   useEffect(() => {
     focusManager.setFocused(AppState.currentState === 'active' && state.status === 'authenticated');
     const listener = AppState.addEventListener('change', appState => {
-      if (appState === 'background') sessionStore.lock();
+      // Câmera, galeria e compartilhar mandam o app para segundo plano por instantes: só bloqueia se passou de 60 s fora.
+      if (appState === 'background') saiuEm.current = Date.now();
+      else if (appState === 'active') {
+        if (saiuEm.current !== null && Date.now() - saiuEm.current > 60_000) sessionStore.lock();
+        saiuEm.current = null;
+      }
       focusManager.setFocused(appState === 'active' && sessionStore.getSnapshot().status === 'authenticated');
     });
     return () => listener.remove();
@@ -61,7 +67,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const loading = state.status === 'loading' || (authenticated && me.isPending);
   return <SessionContext.Provider value={{ ...state, user: authenticated ? me.data?.user ?? null : null,
     signIn, unlock: sessionStore.unlock, signOut: sessionStore.signOut }}>
-    {loading ? <SessionLoading /> : authenticated && me.isError ? <View style={styles.full}>
+    {loading ? <SessionLoading /> : authenticated && me.isError && !me.data ? <View style={styles.full}>
       <EmptyState title="Vamos tentar de novo?" message={me.error.message} action="Tentar novamente" onAction={() => { void me.refetch(); }} />
       <Button variant="quiet" onPress={() => { void sessionStore.signOut().catch(() => {}); }}>Entrar com outra conta</Button>
     </View> : children}

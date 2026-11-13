@@ -8,9 +8,12 @@ import ToastConquista from '@/app/components/ToastConquista';
 import type { PainelMissoes, PainelPontos } from '@/app/lib/gamificacao/tipos';
 import { calcularContagemRegressiva } from '../pontos/_logica';
 
-export default function CartaoGamificacao() {
+/** `missoesDoPai`: quando a tela que usa o cartão já buscou as missões, passa aqui (null = ainda carregando). Sem a prop, o cartão busca sozinho. */
+export default function CartaoGamificacao({ missoesDoPai }: { missoesDoPai?: PainelMissoes | null }) {
   const [pontos, setPontos] = useState<PainelPontos | null>(null);
-  const [missoes, setMissoes] = useState<PainelMissoes | null>(null);
+  const [missoesProprias, setMissoesProprias] = useState<PainelMissoes | null>(null);
+  const buscaPropria = missoesDoPai === undefined;
+  const missoes = buscaPropria ? missoesProprias : missoesDoPai;
   const [agora, setAgora] = useState(() => Date.now());
 
   useEffect(() => {
@@ -20,13 +23,15 @@ export default function CartaoGamificacao() {
         if (!ctrl.signal.aborted) setPontos(p);
       })
       .catch(() => {});
-    api<PainelMissoes>('/api/missoes', { signal: ctrl.signal })
-      .then((m) => {
-        if (!ctrl.signal.aborted) setMissoes(m);
-      })
-      .catch(() => {});
+    if (buscaPropria) {
+      api<PainelMissoes>('/api/missoes', { signal: ctrl.signal })
+        .then((m) => {
+          if (!ctrl.signal.aborted) setMissoesProprias(m);
+        })
+        .catch(() => {});
+    }
     return () => ctrl.abort();
-  }, []);
+  }, [buscaPropria]);
 
   const missaoAtiva = missoes?.ativas[0] ?? null;
 

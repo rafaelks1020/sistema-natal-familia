@@ -90,7 +90,7 @@ export function AudioField({ value, onChange, onBusy }: { value: string; onChang
     setBusy(true); onBusy(true);
     try {
       const form = new FormData(); form.append('file', clip);
-      const result = await api<{ url: string }>('/api/upload/audio', { method: 'POST', body: form });
+      const result = await api<{ url: string }>('/api/upload/audio', { method: 'POST', body: form, timeoutMs: 60_000 });
       onChange(result.url, seconds); setClip(null); toast('Áudio pronto para salvar.');
     } catch (error) { toast((error as Error).message, 'erro'); }
     finally { setBusy(false); }

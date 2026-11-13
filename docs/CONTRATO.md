@@ -20,7 +20,7 @@ Referência: `docs/ref/estilo2a.png` e `docs/ref/estilo2b.png` (mockups aprovado
 - `app/ui/toast.tsx`: `const toast = useToast(); toast('Publicado'); toast(msg, 'erro')`.
 - `app/ui/user.tsx`: `const me = useMe()` = `{ id, name, username, is_admin, avatar_url, participant_id }` (client components dentro de `(app)`).
 - `app/ui/client.ts`: `api<T>(path, { method, json })` (lança Error com a mensagem do servidor; 401 manda para /entrar), `uploadImage(file) -> url`, `brl(n)`, `timeAgo(date)`.
-- `app/(app)/layout.tsx` já exige login, envolve com UserProvider + ToastProvider e desenha a barra inferior (Início, Mural, Amigo oculto, Vaquinha, Álbum). Páginas ficam em `app/(app)/<rota>/page.tsx` e já recebem padding inferior (`pb-nav`).
+- `app/(app)/layout.tsx` já exige login, envolve com UserProvider + ToastProvider e desenha a barra inferior (Hoje, Ceia, Festa, Família, Eu). Páginas ficam em `app/(app)/<rota>/page.tsx` e já recebem padding inferior (`pb-nav`).
 
 ## 3. API (padrão obrigatório)
 - Arquivos em `app/api/<recurso>/route.ts`. Use `app/lib/api.ts`:
@@ -28,7 +28,7 @@ Referência: `docs/ref/estilo2a.png` e `docs/ref/estilo2b.png` (mockups aprovado
   `requireAdmin()` para ações de organizador. Erro de regra: `throw new HttpError(400, 'mensagem em português')`. `readJson(req)`, `toInt(v)`, `cleanText(v, 'campo', max)`.
   Rotas dinâmicas no Next 16: `route<{ params: Promise<{ id: string }> }>(async (req, { params }) => { const { id } = await params; ... })`.
 - **Segurança:** NUNCA confiar em `user_id`/`participant_id` vindo do cliente para dizer quem é a pessoa: use `me.id` e `me.participant_id` da sessão. Editar/apagar algo de outra pessoa só se `me.is_admin`. Sempre SQL parametrizado (`$1`). Valide tamanho de texto. URLs de imagem aceitas só se começarem com `https://`.
-- Banco: `import { query, transaction } from '@/app/lib/db'`. Datas `TIMESTAMP` sem fuso (gravadas com NOW() do servidor em UTC).
+- Banco: `import { query, transaction } from '@/app/lib/db'`. Datas sempre `TIMESTAMPTZ` (o banco roda em `America/Sao_Paulo`; nunca crie `TIMESTAMP` sem fuso, que sai 3 horas errado na Vercel).
 
 ## 4. Banco (tabelas existentes; ver `migrations/001-schema.sql` e `migrations/002-repaginada.sql`)
 - `family_users(id, name, username, password_hash, is_admin, avatar_url, bio, created_at)` = login do parente.

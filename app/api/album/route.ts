@@ -14,7 +14,11 @@ export const POST = route(async req => {
   const me = await requireUser(); const body = await readAlbumJson(req); const ano = albumYear(body.ano);
   const caption = cleanText(body.caption, 'legenda', 500, false);
   const takenOn = cleanText(body.taken_on, 'data da foto', 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(takenOn) || Number(takenOn.slice(0, 4)) !== ano
+  // Janeiro e fevereiro do ano seguinte ainda são da edição anterior (ceia).
+  const anoFoto = Number(takenOn.slice(0, 4));
+  const mesFoto = Number(takenOn.slice(5, 7));
+  const naEdicao = anoFoto === ano || (anoFoto === ano + 1 && mesFoto >= 1 && mesFoto <= 2);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(takenOn) || !naEdicao
     || !Number.isFinite(Date.parse(takenOn)) || new Date(takenOn).toISOString().slice(0, 10) !== takenOn) throw new HttpError(400, 'Informe uma data válida dentro do ano escolhido.');
   if (!Array.isArray(body.photos) || body.photos.length < 1 || body.photos.length > 30) throw new HttpError(400, 'Escolha de 1 a 30 fotos.');
   const photos = body.photos.map((photo: unknown) => {

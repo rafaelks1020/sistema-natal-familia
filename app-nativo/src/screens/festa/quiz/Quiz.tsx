@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  AppState,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -141,13 +142,19 @@ export default function FestaQuizScreen() {
   const [correta, setCorreta] = useState<number>(0);
   const [subindoFoto, setSubindoFoto] = useState(false);
 
+  const [appAtivo, setAppAtivo] = useState(() => AppState.currentState === 'active');
   useEffect(() => {
-    if (data?.state.status !== 'aberta') return;
+    const ouvinte = AppState.addEventListener('change', (estado) => { setAppAtivo(estado === 'active'); if (estado === 'active') setAgora(Date.now()); });
+    return () => ouvinte.remove();
+  }, []);
+
+  useEffect(() => {
+    if (data?.state.status !== 'aberta' || !appAtivo) return;
     const id = setInterval(() => {
       setAgora(Date.now());
     }, 150);
     return () => clearInterval(id);
-  }, [data?.state.status, data?.state.question_id]);
+  }, [data?.state.status, data?.state.question_id, appAtivo]);
 
   const decorridoMs =
     data?.state.status === 'aberta' && consulta.dataUpdatedAt > 0

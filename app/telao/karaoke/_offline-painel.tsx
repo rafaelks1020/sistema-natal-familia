@@ -87,7 +87,7 @@ export function PainelOffline({ className, limparBloqueado = false }: { classNam
       </div>
       <div className={styles.acoes}>
         <button type="button" className={styles.principal} onClick={baixar} disabled={baixando || limpando}>
-          {baixando ? 'Baixando...' : 'Baixar músicas para usar sem internet'}
+          {baixando ? 'Baixando...' : dl.erro ? 'Tentar de novo' : 'Baixar músicas para usar sem internet'}
         </button>
         <button
           type="button"

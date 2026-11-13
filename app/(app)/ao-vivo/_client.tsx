@@ -47,13 +47,14 @@ export default function AoVivoClient() {
 
   async function reagir(emoji: string) {
     const agora = Date.now();
-    if (agora - ultimo.current < 1000) return;
+    if (agora - ultimo.current < 1500) return;
     ultimo.current = agora;
     setPulso({ emoji, n: agora });
     try {
       await api('/api/telao/ao-vivo', { method: 'POST', json: { tipo: 'reacao', emoji } });
     } catch (err) {
       ultimo.current = 0;
+      if ((err as { status?: number }).status === 429) return;
       toast((err as Error).message, 'erro');
     }
   }

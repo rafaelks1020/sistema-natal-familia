@@ -201,7 +201,13 @@ export function useCameraKaraoke({ ligada, deviceId, volume, pose = false, aoPos
         }
         if (cancelado) { stream.getTracks().forEach((t) => t.stop()); return; }
         v.srcObject = stream;
-        await v.play();
+        try {
+          await v.play();
+        } catch (e) {
+          stream.getTracks().forEach((t) => t.stop());
+          stream = null;
+          throw e;
+        }
         if (cancelado) return;
         videoRef.current = v;
         setErro(null);

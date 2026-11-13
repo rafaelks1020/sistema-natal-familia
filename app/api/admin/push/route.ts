@@ -17,7 +17,7 @@ export const GET = route(async () => {
         GROUP BY platform`,
     ),
     query<{ id: number; nome: string; plataforma: string; last_seen_at: string }>(
-      `SELECT u.id, u.name AS nome, d.platform AS plataforma, d.last_seen_at::text AS last_seen_at
+      `SELECT u.id, u.name AS nome, d.platform AS plataforma, to_char(d.last_seen_at::timestamptz AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS last_seen_at
          FROM family_users u
          JOIN push_devices d ON d.user_id = u.id AND d.disabled_at IS NULL
         ORDER BY u.name, d.id`,

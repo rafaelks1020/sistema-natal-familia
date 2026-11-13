@@ -21,6 +21,7 @@ import { api, thumb, uploadImage } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
 import { useMe } from '@/app/ui/user';
 import type { QuizData, QuizQuestionItem } from '@/app/api/festa/quiz/_data';
+import { AvisoSemConexao, usePolling } from '../_polling';
 
 const LETRAS = ['A', 'B', 'C', 'D'] as const;
 
@@ -47,7 +48,18 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
   const [correta, setCorreta] = useState<number>(0);
   const [mostrarForm, setMostrarForm] = useState<boolean>(initial.perguntas.length === 0);
 
+  // Assinatura do que o jogo mostra, para saber ha quanto tempo nada muda (poll mais calmo na espera)
+  const assinaturaRef = useRef('');
+  const mudouEmRef = useRef(Date.now());
+  const statusRef = useRef(initial.state.status);
+
   const aplicarDados = useCallback((novo: QuizData) => {
+    const assinatura = `${novo.state.status}:${novo.state.question_id}:${novo.perguntas.length}:${novo.placar.length}`;
+    if (assinatura !== assinaturaRef.current) {
+      assinaturaRef.current = assinatura;
+      mudouEmRef.current = Date.now();
+    }
+    statusRef.current = novo.state.status;
     setData(novo);
     if (novo.state.status === 'aberta') {
       deadlineRef.current = Date.now() + novo.state.restante_ms;
@@ -58,22 +70,18 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
     }
   }, []);
 
-  const recarregar = useCallback(async () => {
-    try {
+  // 2 s enquanto houver atividade (a pontuacao depende de ver a pergunta rapido); 5 s na espera parada
+  const { semConexao, escrita } = usePolling(
+    async (obsoleta) => {
       const res = await api<QuizData>('/api/festa/quiz');
+      if (obsoleta()) return;
       aplicarDados(res);
-    } catch {
-      /* ignora falha pontual de polling */
-    }
-  }, [aplicarDados]);
-
-  // Consulta a cada 2 s conforme requisito
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      void recarregar();
-    }, 2000);
-    return () => window.clearInterval(id);
-  }, [recarregar]);
+    },
+    () =>
+      statusRef.current === 'preparando' && Date.now() - mudouEmRef.current > 5 * 60_000
+        ? 5000
+        : 2000,
+  );
 
   // Atualizacao suave da barra de 20 s
   useEffect(() => {
@@ -89,10 +97,12 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
     if (busy) return;
     setBusy(true);
     try {
-      const res = await api<QuizData>('/api/festa/quiz', {
-        method: 'POST',
-        json: payload,
-      });
+      const res = await escrita(() =>
+        api<QuizData>('/api/festa/quiz', {
+          method: 'POST',
+          json: payload,
+        }),
+      );
       aplicarDados(res);
       if (msgOk) toast(msgOk);
     } catch (err) {
@@ -164,18 +174,20 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
     const indiceCerto = Math.min(correta, limpas.length - 1);
     setBusy(true);
     try {
-      const res = await api<QuizData>('/api/festa/quiz', {
-        method: 'POST',
-        json: {
-          acao: editId ? 'editar_pergunta' : 'criar_pergunta',
-          id: editId ?? undefined,
-          modelo,
-          pergunta,
-          image_url: imageUrl,
-          opcoes: limpas,
-          correta: indiceCerto,
-        },
-      });
+      const res = await escrita(() =>
+        api<QuizData>('/api/festa/quiz', {
+          method: 'POST',
+          json: {
+            acao: editId ? 'editar_pergunta' : 'criar_pergunta',
+            id: editId ?? undefined,
+            modelo,
+            pergunta,
+            image_url: imageUrl,
+            opcoes: limpas,
+            correta: indiceCerto,
+          },
+        }),
+      );
       aplicarDados(res);
       limparForm();
       toast(editId ? 'Pergunta atualizada!' : 'Pergunta adicionada ao quiz!');
@@ -196,6 +208,7 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
 
   return (
     <div className="pb-nav">
+      <AvisoSemConexao visivel={semConexao} />
       <PageHeader kicker="Jogos da Ceia" title="Quiz da Família" back="/festa" />
 
       {/* Atalhos entre os 3 jogos da ceia */}

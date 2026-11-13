@@ -548,11 +548,22 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
       // Captura no thread de áudio (AudioWorklet): um quadro a cada ~33 ms, com o instante exato. Sem worklet, cai no temporizador.
       let timer: number | undefined;
       let node: AudioWorkletNode | undefined;
+      const largar = () => {
+        if (timer !== undefined) window.clearInterval(timer);
+        window.clearInterval(vigia);
+        window.clearInterval(timerInfo);
+        if (node) { node.port.onmessage = null; node.disconnect(); }
+        stream.getTracks().forEach((t) => t.stop());
+        if (streamMon !== stream) streamMon.getTracks().forEach((t) => t.stop());
+        void ctx.close().catch(() => undefined);
+        void ctxMon.close().catch(() => undefined);
+        if (anti.current === pecas) anti.current = null;
+      };
       try {
         if (!ctx.audioWorklet) throw new Error('sem AudioWorklet');
         const url = URL.createObjectURL(new Blob([CODIGO_CAPTURA], { type: 'text/javascript' }));
         try { await ctx.audioWorklet.addModule(url); } finally { URL.revokeObjectURL(url); }
-        if (token !== audio.current.token) { stream.getTracks().forEach((t) => t.stop()); void ctx.close().catch(() => undefined); return; }
+        if (token !== audio.current.token) { largar(); return; }
         node = new AudioWorkletNode(ctx, 'karaoke-captura', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], processorOptions: { janela: janelaN, passo: Math.round(ctx.sampleRate * 0.033) } });
         node.port.onmessage = (e: MessageEvent<{ t: number; buf: Float32Array }>) => processar(e.data.buf, Math.max(0, (ctx.currentTime - e.data.t) * 1000));
         const mudo = ctx.createGain();
@@ -561,9 +572,11 @@ export function useAfinacao(deviceId: string | null, opcoes: { vozNaTv?: boolean
         node.connect(mudo);
         mudo.connect(ctx.destination);
       } catch {
+        if (token !== audio.current.token) { largar(); return; }
         node = undefined;
         timer = window.setInterval(() => { analisador.getFloatTimeDomainData(buf); processar(buf, 0); }, 33);
       }
+      if (token !== audio.current.token) { largar(); return; }
 
       audio.current = { ctx, stream, timer, node, vozGain, timerAnti: vigia, timerInfo, ctxMon, streamMon, fonteMon, monitorNode, token };
       setAtivoId(stream.getAudioTracks()[0]?.getSettings().deviceId ?? id);

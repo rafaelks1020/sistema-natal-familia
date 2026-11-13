@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // Extensão .ts: o node (ESM) só acha o módulo assim. O tsc do projeto não aceita essa extensão, por isso o nocheck.
 import assert from 'node:assert/strict';

@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SessionUser } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
+import { edicaoAtual } from '@/app/lib/edicao';
 import { getAttendance, getSettings } from '@/app/(app)/_inicio/server';
 import type { HomeData } from '@/app/(app)/_inicio/types';
 import { fetchArrecadado } from '@/app/api/vaquinha/arrecadado';
@@ -25,12 +26,15 @@ export async function getHome(me: SessionUser): Promise<HomeData> {
     getAttendance(me.participant_id),
     query<{ pagos: number; total: number; gasto: string }>(
       `SELECT COUNT(*) FILTER (WHERE paid)::int AS pagos, COUNT(*)::int AS total,
-        (SELECT COALESCE(SUM(value), 0) FROM purchases) AS gasto FROM participants`,
+        (SELECT COALESCE(SUM(value), 0) FROM purchases WHERE ano = $1) AS gasto FROM participants`,
+      [edicaoAtual()],
     ),
     query<Omit<HomeData['recentPosts'][number], 'first_image' | 'created_at'> & { created_at: Date | string } & { image_url: string | null; image_urls: string | null }>(
       `SELECT p.id, u.name AS user_name, u.avatar_url, p.content, p.image_url, p.image_urls, p.created_at
          FROM family_posts p JOIN family_users u ON u.id = p.user_id
+        WHERE NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = $1 AND b.blocked_id = p.user_id)
         ORDER BY p.created_at DESC NULLS LAST, p.id DESC LIMIT 3`,
+      [me.id],
     ),
     query<{ revealed: boolean }>(
       `SELECT d.revealed

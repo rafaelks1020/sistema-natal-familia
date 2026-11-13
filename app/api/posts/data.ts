@@ -48,7 +48,7 @@ export async function getFeed(
            'user_name', cu.name,
            'avatar_url', cu.avatar_url,
            'content', cm.content,
-           'created_at', to_char(cm.created_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+           'created_at', to_char(cm.created_at::timestamptz AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
            'likes', COALESCE(cl.likes_count, 0),
            'liked_by_me', COALESCE(cl.liked_by_me, false)
          )

@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import LoopMedia from '@/app/ui/LoopMedia';
 import PageHeader from '@/app/ui/PageHeader';
 import { api } from '@/app/ui/client';
+import { useToast } from '@/app/ui/toast';
 import { useMe } from '@/app/ui/user';
 import MyWishes from './_components/MyWishes';
 import Organize from './_components/Organize';
@@ -15,6 +16,7 @@ import { sortWishes, type Receiver, type SantaResponse, type WishItem, type Wish
 
 export default function AmigoOcultoClient({ initialSanta, initialWishes, initialTheme, initialHints, initialHistory }: { initialSanta: SantaResponse; initialWishes: WishResponse; initialTheme: ThemeData; initialHints: HintData; initialHistory: HistoryData }) {
   const me = useMe();
+  const toast = useToast();
   const [santa, setSanta] = useState<SantaResponse | null>(initialSanta);
   const [wishes, setWishes] = useState<WishResponse | null>(initialWishes);
   const [loading, setLoading] = useState(false);
@@ -31,15 +33,13 @@ export default function AmigoOcultoClient({ initialSanta, initialWishes, initial
       setSanta(nextSanta);
       setWishes({ ...nextWishes, items: sortWishes(nextWishes.items) });
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message;
+      setError(msg);
+      toast(msg, 'erro');
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  }, [toast]);
 
   function onRevealed(receiver: Receiver) {
     sessionStorage.removeItem('nf-ocultar-nome');
@@ -62,7 +62,7 @@ export default function AmigoOcultoClient({ initialSanta, initialWishes, initial
         <LoopMedia name="mn-loader" className="h-full w-full opacity-80" fallback={<div className="h-full w-full bg-carvao-3" />} />
       </div>
     );
-  } else if (error || !santa || !wishes) {
+  } else if (!santa || !wishes) {
     main = (
       <div className="surface px-6 py-10 text-center">
         <p className="display-italic text-[2rem]">Não deu para abrir</p>

@@ -211,12 +211,14 @@ async function lerJogo(me: SessionUser, ano: number): Promise<Jogo | null> {
     jogoQuiz(me, ano).catch((e) => { if (semTabela(e)) return null; throw e; }),
     jogoEnquete(ano).catch((e) => { if (semTabela(e)) return null; throw e; }),
   ]);
+  // Pergunta do quiz no ar não some por causa de um pedido de bingo ainda não confirmado.
+  if (quiz && quiz.fase !== 'podio' && bingo && !bingo.confirmado) return quiz;
   return bingo ?? amigo ?? quiz ?? enquete ?? null;
 }
 
 async function lerRecados(me: SessionUser, ano: number): Promise<Recado[]> {
-  const { rows } = await query<{ id: number; nome: string; content: string | null; image_url: string | null; image_urls: string | null; created_at: string }>(
-    `SELECT p.id, u.name AS nome, p.content, p.image_url, p.image_urls, (p.created_at AT TIME ZONE 'UTC')::text AS created_at
+  const { rows } = await query<{ id: number; nome: string; content: string | null; image_url: string | null; image_urls: string | null; created_at: Date }>(
+    `SELECT p.id, u.name AS nome, p.content, p.image_url, p.image_urls, p.created_at::timestamptz AS created_at
        FROM family_posts p JOIN family_users u ON u.id = p.user_id
       WHERE p.created_at >= $1::timestamp AND p.created_at < $2::timestamp AND ${bloqueio('p.user_id', '$3')}
         AND (NULLIF(btrim(p.content), '') IS NOT NULL OR NULLIF(p.image_url, '') IS NOT NULL OR NULLIF(p.image_urls, '') IS NOT NULL)

@@ -1,4 +1,5 @@
 import { query } from '@/app/lib/db';
+import { arrecadadoDaEdicao } from '@/app/api/vaquinha/arrecadado';
 import { num } from './formato';
 
 /** Janela da edição, igual à meta da vaquinha: 1º de março até 1º de março do ano seguinte. */
@@ -16,7 +17,8 @@ export type NumerosVaquinha = {
 };
 
 /**
- * Arrecadado: soma dos Pix pagos na janela da edição (a mesma conta da meta na vaquinha).
+ * Arrecadado: Pix pagos na janela da edição mais a cota de quem foi marcado como pago sem Pix
+ * (a mesma conta do Início, da Vaquinha e da meta: app/api/vaquinha/arrecadado.ts).
  * Quem pagou: flag manual ou Pix pago nessa janela.
  * Gasto: compras lançadas na edição.
  */
@@ -27,12 +29,7 @@ export async function numerosVaquinha(ano: number): Promise<NumerosVaquinha> {
       `SELECT key, value FROM app_settings WHERE key = ANY($1::text[])`,
       [['vaquinha_meta_centavos', 'vaquinha_ano']],
     ),
-    query<{ centavos: string }>(
-      `SELECT COALESCE(ROUND(SUM(amount) * 100), 0)::text AS centavos
-         FROM payments
-        WHERE status = 'PAID' AND created_at >= $1::timestamp AND created_at < $2::timestamp`,
-      [inicio, fim],
-    ),
+    arrecadadoDaEdicao(ano),
     query<{ participantes: number; pagaram: number }>(
       `SELECT COUNT(*)::int AS participantes,
               COUNT(*) FILTER (
@@ -54,7 +51,7 @@ export async function numerosVaquinha(ano: number): Promise<NumerosVaquinha> {
   ]);
   const config = Object.fromEntries(settings.rows.map((r) => [r.key, r.value]));
   const meta = Number(config.vaquinha_ano) === ano ? Math.max(0, Math.trunc(num(config.vaquinha_meta_centavos))) : 0;
-  const arrecadado = Math.max(0, Math.round(num(pagos.rows[0]?.centavos)));
+  const arrecadado = Math.max(0, Math.round(pagos.centavos));
   const gasto = Math.max(0, Math.round(num(gastos.rows[0]?.centavos)));
   return {
     arrecadado_centavos: arrecadado,

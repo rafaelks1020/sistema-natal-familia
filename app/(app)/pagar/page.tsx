@@ -72,14 +72,17 @@ export default function PagarPage() {
   }, []);
 
   // Enquanto houver Pix em aberto e a tela estiver visível, confere o banco a cada 8 s.
+  // Para quando o formulário volta (vencimento passou ou a pessoa pediu outro Pix).
   const aberto = ABERTO(s?.payment ?? null) && !s?.participant_paid;
+  const pagamento = s?.payment ?? null;
+  const mostrandoPix = aberto && !vencido(pagamento) && !trocando;
   useEffect(() => {
-    if (!aberto) return;
+    if (!mostrandoPix) return;
     const t = setInterval(() => {
-      if (document.visibilityState === 'visible') carregar();
+      if (document.visibilityState === 'visible' && !vencido(pagamento)) carregar();
     }, 8000);
     return () => clearInterval(t);
-  }, [aberto, carregar]);
+  }, [mostrandoPix, pagamento, carregar]);
 
   const pagoAgora = useRef(false);
   useEffect(() => {
@@ -108,7 +111,7 @@ export default function PagarPage() {
       {s && (
         s.participant_paid ? <Pago s={s} /> :
         !s.enabled ? <Desligado valor={s.amount} /> :
-        aberto && !vencido(s.payment) && !trocando ? (
+        mostrandoPix ? (
           <PixAberto p={s.payment!} onConferir={() => { pagoAgora.current = true; return carregar(); }} onTrocar={() => setTrocando(true)} />
         ) : (
           <Formulario s={s} onGerado={(p) => { pagoAgora.current = true; setTrocando(false); setS({ ...s, payment: p }); }} />

@@ -77,7 +77,11 @@ export function useMural() {
       if (!sameSession(generation) || result.type !== type) return;
       queryClient.setQueryData<PostsData>(muralKeys.posts, current => mapPosts(current, postId, post => setReactionActive(post, type, result.active)));
     },
-    onSettled: (_data, _error, vars) => { pending.current.delete(`react:${vars.postId}:${vars.type}`); },
+    onSettled: (_data, _error, vars) => {
+      pending.current.delete(`react:${vars.postId}:${vars.type}`);
+      // Reação é alternância: se a requisição estourou o tempo o servidor pode ter gravado, então confere com ele.
+      if (sameSession(vars.generation)) void queryClient.invalidateQueries({ queryKey: muralKeys.posts });
+    },
   });
 
   const likeMutation = useMutation({
@@ -109,7 +113,12 @@ export function useMural() {
       queryClient.setQueryData<PostsData>(muralKeys.posts, current => mapPosts(current, postId, post => ({ ...post, comments: post.comments.map(comment => comment.id === commentId ? fix(comment) : comment) })));
       queryClient.setQueryData<CommentItem[]>(muralKeys.comments(postId), current => current?.map(comment => comment.id === commentId ? fix(comment) : comment));
     },
-    onSettled: (_data, _error, vars) => { pending.current.delete(`like:${vars.commentId}`); },
+    onSettled: (_data, _error, vars) => {
+      pending.current.delete(`like:${vars.commentId}`);
+      if (!sameSession(vars.generation)) return;
+      void queryClient.invalidateQueries({ queryKey: muralKeys.posts });
+      void queryClient.invalidateQueries({ queryKey: muralKeys.comments(vars.postId) });
+    },
   });
 
   const addMutation = useMutation({
@@ -380,11 +389,23 @@ export function useMural() {
     pinMutate({ postId, generation: sessionStore.getGeneration() });
   }, [pinMutate]);
 
-  const publishPost = useCallback((input: { content: string; images: string[] }, editingId: number | null) => {
+  const publishPost = useCallback(async (input: { content: string; images: string[] }, editingId: number | null) => {
     const generation = sessionStore.getGeneration();
-    if (editingId === null) return createAsync({ ...input, generation });
-    return editAsync({ id: editingId, ...input, generation });
-  }, [createAsync, editAsync]);
+    if (editingId !== null) return editAsync({ id: editingId, ...input, generation });
+    const antes = new Set(flattenPosts(queryClient.getQueryData<PostsData>(muralKeys.posts)).map(post => post.id));
+    try {
+      return await createAsync({ ...input, generation });
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 0 || !user) throw error;
+      // Tempo esgotado: o servidor pode ter gravado. Recarrega o mural antes de deixar reenviar, para não duplicar.
+      await queryClient.refetchQueries({ queryKey: muralKeys.posts }).catch(() => {});
+      const gravado = flattenPosts(queryClient.getQueryData<PostsData>(muralKeys.posts))
+        .find(post => !antes.has(post.id) && post.user_id === user.id && post.content === input.content);
+      if (!gravado) throw error;
+      toast('Publicado no mural.');
+      return gravado;
+    }
+  }, [createAsync, editAsync, user, toast]);
 
   const publishPoll = useCallback((input: { question: string; options: string[] }) => {
     return createPollAsync({ ...input, generation: sessionStore.getGeneration() });

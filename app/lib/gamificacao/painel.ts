@@ -1,4 +1,5 @@
 import 'server-only';
+import { after } from 'next/server';
 import { classificacaoProva, configProva } from '@/app/api/karaoke/prova/_dados';
 import { cleanText, HttpError, isBlobUrl, toInt } from '@/app/lib/api';
 import { query } from '@/app/lib/db';
@@ -18,10 +19,12 @@ import {
   validarConteudoMissao,
 } from './missoes';
 import {
-  coletarDadosEdicao,
+  coletarDadosEdicaoCacheada,
   garantirRecalculoRecente,
   idsParticipantesCompeticao,
   inspecionarEsquema,
+  invalidarCachesGamificacao,
+  lerComCache,
   lerConfigInterna,
   recalcular,
   tem,
@@ -81,7 +84,25 @@ export function lerDataHoraSPouISO(valor: unknown, campo: string): Date {
   return dt;
 }
 
-async function carregarBaseRankingEConquistas(ano: number, e: EsquemaBanco) {
+const BASE_TTL_MS = 15_000;
+
+export function carregarBaseRankingEConquistas(ano: number, e: EsquemaBanco) {
+  return lerComCache(`base:${ano}`, BASE_TTL_MS, () => lerBaseRankingEConquistas(ano, e));
+}
+
+/** Recalcula sem nunca falhar a resposta (o dado já foi salvo). Os caches de leitura são descartados antes e depois. */
+async function recalcularSemFalhar(ano: number): Promise<void> {
+  invalidarCachesGamificacao();
+  try {
+    await recalcular(ano);
+  } catch (err) {
+    console.error('[gamificacao:recalcular]', err instanceof Error ? err.message : 'falha');
+  } finally {
+    invalidarCachesGamificacao();
+  }
+}
+
+async function lerBaseRankingEConquistas(ano: number, e: EsquemaBanco) {
   const cfg = await lerConfigInterna(ano, query, e);
   const excluidosSet = new Set(cfg.excluidos.map(Number));
   const colAvatar = tem(e, 'family_users', 'avatar_url') ? 'avatar_url' : 'NULL::text AS avatar_url';
@@ -174,16 +195,17 @@ export async function montarPainelPontos(
   opcoes?: { ano?: number; visaoAdmin?: boolean },
 ): Promise<PainelPontos> {
   const ano = opcoes?.ano ?? edicaoAtual();
-  await garantirRecalculoRecente(ano);
-
   const agora = new Date();
   const e = await inspecionarEsquema();
-  const base = await carregarBaseRankingEConquistas(ano, e);
+  let base = await carregarBaseRankingEConquistas(ano, e);
+  if (await garantirRecalculoRecente(ano, base.cfg.recalculado_em)) {
+    base = await carregarBaseRankingEConquistas(ano, e);
+  }
 
   const pessoaExiste = base.usuarios.some((u) => Number(u.id) === userId);
   if (!pessoaExiste) throw new HttpError(404, 'Pessoa não encontrada.');
 
-  const coleta = await coletarDadosEdicao(query, e, ano, base.cfg.encerra_em);
+  const coleta = await coletarDadosEdicaoCacheada(e, ano, base.cfg.encerra_em);
   const metricas = coleta.metricasPorUser.get(userId) ?? metricasVazias();
   const ganhasDoUser = base.ganhasPorUser.get(userId) ?? new Map<string, string>();
   const conquistas = montarConquistasVistas(metricas, ganhasDoUser, base.contagemFamilia);
@@ -240,7 +262,6 @@ export async function montarPerfilPontos(
   targetUserId: number,
   ano = edicaoAtual(),
 ): Promise<PerfilPontos> {
-  await garantirRecalculoRecente(ano);
   const agora = new Date();
   const e = await inspecionarEsquema();
 
@@ -254,11 +275,14 @@ export async function montarPerfilPontos(
     if (blk.length > 0) throw new HttpError(404, 'Pessoa não encontrada.');
   }
 
-  const base = await carregarBaseRankingEConquistas(ano, e);
+  let base = await carregarBaseRankingEConquistas(ano, e);
+  if (await garantirRecalculoRecente(ano, base.cfg.recalculado_em)) {
+    base = await carregarBaseRankingEConquistas(ano, e);
+  }
   const alvo = base.usuarios.find((u) => Number(u.id) === targetUserId);
   if (!alvo) throw new HttpError(404, 'Pessoa não encontrada.');
 
-  const coleta = await coletarDadosEdicao(query, e, ano, base.cfg.encerra_em);
+  const coleta = await coletarDadosEdicaoCacheada(e, ano, base.cfg.encerra_em);
   const metricas = coleta.metricasPorUser.get(targetUserId) ?? metricasVazias();
   const ganhasDoUser = base.ganhasPorUser.get(targetUserId) ?? new Map<string, string>();
   const conquistas = montarConquistasVistas(metricas, ganhasDoUser, base.contagemFamilia);
@@ -473,7 +497,12 @@ export async function responderMissao(
     );
   }
 
-  await recalcular(ano);
+  invalidarCachesGamificacao();
+  try {
+    after(() => recalcularSemFalhar(ano));
+  } catch {
+    await recalcularSemFalhar(ano);
+  }
 
   const painel = await montarPainelMissoes(me, ano);
   const resposta: RespostaMissao = {
@@ -638,7 +667,7 @@ export async function atualizarConfigGamificacao(
     );
   }
 
-  await recalcular(ano);
+  await recalcularSemFalhar(ano);
   const painel = await montarPainelAdminGamificacao(me, ano);
   return { ...painel, ok: true };
 }
@@ -685,7 +714,7 @@ export async function criarAjusteGamificacao(
     [ano, userId, pontosBrutos, motivo, anulaRef, me.id],
   );
 
-  await recalcular(ano);
+  await recalcularSemFalhar(ano);
   const painel = await montarPainelAdminGamificacao(me, ano);
   const ajuste: AjusteVisto = {
     id: Number(rows[0].id),
@@ -711,7 +740,7 @@ export async function removerAjusteGamificacao(
     [id, ano],
   );
   if (!rowCount) throw new HttpError(404, 'Ajuste não encontrado.');
-  await recalcular(ano);
+  await recalcularSemFalhar(ano);
   const painel = await montarPainelAdminGamificacao(me, ano);
   return { ...painel, ok: true };
 }
@@ -852,7 +881,7 @@ export async function avaliarRespostaMissao(
   );
   if (!rowCount) throw new HttpError(404, 'Resposta de missão não encontrada.');
 
-  await recalcular(ano);
+  await recalcularSemFalhar(ano);
   const painel = await montarPainelAdminGamificacao(me, ano);
   return { ...painel, ok: true };
 }
@@ -879,7 +908,7 @@ export async function revelarResultadoGamificacao(
     [ano, padrao.encerra_em, padrao.ranking_oculto_em, desmarcar, padrao.missoes_surpresa],
   );
 
-  await recalcular(ano);
+  await recalcularSemFalhar(ano);
   const painel = await montarPainelAdminGamificacao(me, ano);
   return {
     ...painel,
@@ -892,8 +921,14 @@ export async function montarRevelacaoTelao(
   me: SessionUser,
   ano = edicaoAtual(),
 ): Promise<RevelacaoTelao> {
-  await garantirRecalculoRecente(ano);
   const e = await inspecionarEsquema();
+  if (!me.is_admin && tem(e, 'gami_config', 'ano', 'revelado_em')) {
+    const { rows } = await query<{ revelado_em: Date | string | null }>(
+      `SELECT revelado_em FROM gami_config WHERE ano = $1`,
+      [ano],
+    );
+    if (!rows[0]?.revelado_em) return { revelado: false, campeao: [], prova: [] };
+  }
   const base = await carregarBaseRankingEConquistas(ano, e);
   const revelado = Boolean(base.cfg.revelado_em);
 

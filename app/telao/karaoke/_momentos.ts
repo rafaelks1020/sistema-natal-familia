@@ -37,6 +37,8 @@ const TIMESLICE_MS = 1000;
 const MIN_BYTES_CLIPE = 20_000;
 const TENTATIVAS_ENVIO = 2;
 const INTERVALO_ENVIO_MS = 2000;
+const TIMEOUT_ENVIO_MOMENTO_MS = 60_000;
+const TIMEOUT_ENVIO_PERFORMANCE_MS = 120_000;
 const FILAS_NA_MEMORIA = 3;
 const OURO = '#ffd45e';
 /** Microfone na gravação: nível (mais baixo que o instrumental), quanto a porta segura aberta depois da última voz e o resquício com eco ligado. */
@@ -763,17 +765,23 @@ class GravadorMomentos {
 
   /** URL assinada pelo servidor, envio direto ao armazenamento (sem passar o arquivo pela Vercel) e registro. 2 tentativas. */
   private async enviar(item: ItemEnvio): Promise<boolean> {
-    for (let t = 0; t < TENTATIVAS_ENVIO; t++) {
-      if (t > 0) await esperar(INTERVALO_ENVIO_MS);
-      try {
-        const { uploadUrl, url } = await api<{ uploadUrl: string; url: string }>('/api/karaoke/momentos/upload', { method: 'POST', json: { fila_id: item.filaId, tipo: item.tipo } });
-        const r = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': item.tipo === 'foto' ? 'image/jpeg' : 'video/webm' }, body: item.blob });
-        if (!r.ok) throw new Error(`envio recusado (HTTP ${r.status})`);
-        await api('/api/karaoke/momentos', { method: 'POST', json: { fila_id: item.filaId, tipo: item.tipo, url, ms: item.ms, duracao_ms: item.duracao_ms, motivo: item.motivo } });
-        return true;
-      } catch (e) { console.error('karaoke: envio do momento', e); }
+    let enviou = false;
+    try {
+      for (let t = 0; t < TENTATIVAS_ENVIO; t++) {
+        if (t > 0) await esperar(INTERVALO_ENVIO_MS);
+        try {
+          const { uploadUrl, url } = await api<{ uploadUrl: string; url: string }>('/api/karaoke/momentos/upload', { method: 'POST', json: { fila_id: item.filaId, tipo: item.tipo }, signal: AbortSignal.timeout(TIMEOUT_ENVIO_MOMENTO_MS) });
+          const r = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': item.tipo === 'foto' ? 'image/jpeg' : 'video/webm' }, body: item.blob, signal: AbortSignal.timeout(TIMEOUT_ENVIO_MOMENTO_MS) });
+          if (!r.ok) throw new Error(`envio recusado (HTTP ${r.status})`);
+          await api('/api/karaoke/momentos', { method: 'POST', json: { fila_id: item.filaId, tipo: item.tipo, url, ms: item.ms, duracao_ms: item.duracao_ms, motivo: item.motivo }, signal: AbortSignal.timeout(TIMEOUT_ENVIO_MOMENTO_MS) });
+          enviou = true;
+          return true;
+        } catch (e) { console.error('karaoke: envio do momento', e); }
+      }
+      return false;
+    } finally {
+      if (!enviou) item.blob = new Blob();
     }
-    return false;
   }
 
   /** Sobe a apresentação inteira por URL assinada e registra em karaoke_fila.video_url. Fora da fila dos clipes, para um arquivo grande não segurar foto nem clipe. */
@@ -782,18 +790,33 @@ class GravadorMomentos {
       console.error('karaoke: apresentação inteira fora do tamanho aceito', blob.size);
       return;
     }
+    let corpo: Blob | null = blob;
+    blob = new Blob();
     let destino: { uploadUrl: string; url: string } | null = null;
-    for (let t = 0; t < TENTATIVAS_ENVIO; t++) {
-      if (t > 0) await esperar(INTERVALO_ENVIO_MS);
-      try {
-        if (!destino) {
-          destino = await api<{ uploadUrl: string; url: string }>('/api/karaoke/performance/upload', { method: 'POST', json: { fila_id: filaId } });
-          const r = await fetch(destino.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'video/webm' }, body: blob });
-          if (!r.ok) { destino = null; throw new Error(`envio recusado (HTTP ${r.status})`); }
-        }
-        await api('/api/karaoke/performance', { method: 'POST', json: { fila_id: filaId, url: destino.url } });
-        return;
-      } catch (e) { console.error('karaoke: envio da apresentação', e); }
+    let enviou = false;
+    try {
+      for (let t = 0; t < TENTATIVAS_ENVIO; t++) {
+        if (t > 0) await esperar(INTERVALO_ENVIO_MS);
+        try {
+          if (!destino) {
+            const arquivo = corpo;
+            if (!arquivo) throw new Error('envio sem arquivo');
+            destino = await api<{ uploadUrl: string; url: string }>('/api/karaoke/performance/upload', { method: 'POST', json: { fila_id: filaId }, signal: AbortSignal.timeout(TIMEOUT_ENVIO_PERFORMANCE_MS) });
+            try {
+              const r = await fetch(destino.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'video/webm' }, body: arquivo, signal: AbortSignal.timeout(TIMEOUT_ENVIO_PERFORMANCE_MS) });
+              if (!r.ok) throw new Error(`envio recusado (HTTP ${r.status})`);
+            } catch (e) {
+              destino = null;
+              throw e;
+            }
+          }
+          await api('/api/karaoke/performance', { method: 'POST', json: { fila_id: filaId, url: destino.url }, signal: AbortSignal.timeout(TIMEOUT_ENVIO_PERFORMANCE_MS) });
+          enviou = true;
+          return;
+        } catch (e) { console.error('karaoke: envio da apresentação', e); }
+      }
+    } finally {
+      if (!enviou) corpo = null;
     }
   }
 

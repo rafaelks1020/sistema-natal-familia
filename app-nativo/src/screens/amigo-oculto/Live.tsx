@@ -30,7 +30,8 @@ export default function Live() {
   const { user } = useSession();
   const insets = useSafeAreaInsets();
   const focused = useIsFocused();
-  const query = useQuery({ queryKey: featureKeys.live, queryFn: ({ signal }) => api<LiveData>('/api/secret-santa/live', { signal }), refetchInterval: focused ? 2000 : false, enabled: !!user });
+  const query = useQuery({ queryKey: featureKeys.live, queryFn: ({ signal }) => api<LiveData>('/api/secret-santa/live', { signal }),
+    refetchInterval: (q) => !focused ? false : q.state.data?.live?.encerrado_em ? 20000 : 3000, enabled: !!user });
   const mutation = useFeatureMutation();
   const live = query.data?.live, pair = live?.pairs.at(-1);
   function advance() {

@@ -13,13 +13,18 @@ export const POST = route<ParamsCtx>(async (_req, { params }) => {
 
   let notifyUserId: number | null = null;
   const response = await transaction(async (query) => {
-    const existingComment = await query<{ id: number; user_id: number; post_id: number }>(
-      'SELECT id, user_id, post_id FROM family_post_comments WHERE id = $1 FOR UPDATE',
-      [commentId],
+    const existingComment = await query<{ id: number; user_id: number; post_id: number; bloqueou: boolean }>(
+      `SELECT id, user_id, post_id,
+              EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = user_id AND b.blocked_id = $2) AS bloqueou
+         FROM family_post_comments WHERE id = $1 FOR UPDATE`,
+      [commentId, me.id],
     );
     const comment = existingComment.rows[0];
     if (!comment) {
       throw new HttpError(404, 'Comentário não encontrado.');
+    }
+    if (comment.bloqueou) {
+      throw new HttpError(403, 'Você não pode interagir com esta publicação.');
     }
 
     const removed = await query(

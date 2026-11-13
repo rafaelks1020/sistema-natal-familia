@@ -36,7 +36,7 @@ interface Props {
   meId: number;
   isAdmin: boolean;
   onReact: (postId: number, type: ReactionType) => void;
-  onAddComment: (postId: number, content: string) => Promise<void>;
+  onAddComment: (postId: number, content: string) => Promise<boolean>;
   onLoadComments: (postId: number) => Promise<boolean>;
   onDeleteComment: (postId: number, commentId: number) => void;
   onToggleCommentLike: (postId: number, commentId: number) => void;
@@ -112,7 +112,7 @@ export default function PostCard({
     setSendingComment(true);
     setCommentText('');
     try {
-      await onAddComment(post.id, text);
+      if (!(await onAddComment(post.id, text))) setCommentText((atual) => atual || text);
     } finally {
       setSendingComment(false);
     }
@@ -229,7 +229,7 @@ export default function PostCard({
                     type="button"
                     onClick={() => {
                       setMenuOpen(false);
-                      onDeletePost(post.id);
+                      if (window.confirm('Apagar esta publicação? Não dá para desfazer.')) onDeletePost(post.id);
                     }}
                     className="flex min-h-[44px] w-full items-center gap-2.5 px-4 text-left text-sm text-[#ff8a8d] hover:bg-carvao-3"
                   >
@@ -443,7 +443,7 @@ export default function PostCard({
                       {canDeleteComment && (
                         <button
                           type="button"
-                          onClick={() => onDeleteComment(post.id, c.id)}
+                          onClick={() => { if (window.confirm('Excluir este comentário?')) onDeleteComment(post.id, c.id); }}
                           className="text-marfim-3 hover:text-[#ff8a8d]"
                         >
                           Excluir

@@ -200,18 +200,23 @@ export async function apagarPedido(me: SessionUser, id: number) {
 
 type ItemPlaylist = { item?: { uri: string } | null; track?: { uri: string } | null };
 
-async function itensDaPlaylist(playlistId: string, access: string, paginas = 20): Promise<string[]> {
+async function itensDaPlaylist(playlistId: string, access: string, paginas = 20, pararEm?: string, prazo?: number): Promise<string[] | null> {
   const uris: string[] = [];
   for (let offset = 0, pagina = 0; pagina < paginas; offset += 50, pagina++) {
+    if (prazo !== undefined && Date.now() >= prazo) return null;
     const page = await spotify<{ items: ItemPlaylist[]; next: string | null }>(`/playlists/${playlistId}/items?limit=50&offset=${offset}`, 'GET', undefined, access);
-    page.items.forEach((t, i) => uris.push((t.item || t.track)?.uri || `fora:${offset + i}`));
+    for (let i = 0; i < page.items.length; i++) {
+      const uri = (page.items[i].item || page.items[i].track)?.uri || `fora:${offset + i}`;
+      uris.push(uri);
+      if (pararEm && uri === pararEm) return uris;
+    }
     if (!page.next) break;
   }
   return uris;
 }
 
 export async function containsTrack(playlistId: string, uri: string, access: string) {
-  return (await itensDaPlaylist(playlistId, access, 200)).includes(uri);
+  return (await itensDaPlaylist(playlistId, access, 200, uri))?.includes(uri) ?? false;
 }
 
 export async function mutatePlaylist(me: SessionUser, uri: string, remove: boolean, momento: Momento = 'festa') {
@@ -256,6 +261,7 @@ export async function votar(me: SessionUser, trackId: number) {
 
 const REORDENAR_INTERVALO_MS = 30 * 1000;
 const REORDENAR_MAX_MOVIMENTOS = 60;
+const REORDENAR_ORCAMENTO_MS = 20 * 1000;
 
 /** Ordem desejada: cada música conhecida ocupa as vagas das conhecidas, o resto da playlist fica onde está. Função pura. */
 export function ordemFinal(atual: string[], desejada: string[]): string[] {
@@ -283,8 +289,10 @@ export function movimentos(atual: string[], alvo: string[]): { de: number; para:
 }
 
 /**
- * Deixa a playlist do momento na ordem dos votos. No máximo uma reordenação completa a cada 30 s por playlist;
- * se vier antes disso, fica marcada como pendente (a tarefa de ordem termina o serviço). Nunca lança erro.
+ * Deixa a playlist do momento na ordem dos votos. No máximo uma reordenação a cada 30 s por playlist;
+ * se vier antes disso, fica marcada como pendente (a tarefa de ordem termina o serviço).
+ * A marca só sai quando a ordem fecha. Cada execução trabalha cerca de 20 s e a próxima continua de onde a playlist ficou.
+ * Nunca lança erro.
  */
 export async function reordenar(momento: Momento, ano = edicaoAtual()): Promise<boolean> {
   try {
@@ -298,17 +306,24 @@ export async function reordenar(momento: Momento, ano = edicaoAtual()): Promise<
       WHERE CASE WHEN app_settings.value ~ '^[0-9]+$' THEN app_settings.value::bigint <= $3 ELSE TRUE END RETURNING key`,
     [`spotify_reorder_${ano}_${momento}`, String(agora), agora - REORDENAR_INTERVALO_MS]);
     if (!vaga.rowCount) { await save({ [pendente]: '1' }); return false; }
-    await query('DELETE FROM app_settings WHERE key=$1', [pendente]);
+    await save({ [pendente]: '1' });
     const desejada = (await query<{ track_uri: string }>(
       `SELECT t.track_uri, ${VOTOS_SQL} FROM playlist_tracks t WHERE t.ano=$1 AND t.momento=$2 AND t.track_uri LIKE 'spotify:track:%' ORDER BY ${ORDEM_VOTOS}`,
       [ano, momento])).rows.map(r => r.track_uri);
-    if (desejada.length < 2) return true;
+    if (desejada.length < 2) {
+      await query('DELETE FROM app_settings WHERE key=$1', [pendente]);
+      return true;
+    }
+    const limite = Date.now() + REORDENAR_ORCAMENTO_MS;
     const access = await token();
-    const atual = await itensDaPlaylist(playlistId, access);
+    const atual = await itensDaPlaylist(playlistId, access, 20, undefined, limite);
+    if (!atual) return false;
     const passos = movimentos(atual, ordemFinal(atual, desejada)).slice(0, REORDENAR_MAX_MOVIMENTOS);
     for (const passo of passos) {
+      if (Date.now() >= limite) return false;
       await spotify(`/playlists/${playlistId}/items`, 'PUT', { range_start: passo.de, insert_before: passo.para, range_length: 1 }, access);
     }
+    await query('DELETE FROM app_settings WHERE key=$1', [pendente]);
     return true;
   } catch {
     return false;
@@ -320,7 +335,10 @@ export async function reordenarPendentes(): Promise<number> {
   const ano = edicaoAtual();
   const s = await settings();
   let feitas = 0;
+  // Teto da rodada: depois de 12 s não abre outra playlist; a que sobrar fica pendente para o próximo ciclo.
+  const inicio = Date.now();
   for (const momento of MOMENTO_IDS) {
+    if (Date.now() - inicio > 12_000) break;
     if (s[`spotify_reorder_pendente_${ano}_${momento}`] && await reordenar(momento, ano)) feitas++;
   }
   return feitas;

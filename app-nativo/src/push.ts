@@ -65,8 +65,23 @@ export async function sincronizarPush(): Promise<void> {
   }
 }
 
-/** Rota que veio na notificação tocada (o servidor manda data.rota: /mural, /amigo-oculto, /vaquinha). */
+// Primeiro segmento de cada rota que existe em src/app (abas incluídas).
+const ROTAS_DO_APP = new Set([
+  'mural', 'amigo-oculto', 'vaquinha', 'album', 'admin', 'advento', 'amigo-oculto-ao-vivo', 'arvore', 'capsula', 'caronas', 'cartao', 'ceia',
+  'conquistas', 'conta', 'contas-da-ceia', 'convidar', 'convites', 'familia', 'festa', 'festa-bingo', 'festa-desafio', 'festa-enquete',
+  'festa-foto-oficial', 'festa-quiz', 'historias', 'homenagem', 'memorias', 'natal', 'organizar', 'pagar', 'playlist', 'privacidade',
+  'receitas', 'retrospectiva', 'termos',
+]);
+// Telas que só existem no site e no app viram a mais próxima.
+const ROTAS_EQUIVALENTES: Record<string, string> = { pontos: 'conquistas', missoes: 'conquistas' };
+
+/** Rota que veio na notificação tocada (o servidor manda data.rota: /mural, /amigo-oculto, /vaquinha). Rota que o app não tem cai em '/'. */
 export function rotaDaNotificacao(resposta: Notifications.NotificationResponse | null): string | null {
   const rota = resposta?.notification.request.content.data?.rota;
-  return typeof rota === 'string' && /^\/[a-z0-9/_-]*$/i.test(rota) ? rota : null;
+  if (typeof rota !== 'string' || !/^\/[a-z0-9/_-]*$/i.test(rota)) return null;
+  const [primeiro = ''] = rota.split('/').filter(Boolean);
+  if (!primeiro) return '/';
+  const equivalente = ROTAS_EQUIVALENTES[primeiro];
+  if (equivalente) return `/${equivalente}`;
+  return ROTAS_DO_APP.has(primeiro) ? rota : '/';
 }

@@ -3,7 +3,6 @@ import { QueryClient } from '@tanstack/react-query';
 
 // Domínio próprio no ar desde 05/11/2026.
 export const API_BASE_URL = 'https://natalemfamilia.com.br';
-export const PRIMARY_API_URL = 'https://natalemfamilia.com.br';
 const TOKEN_KEY = 'natal.session.v1';
 const BIO_TOKEN_KEY = 'natal.session.biometric.v1';
 const BIO_KEY = 'natal.biometric.v1';
@@ -48,6 +47,21 @@ export const sessionStore = {
     await SecureStore.deleteItemAsync(BIO_KEY);
     await SecureStore.deleteItemAsync(BIO_TOKEN_KEY);
     generation++; token = value; queryClient.clear(); emit({ status: 'authenticated', biometric: false });
+  },
+  /** Troca o token mantendo a pessoa logada (senha alterada: o servidor devolve um token novo). */
+  async replaceToken(value: string) {
+    if (snapshot.status !== 'authenticated') return;
+    token = value;
+    if (!snapshot.biometric) { await SecureStore.setItemAsync(TOKEN_KEY, value, storeOptions); return; }
+    try {
+      await SecureStore.setItemAsync(BIO_TOKEN_KEY, value, bioOptions);
+    } catch {
+      // A biometria recusou a regravação: guarda o token comum e desliga a biometria, para a pessoa não cair fora.
+      await SecureStore.setItemAsync(TOKEN_KEY, value, storeOptions);
+      await SecureStore.deleteItemAsync(BIO_KEY);
+      await SecureStore.deleteItemAsync(BIO_TOKEN_KEY);
+      emit({ status: 'authenticated', biometric: false });
+    }
   },
   async enableBiometric() {
     if (!token) throw new Error('Entre novamente para ativar a biometria.');
@@ -105,6 +119,8 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${path}`, { ...rest, headers: requestHeaders,
       credentials: 'omit', signal: controller.signal, body: json !== undefined ? JSON.stringify(json) : rest.body });
     const data: unknown = await response.json().catch(() => null);
+    const jsonDoServidor = Boolean(data) && typeof data === 'object' && 'error' in (data as object) && typeof (data as { error?: unknown }).error === 'string';
+    if ((response.status === 401 || response.status === 403) && !jsonDoServidor) throw new ApiError('O servidor está protegendo a conexão. Tente de novo em instantes.', response.status);
     if (response.status === 401 && !isPublic && requestGeneration === generation) await sessionStore.signOut().catch(() => {});
     if (!response.ok) {
       const message = data && typeof data === 'object' && 'error' in data && typeof data.error === 'string' ? data.error : 'Não deu certo. Tente novamente.';

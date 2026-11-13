@@ -50,7 +50,7 @@ export default function PollCard({ poll, canDelete, onVote, onDelete }: Props) {
         {canDelete && (
           <button
             type="button"
-            onClick={() => onDelete(poll.id)}
+            onClick={() => { if (window.confirm('Apagar esta enquete e os votos?')) onDelete(poll.id); }}
             aria-label="Apagar enquete"
             className="flex h-11 w-11 items-center justify-center rounded-full text-marfim-3 transition-colors hover:text-cereja"
           >

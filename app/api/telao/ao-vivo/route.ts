@@ -97,21 +97,19 @@ export const POST = route(async (req) => {
   try {
     if (body.tipo === 'reacao') {
       const emoji = emojiPermitido(body.emoji);
-      const id = await transaction(async (q) => {
-        await q('SELECT pg_advisory_xact_lock($1, $2)', [16011, me.id]);
-        const { rows } = await q<{ id: string | number }>(
-          `INSERT INTO telao_reacoes (ano, user_id, emoji)
-           SELECT $1, $2, $3
-           WHERE NOT EXISTS (
-             SELECT 1 FROM telao_reacoes
-             WHERE user_id = $2 AND ano = $1 AND created_at > NOW() - INTERVAL '1 second'
-           )
-           RETURNING id`,
-          [ano, me.id, emoji],
-        );
-        if (!rows.length) throw new HttpError(429, 'Espere um segundo para reagir de novo.');
-        return Number(rows[0].id);
-      });
+      // Um INSERT só: o NOT EXISTS segura o limite de 1 por segundo por pessoa (sem lock)
+      const { rows } = await query<{ id: string | number }>(
+        `INSERT INTO telao_reacoes (ano, user_id, emoji)
+         SELECT $1, $2, $3
+         WHERE NOT EXISTS (
+           SELECT 1 FROM telao_reacoes
+           WHERE user_id = $2 AND ano = $1 AND created_at > NOW() - INTERVAL '1 second'
+         )
+         RETURNING id`,
+        [ano, me.id, emoji],
+      );
+      if (!rows.length) throw new HttpError(429, 'Espere um segundo para reagir de novo.');
+      const id = Number(rows[0].id);
       return ok({ id }, 201);
     }
     if (body.tipo === 'recado') {

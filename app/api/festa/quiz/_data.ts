@@ -82,66 +82,74 @@ export interface QuizData {
 export async function carregarQuiz(me: SessionUser): Promise<QuizData> {
   const ano = edicaoAtual();
 
-  // Garante linha de estado para o ano atual e encerra automaticamente se os 20s expiraram
-  await query(
-    `INSERT INTO party_quiz_state (ano, status)
-     VALUES ($1, 'preparando')
-     ON CONFLICT (ano) DO NOTHING`,
-    [ano],
-  );
-
-  const expiredRes = await query<{ question_id: number | null }>(
-    `UPDATE party_quiz_state
-        SET status = 'revelada',
-            encerrada_em = NOW(),
-            updated_at = NOW()
-      WHERE ano = $1
-        AND status = 'aberta'
-        AND aberta_em IS NOT NULL
-        AND NOW() >= aberta_em + INTERVAL '20 seconds'
-      RETURNING question_id`,
-    [ano],
-  );
-
-  if (expiredRes.rows[0]?.question_id) {
-    await query(
-      `UPDATE party_quiz_questions
-          SET encerrada = true
-        WHERE id = $1 AND ano = $2`,
-      [expiredRes.rows[0].question_id, ano],
-    );
-  }
-
-  const stateRes = await query<{
+  type EstadoQuiz = {
     status: 'preparando' | 'aberta' | 'revelada' | 'podio';
     question_id: number | null;
     aberta_em: string | null;
     encerrada_em: string | null;
     agora: string;
     restante_ms: number;
-  }>(
-    `SELECT status,
-            question_id,
-            aberta_em::text AS aberta_em,
-            encerrada_em::text AS encerrada_em,
-            NOW()::text AS agora,
-            CASE
-              WHEN status = 'aberta' AND aberta_em IS NOT NULL THEN
-                GREATEST(0, ROUND(EXTRACT(EPOCH FROM ((aberta_em + INTERVAL '20 seconds') - NOW())) * 1000))::int
-              ELSE 0
-            END AS restante_ms
-       FROM party_quiz_state
-      WHERE ano = $1`,
-    [ano],
-  );
+    vencida: boolean;
+  };
 
-  const st = stateRes.rows[0] ?? {
+  const lerEstado = async () => {
+    const res = await query<EstadoQuiz>(
+      `SELECT status,
+              question_id,
+              aberta_em::text AS aberta_em,
+              encerrada_em::text AS encerrada_em,
+              NOW()::text AS agora,
+              CASE
+                WHEN status = 'aberta' AND aberta_em IS NOT NULL THEN
+                  GREATEST(0, ROUND(EXTRACT(EPOCH FROM ((aberta_em + INTERVAL '20 seconds') - NOW())) * 1000))::int
+                ELSE 0
+              END AS restante_ms,
+              (status = 'aberta' AND aberta_em IS NOT NULL
+                AND NOW() >= aberta_em + INTERVAL '20 seconds') AS vencida
+         FROM party_quiz_state
+        WHERE ano = $1`,
+      [ano],
+    );
+    return res.rows[0] ?? null;
+  };
+
+  // GET so le: sem linha de estado vale 'preparando' em memoria (a linha nasce nas acoes do organizador)
+  let lido = await lerEstado();
+
+  // Encerra automaticamente quando os 20s expiraram (so grava se a leitura mostrou aberta vencida)
+  if (lido?.vencida) {
+    const expiredRes = await query<{ question_id: number | null }>(
+      `UPDATE party_quiz_state
+          SET status = 'revelada',
+              encerrada_em = NOW(),
+              updated_at = NOW()
+        WHERE ano = $1
+          AND status = 'aberta'
+          AND aberta_em IS NOT NULL
+          AND NOW() >= aberta_em + INTERVAL '20 seconds'
+        RETURNING question_id`,
+      [ano],
+    );
+
+    if (expiredRes.rows[0]?.question_id) {
+      await query(
+        `UPDATE party_quiz_questions
+            SET encerrada = true
+          WHERE id = $1 AND ano = $2`,
+        [expiredRes.rows[0].question_id, ano],
+      );
+    }
+    lido = await lerEstado();
+  }
+
+  const st = lido ?? {
     status: 'preparando' as const,
     question_id: null,
     aberta_em: null,
     encerrada_em: null,
     agora: new Date().toISOString(),
     restante_ms: 0,
+    vencida: false,
   };
 
   const questionsRes = await query<{
@@ -174,17 +182,33 @@ export async function carregarQuiz(me: SessionUser): Promise<QuizData> {
 
   const rawQuestions = questionsRes.rows;
 
-  // O servidor NUNCA envia a resposta certa antes de encerrar a pergunta.
+  // Quem organiza ve o gabarito sempre. Os demais so veem a certa depois de encerrar, e o conteudo
+  // das perguntas ainda nao jogadas (nem a atual) nao e enviado.
   const perguntas: QuizQuestionItem[] = rawQuestions.map((q) => {
-    const isCurrentOpen = st.status === 'aberta' && st.question_id === q.id;
+    if (me.is_admin) {
+      return {
+        id: q.id,
+        ordem: q.ordem,
+        modelo: q.modelo,
+        pergunta: q.pergunta,
+        image_url: q.image_url,
+        opcoes: Array.isArray(q.opcoes) ? q.opcoes.map(String) : [],
+        correta: q.correta,
+        encerrada: q.encerrada,
+        total_respostas: q.total_respostas,
+      };
+    }
+    const isCurrent = st.question_id === q.id;
+    const isCurrentOpen = st.status === 'aberta' && isCurrent;
     const podeVerCorreta = q.encerrada && !isCurrentOpen;
+    const jogada = q.encerrada || isCurrent;
     return {
       id: q.id,
       ordem: q.ordem,
       modelo: q.modelo,
-      pergunta: q.pergunta,
-      image_url: q.image_url,
-      opcoes: Array.isArray(q.opcoes) ? q.opcoes.map(String) : [],
+      pergunta: jogada ? q.pergunta : '',
+      image_url: jogada ? q.image_url : null,
+      opcoes: jogada && Array.isArray(q.opcoes) ? q.opcoes.map(String) : [],
       correta: podeVerCorreta ? q.correta : null,
       encerrada: q.encerrada,
       total_respostas: q.total_respostas,

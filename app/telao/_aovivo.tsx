@@ -90,6 +90,14 @@ function mesmaLista<T extends { id: number }>(a: T[], b: T[]): boolean {
   return a.length === b.length && a.every((item, i) => item.id === b[i].id);
 }
 
+const LIMITE_VISTOS = 500;
+const TIMEOUT_AO_VIVO_MS = 8000;
+
+/** A noite inteira enche o conjunto. Passou do limite, esvazia: o cursor `desde` não manda de novo o que já subiu. */
+function esvaziarSePassou(ids: Set<number>) {
+  if (ids.size > LIMITE_VISTOS) ids.clear();
+}
+
 /** Consulta /api/telao/ao-vivo a cada 2 s. `reacoes` é só o lote novo (id > desde). */
 export function useAoVivo(): AoVivoEstado {
   const desde = useRef(0);
@@ -102,10 +110,14 @@ export function useAoVivo(): AoVivoEstado {
 
   useEffect(() => {
     let vivo = true;
+    let lendo = false;
+    const ctl = new AbortController();
     const ler = async () => {
+      if (!vivo || lendo) return;
+      lendo = true;
       const meu = ++pedido.current;
       try {
-        const data = await api<RespostaAoVivo>(`/api/telao/ao-vivo?desde=${desde.current}`);
+        const data = await api<RespostaAoVivo>(`/api/telao/ao-vivo?desde=${desde.current}`, { signal: ctl.signal, timeoutMs: TIMEOUT_AO_VIVO_MS });
         if (!vivo || meu < aplicado.current) return;
         aplicado.current = meu;
         const novas = data.reacoes ?? [];
@@ -120,12 +132,13 @@ export function useAoVivo(): AoVivoEstado {
       } catch (err) {
         if (!vivo || meu !== pedido.current) return;
         setErro((err as Error).message);
-      }
+      } finally { lendo = false; }
     };
     const primeira = window.setTimeout(() => void ler(), 0);
     const timer = window.setInterval(() => void ler(), 2000);
     return () => {
       vivo = false;
+      ctl.abort();
       window.clearTimeout(primeira);
       window.clearInterval(timer);
     };
@@ -143,6 +156,7 @@ export function ReacoesFlutuantes({ reacoes }: { reacoes: ReacaoAoVivo[] }) {
 
   useEffect(() => {
     const h = window.setTimeout(() => {
+      esvaziarSePassou(vistas.current);
       const novas: EmojiAtivo[] = [];
       for (const r of reacoes) {
         if (!Number.isInteger(r.id) || vistas.current.has(r.id)) continue;
@@ -198,6 +212,7 @@ export function RecadoVivo({ recado }: { recado: RecadoAoVivo | RecadoAoVivo[] |
   useEffect(() => {
     const lista = normalizarRecados(recado);
     const h = window.setTimeout(() => {
+      esvaziarSePassou(vistos.current);
       const novos: RecadoAoVivo[] = [];
       for (const item of lista) {
         if (!Number.isInteger(item.id) || vistos.current.has(item.id)) continue;

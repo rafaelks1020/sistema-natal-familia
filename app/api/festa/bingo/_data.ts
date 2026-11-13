@@ -181,18 +181,21 @@ async function garantirItensPadrao(ano: number): Promise<void> {
   if ((countRes.rows[0]?.total ?? 0) > 0) return;
 
   await transaction(async (q) => {
+    // Lock por ano: quem chega junto espera e ja encontra os itens criados
+    await q(`SELECT pg_advisory_xact_lock(4101, $1::int)`, [ano]);
     const check = await q<{ total: number }>(
       `SELECT COUNT(*)::int AS total FROM party_bingo_items WHERE ano = $1`,
       [ano],
     );
     if ((check.rows[0]?.total ?? 0) > 0) return;
 
-    for (const texto of ITENS_PADRAO_BINGO) {
-      await q(`INSERT INTO party_bingo_items (ano, texto, ativo) VALUES ($1, $2, true)`, [
-        ano,
-        texto,
-      ]);
-    }
+    await q(
+      `INSERT INTO party_bingo_items (ano, texto, ativo)
+       SELECT $1::int, t.texto, true
+         FROM unnest($2::text[]) WITH ORDINALITY AS t(texto, ord)
+        ORDER BY t.ord`,
+      [ano, ITENS_PADRAO_BINGO],
+    );
   });
 }
 
@@ -219,9 +222,15 @@ export async function carregarBingo(me: SessionUser): Promise<BingoData> {
   if (!cardRes.rows[0]) {
     const novasCasas = montarCasasSorteadas(itensAtivos);
     await query(
-      `INSERT INTO party_bingo_cards (ano, user_id, casas)
-       VALUES ($1, $2, $3::jsonb)
-       ON CONFLICT (ano, user_id) DO NOTHING`,
+      `WITH nova AS (
+         INSERT INTO party_bingo_cards (ano, user_id, casas)
+         VALUES ($1, $2, $3::jsonb)
+         ON CONFLICT (ano, user_id) DO NOTHING
+         RETURNING id
+       )
+       INSERT INTO party_bingo_marks (ano, card_id, user_id, posicao)
+       SELECT $1::int, id, $2::int, 12 FROM nova
+       ON CONFLICT (card_id, posicao) DO NOTHING`,
       [ano, me.id, JSON.stringify(novasCasas)],
     );
     cardRes = await query<{ id: number; casas: BingoCasa[] }>(
@@ -231,18 +240,19 @@ export async function carregarBingo(me: SessionUser): Promise<BingoData> {
   }
 
   const card = cardRes.rows[0];
-  // Garante centro livre (posicao 12) marcado no banco
-  await query(
-    `INSERT INTO party_bingo_marks (ano, card_id, user_id, posicao)
-     VALUES ($1, $2, $3, 12)
-     ON CONFLICT (card_id, posicao) DO NOTHING`,
-    [ano, card.id, me.id],
-  );
-
   const marksRes = await query<{ posicao: number }>(
     `SELECT posicao FROM party_bingo_marks WHERE ano = $1 AND card_id = $2 ORDER BY posicao ASC`,
     [ano, card.id],
   );
+  // O centro livre e gravado na criacao da cartela; so repara se faltar na lista lida
+  if (!marksRes.rows.some((r) => r.posicao === 12)) {
+    await query(
+      `INSERT INTO party_bingo_marks (ano, card_id, user_id, posicao)
+       VALUES ($1, $2, $3, 12)
+       ON CONFLICT (card_id, posicao) DO NOTHING`,
+      [ano, card.id, me.id],
+    );
+  }
   const marcadasSet = new Set<number>([12, ...marksRes.rows.map((r) => r.posicao)]);
   const marcadas = Array.from(marcadasSet).sort((a, b) => a - b);
   const padroes_completos = detectarPadroesCompletos(marcadasSet);

@@ -117,6 +117,14 @@ export const POST = route(async (req) => {
   // Demais acoes sao exclusivas de quem organiza
   const admin = await requireAdmin();
 
+  // A linha de estado so nasce aqui: o GET nao grava (sem linha vale 'preparando')
+  await query(
+    `INSERT INTO party_quiz_state (ano, status)
+     VALUES ($1, 'preparando')
+     ON CONFLICT (ano) DO NOTHING`,
+    [ano],
+  );
+
   if (acao === 'criar_pergunta') {
     const modelo = cleanText(body.modelo, 'Modelo', 80, false);
     const pergunta = cleanText(body.pergunta, 'Pergunta', 300, true);
@@ -184,7 +192,20 @@ export const POST = route(async (req) => {
 
   if (acao === 'excluir_pergunta') {
     const id = toInt(body.id, 'pergunta');
-    await query(`DELETE FROM party_quiz_questions WHERE id = $1 AND ano = $2`, [id, ano]);
+    await transaction(async (q) => {
+      // A FK composta tentaria zerar o ano (NOT NULL): solta o estado antes de apagar
+      await q(
+        `UPDATE party_quiz_state
+            SET status = 'preparando',
+                question_id = NULL,
+                aberta_em = NULL,
+                encerrada_em = NULL,
+                updated_at = NOW()
+          WHERE ano = $1 AND question_id = $2`,
+        [ano, id],
+      );
+      await q(`DELETE FROM party_quiz_questions WHERE id = $1 AND ano = $2`, [id, ano]);
+    });
     return ok(await carregarQuiz(admin));
   }
 
@@ -215,6 +236,15 @@ export const POST = route(async (req) => {
     }
 
     await transaction(async (q) => {
+      // Pergunta que estava no ar fica encerrada, senao o "abrir proxima" voltaria a ela
+      await q(
+        `UPDATE party_quiz_questions
+            SET encerrada = true
+          WHERE ano = $1
+            AND id <> $2
+            AND id = (SELECT question_id FROM party_quiz_state WHERE ano = $1 FOR UPDATE)`,
+        [ano, questionId],
+      );
       // Se reabriu uma pergunta especifica, limpa respostas anteriores daquela pergunta e marca como nao encerrada
       await q(`DELETE FROM party_quiz_answers WHERE ano = $1 AND question_id = $2`, [
         ano,

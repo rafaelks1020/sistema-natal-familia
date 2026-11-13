@@ -1,10 +1,11 @@
-import { route, ok, readJson, cleanText, toInt, HttpError, requireUser, requireAdmin } from '@/app/lib/api';
+import { route, ok, readJson, cleanText, toInt, HttpError, requireUser } from '@/app/lib/api';
 import { query, transaction } from '@/app/lib/db';
 import { edicaoAtual } from '@/app/lib/edicao';
 import { dentroDoLimite } from '@/app/lib/limite';
 import type { DadosEstudio, StatusCatalogo } from '@/app/telao/karaoke/tipos';
 import { ordenarFilaJusta, type EntradaFilaJusta } from '@/app/telao/karaoke/fila-justa';
 import { notasLinhasValidas, type CamposBatalhaFila } from '@/app/telao/karaoke/batalha';
+import { estrelasDaNota, estrelasEstudio } from '@/app/telao/karaoke/pontuacao';
 import { lerFaixa, parseLrc, type LinhaLetra } from '../_lrclib';
 import { buscarTermo, juntarVideos, melhorKaraoke, ordenarPorDuracao, type VideoKaraoke } from '../_youtube';
 import { candidatosValidos, listarBloqueados, MAX_CANDIDATOS, trocarVideo } from '../_trocar';
@@ -171,6 +172,53 @@ function numeroEntre(valor: unknown, min: number, max: number, campo: string): n
   return Math.round(n);
 }
 
+type CorpoEncerrar = { nota?: unknown; estrelas?: unknown; detalhes?: unknown; notas_linhas?: unknown };
+
+/** Encerra quem está cantando: grava a nota, se veio, e marca como feita. Devolve quem pontua no time. */
+async function encerrarApresentacao(q: Q, ano: number, alvo: number, corpo: CorpoEncerrar): Promise<{ userIds: number[]; nota: number } | null> {
+  let notasLinhas: number[] | null = null;
+  const recebidas = corpo.notas_linhas;
+  if (recebidas !== undefined) {
+    if (!notasLinhasValidas(recebidas)) throw new HttpError(400, 'Envie notas_linhas como frações de 0 a 1.');
+    const { rows: batalha } = await q<{ total: number }>(
+      `SELECT jsonb_array_length(b.trechos) AS total FROM karaoke_batalhas b
+         JOIN karaoke_fila f ON f.batalha_id = b.id WHERE f.id = $1 AND f.ano = $2`, [alvo, ano],
+    );
+    if (batalha.length && batalha[0].total !== recebidas.length) {
+      console.warn('[karaoke] notas_linhas não batem com os trechos da batalha, ignoradas', alvo, batalha[0].total, recebidas.length);
+    } else notasLinhas = recebidas;
+  }
+  const { rows } = await q<{ user_id: number; dueto_user_id: number | null }>(
+    `UPDATE karaoke_fila SET status = 'feita', terminado_em = NOW() WHERE id = $1 AND ano = $2 AND status = 'cantando' AND ${livreDaProva('karaoke_fila.id')} RETURNING user_id, dueto_user_id`,
+    [alvo, ano],
+  );
+  if (!rows.length) throw new HttpError(409, 'Essa apresentação já foi encerrada.');
+  if (notasLinhas) await q('UPDATE karaoke_fila SET notas_linhas = $1::jsonb WHERE id = $2', [JSON.stringify(notasLinhas), alvo]);
+  if (corpo.nota != null && corpo.estrelas != null) {
+    const nota = numeroEntre(corpo.nota, 0, 100, 'nota');
+    const estrelas = numeroEntre(corpo.estrelas, 1, 5, 'estrelas');
+    let detalhes: string | null = null;
+    if (corpo.detalhes != null) {
+      if (typeof corpo.detalhes !== 'object' || Array.isArray(corpo.detalhes)) throw new HttpError(400, 'Campo detalhes inválido.');
+      detalhes = JSON.stringify(corpo.detalhes);
+      if (detalhes.length > 4000) throw new HttpError(400, 'Campo detalhes grande demais.');
+    }
+    await q(
+      `INSERT INTO karaoke_notas (fila_id, nota, estrelas, detalhes) VALUES ($1, $2, $3, $4::jsonb)
+       ON CONFLICT (fila_id) DO UPDATE SET nota = EXCLUDED.nota, estrelas = EXCLUDED.estrelas, detalhes = EXCLUDED.detalhes`,
+      [alvo, nota, estrelas, detalhes],
+    );
+    return { userIds: [rows[0].user_id, ...(rows[0].dueto_user_id ? [rows[0].dueto_user_id] : [])], nota };
+  }
+  return null;
+}
+
+/** O placar parcial é a pontuação ao vivo (0 a 10000). A nota guardada é essa pontuação em 0 a 100. */
+function notaDoParcial(parcial: number, modo: string): { nota: number; estrelas: number } {
+  const nota = Math.min(100, Math.max(0, Math.round(Number(parcial) / 100)));
+  return { nota, estrelas: modo === 'estudio' ? estrelasEstudio(nota) : estrelasDaNota(nota) };
+}
+
 export const GET = route(comMigracao(async (req) => {
   const me = await requireUser();
   // A letra pesa alguns KB: só o telão pede (?letra=1), e só vem a da música que está cantando.
@@ -335,7 +383,7 @@ export const POST = route(comMigracao(async (req) => {
 }));
 
 export const PATCH = route(comMigracao(async (req) => {
-  const me = await requireAdmin();
+  const me = await requireUser();
   const ano = edicaoAtual();
   const body = await readJson<{ id?: unknown; acao?: unknown; nota?: unknown; estrelas?: unknown; detalhes?: unknown; notas_linhas?: unknown; offset_ms?: unknown; video_id_falho?: unknown; codigo?: unknown; pontos?: unknown }>(req);
   const acao = typeof body.acao === 'string' ? body.acao : '';
@@ -343,6 +391,7 @@ export const PATCH = route(comMigracao(async (req) => {
   if (!ACOES.includes(acao)) throw new HttpError(400, 'Ação inválida.');
   const id = body.id == null ? null : toInt(body.id);
   if (id === null && acao !== 'comecar' && acao !== 'terminar') throw new HttpError(400, 'Campo id inválido.');
+  if (acao !== 'remover' && !me.is_admin) throw new HttpError(403, 'Só quem organiza pode fazer isso.');
 
   if (acao === 'parcial') {
     // Placar parcial do telão: resposta leve (não devolve o estado inteiro com a letra).
@@ -366,7 +415,7 @@ export const PATCH = route(comMigracao(async (req) => {
     return ok(await estado(query, ano, me.id, true));
   }
 
-  const pontuar: { v: { userIds: number[]; nota: number } | null } = { v: null };
+  const pontuacoes: { userIds: number[]; nota: number }[] = [];
 
   await transaction(async (q) => {
     await q('SELECT pg_advisory_xact_lock(hashtext($1))', [`karaoke:${ano}`]);
@@ -415,6 +464,18 @@ export const PATCH = route(comMigracao(async (req) => {
     }
 
     if (acao === 'remover') {
+      if (!me.is_admin) {
+        const { rows } = await q<{ batalha_id: string | null }>(
+          `DELETE FROM karaoke_fila WHERE id = $1 AND ano = $2 AND user_id = $3 AND status = 'fila' AND NOT EXISTS (SELECT 1 FROM karaoke_prova_tentativas pt WHERE pt.fila_id = karaoke_fila.id) RETURNING batalha_id`,
+          [id, ano, me.id],
+        );
+        if (!rows.length) throw new HttpError(404, 'Esse pedido não está mais esperando na fila.');
+        if (rows[0].batalha_id) await q(
+          `UPDATE karaoke_fila SET status = 'pulada', terminado_em = NOW() WHERE batalha_id = $1 AND ano = $2 AND id <> $3 AND status = 'fila' AND NOT EXISTS (SELECT 1 FROM karaoke_prova_tentativas pt WHERE pt.fila_id = karaoke_fila.id)`,
+          [rows[0].batalha_id, ano, id],
+        );
+        return;
+      }
       const { rows } = await q<{ batalha_id: string | null }>('DELETE FROM karaoke_fila WHERE id = $1 AND ano = $2 AND NOT EXISTS (SELECT 1 FROM karaoke_prova_tentativas pt WHERE pt.fila_id = karaoke_fila.id) RETURNING batalha_id', [id, ano]);
       if (!rows.length) throw new HttpError(404, 'Música não encontrada.');
       if (rows[0].batalha_id) await q(`UPDATE karaoke_fila SET status = 'pulada', terminado_em = NOW() WHERE batalha_id = $1 AND ano = $2 AND status IN ('fila', 'cantando')`, [rows[0].batalha_id, ano]);
@@ -440,7 +501,16 @@ export const PATCH = route(comMigracao(async (req) => {
       // Não deixa uma seleção explícita interromper um duelo já iniciado.
       const fila = await lerFilaOrdenada(q, ano);
       if (fila[0]?.batalha_rodada === 2 && Number(fila[0].id) !== alvo) throw new HttpError(409, 'A segunda pessoa da batalha é a próxima.');
-      await q(`UPDATE karaoke_fila SET status = 'pulada', terminado_em = NOW() WHERE ano = $1 AND status = 'cantando' AND ${livreDaProva('karaoke_fila.id')}`, [ano]);
+      const { rows: presos } = await q<{ id: number | string; parcial: number | null; modo: string }>(
+        `SELECT id, parcial, modo FROM karaoke_fila WHERE ano = $1 AND status = 'cantando' AND ${livreDaProva('karaoke_fila.id')}`, [ano],
+      );
+      for (const preso of presos) {
+        if (preso.parcial == null) continue;
+        const nota = notaDoParcial(Number(preso.parcial), preso.modo);
+        const ponto = await encerrarApresentacao(q, ano, Number(preso.id), nota);
+        if (ponto) pontuacoes.push(ponto);
+      }
+      await q(`UPDATE karaoke_fila SET status = 'pulada', terminado_em = NOW() WHERE ano = $1 AND status = 'cantando' AND parcial IS NULL AND ${livreDaProva('karaoke_fila.id')}`, [ano]);
       await q(`UPDATE karaoke_fila SET status = 'cantando', iniciado_em = NOW(), parcial = NULL WHERE id = $1`, [alvo]);
       // Versão estúdio ficou pronta enquanto esperava na fila: vira modo estúdio na hora de começar (o ajuste de tempo do vídeo não vale).
       await q(
@@ -460,42 +530,10 @@ export const PATCH = route(comMigracao(async (req) => {
     }
     // notas_linhas só vale se bater com os trechos da batalha. Se não bater, a nota e o status são salvos do mesmo
     // jeito e as notas por linha são ignoradas: o organizador pode reenviar pelo PATCH da batalha.
-    let notasLinhas: number[] | null = null;
-    if (body.notas_linhas !== undefined) {
-      if (!notasLinhasValidas(body.notas_linhas)) throw new HttpError(400, 'Envie notas_linhas como frações de 0 a 1.');
-      const { rows: batalha } = await q<{ total: number }>(
-        `SELECT jsonb_array_length(b.trechos) AS total FROM karaoke_batalhas b
-           JOIN karaoke_fila f ON f.batalha_id = b.id WHERE f.id = $1 AND f.ano = $2`, [alvo, ano],
-      );
-      if (batalha.length && batalha[0].total !== body.notas_linhas.length) {
-        console.warn('[karaoke] notas_linhas não batem com os trechos da batalha, ignoradas', alvo, batalha[0].total, body.notas_linhas.length);
-      } else notasLinhas = body.notas_linhas;
-    }
-    const { rows } = await q<{ user_id: number; dueto_user_id: number | null }>(
-      `UPDATE karaoke_fila SET status = 'feita', terminado_em = NOW() WHERE id = $1 AND ano = $2 AND status = 'cantando' AND ${livreDaProva('karaoke_fila.id')} RETURNING user_id, dueto_user_id`,
-      [alvo, ano],
-    );
-    if (!rows.length) throw new HttpError(409, 'Essa apresentação já foi encerrada.');
-    if (notasLinhas) await q('UPDATE karaoke_fila SET notas_linhas = $1::jsonb WHERE id = $2', [JSON.stringify(notasLinhas), alvo]);
-    if (body.nota != null && body.estrelas != null) {
-      const nota = numeroEntre(body.nota, 0, 100, 'nota');
-      const estrelas = numeroEntre(body.estrelas, 1, 5, 'estrelas');
-      let detalhes: string | null = null;
-      if (body.detalhes != null) {
-        if (typeof body.detalhes !== 'object' || Array.isArray(body.detalhes)) throw new HttpError(400, 'Campo detalhes inválido.');
-        detalhes = JSON.stringify(body.detalhes);
-        if (detalhes.length > 4000) throw new HttpError(400, 'Campo detalhes grande demais.');
-      }
-      await q(
-        `INSERT INTO karaoke_notas (fila_id, nota, estrelas, detalhes) VALUES ($1, $2, $3, $4::jsonb)
-         ON CONFLICT (fila_id) DO UPDATE SET nota = EXCLUDED.nota, estrelas = EXCLUDED.estrelas, detalhes = EXCLUDED.detalhes`,
-        [alvo, nota, estrelas, detalhes],
-      );
-      const userIds = [rows[0].user_id, ...(rows[0].dueto_user_id ? [rows[0].dueto_user_id] : [])];
-      pontuar.v = { userIds, nota };
-    }
+    const ponto = await encerrarApresentacao(q, ano, alvo, body);
+    if (ponto) pontuacoes.push(ponto);
   });
 
-  if (pontuar.v) await pontuarTimes(ano, pontuar.v.userIds, pontuar.v.nota);
+  for (const ponto of pontuacoes) await pontuarTimes(ano, ponto.userIds, ponto.nota);
   return ok(await estado(query, ano, me.id, true));
 }));

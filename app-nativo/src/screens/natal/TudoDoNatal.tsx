@@ -6,6 +6,7 @@ import BookOpen from 'lucide-react-native/icons/book-open';
 import CalendarDays from 'lucide-react-native/icons/calendar-days';
 import Camera from 'lucide-react-native/icons/camera';
 import Car from 'lucide-react-native/icons/car';
+import Coins from 'lucide-react-native/icons/coins';
 import Dices from 'lucide-react-native/icons/dices';
 import Flame from 'lucide-react-native/icons/flame';
 import Gamepad2 from 'lucide-react-native/icons/gamepad-2';
@@ -20,6 +21,7 @@ import MicVocal from 'lucide-react-native/icons/mic-vocal';
 import PartyPopper from 'lucide-react-native/icons/party-popper';
 import Receipt from 'lucide-react-native/icons/receipt';
 import Sparkles from 'lucide-react-native/icons/sparkles';
+import Target from 'lucide-react-native/icons/target';
 import TreePine from 'lucide-react-native/icons/tree-pine';
 import Trophy from 'lucide-react-native/icons/trophy';
 import Tv from 'lucide-react-native/icons/tv';
@@ -54,6 +56,8 @@ const GRUPOS: { titulo: string; itens: Item[] }[] = [
     { rota: '/festa-enquete', titulo: 'Enquete ao vivo', texto: 'Votação na hora, com resultado na tela', icon: Vote },
     { rota: '/festa-foto-oficial', titulo: 'Foto oficial do ano', texto: 'A mesma pose, todo ano', icon: Users },
     { rota: 'web:/karaoke', titulo: 'Karaokê', texto: 'Escolha a música, entre na fila e veja seus melhores momentos', icon: MicVocal },
+    { rota: 'web:/pontos', titulo: 'Pontos de Natal', texto: 'Seu saldo, o extrato e os brindes para resgatar', icon: Coins },
+    { rota: 'web:/missoes', titulo: 'Missões', texto: 'Desafios relâmpago para ganhar pontos', icon: Target },
     { rota: 'web:/festa/jogos-novos', titulo: 'Jogos da noite', texto: 'Mímica, quem é o bebê, roleta e times', icon: Gamepad2 },
     { rota: 'web:/ao-vivo', titulo: 'Telão ao vivo', texto: 'Mande reações e recados para a TV', icon: HeartHandshake },
     { rota: 'web:/telao', titulo: 'Telão na TV', texto: 'Abra no navegador da TV ou do computador', icon: Tv },

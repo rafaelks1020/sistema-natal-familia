@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   Check,
@@ -153,10 +153,6 @@ export default function VaquinhaClient({ initial }: { initial: VaquinhaData }) {
       setLoading(false);
     }
   }, [toast]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   const participants = useMemo(() => data?.participants ?? [], [data]);
   const purchases = useMemo(() => data?.purchases ?? [], [data]);

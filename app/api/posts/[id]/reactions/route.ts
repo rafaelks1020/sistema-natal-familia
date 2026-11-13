@@ -21,13 +21,18 @@ export const POST = route<ParamsCtx>(async (req, { params }) => {
 
   let notifyUserId: number | null = null;
   const response = await transaction(async (query) => {
-    const postRes = await query<{ id: number; user_id: number }>(
-      'SELECT id, user_id FROM family_posts WHERE id = $1 FOR UPDATE',
-      [postId],
+    const postRes = await query<{ id: number; user_id: number; bloqueou: boolean }>(
+      `SELECT id, user_id,
+              EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = user_id AND b.blocked_id = $2) AS bloqueou
+         FROM family_posts WHERE id = $1 FOR UPDATE`,
+      [postId, me.id],
     );
     const post = postRes.rows[0];
     if (!post) {
       throw new HttpError(404, 'Publicação não encontrada.');
+    }
+    if (post.bloqueou) {
+      throw new HttpError(403, 'Você não pode interagir com esta publicação.');
     }
 
     const removed = await query(

@@ -180,7 +180,9 @@ export function isoDeBrasilia(data: string, hora: string): string | null {
 export function diasAte(iso: string, agora: number): number | null {
   const alvo = new Date(iso).getTime();
   if (!Number.isFinite(alvo)) return null;
-  return Math.floor((alvo - agora) / 86_400_000);
+  // Dias de calendário em São Paulo (UTC-3, sem horário de verão): "É hoje" só no dia da ceia.
+  const dia = (ms: number) => Math.floor((ms - 3 * 3_600_000) / 86_400_000);
+  return dia(alvo) - dia(agora);
 }
 
 export function textoDias(dias: number | null): string {

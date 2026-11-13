@@ -26,7 +26,7 @@ const SECOES: { titulo: string; texto: string[] }[] = [
     texto: [
       'Só para o funcionamento do app dentro da família. Não vendemos, não alugamos e não usamos seus dados para propaganda.',
       'O pagamento é processado pelo C6 Bank, que recebe nome, CPF, endereço e valor para emitir o Pix.',
-      'Fotos ficam guardadas no armazenamento da Vercel; o banco de dados fica em servidor no Brasil.',
+      'Fotos, vídeos e áudios ficam guardados em armazenamento da Hetzner, na Alemanha; o banco de dados fica em servidor no Brasil.',
     ],
   },
   {

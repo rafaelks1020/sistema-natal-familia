@@ -72,6 +72,30 @@ export async function atualizarPagamento(p: PaymentRow): Promise<PaymentRow> {
   return rows[0];
 }
 
+/**
+ * Rodada curta, para o cron de 5 minutos: confere no C6 só os Pix em aberto e ainda dentro do prazo.
+ * Sem isso, quem pagava e fechava a tela só via "pago" na conciliação das 9h do dia seguinte.
+ */
+export async function conferirAbertos(prazoMs = 12_000): Promise<{ verificados: number; baixados: number }> {
+  const inicio = Date.now();
+  const { rows } = await query<PaymentRow>(
+    `SELECT * FROM payments
+      WHERE status NOT IN ('PAID','CANCELED','CANCELLED','EXPIRED')
+        AND due_date >= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date - 1
+        AND (checked_at IS NULL OR checked_at < NOW() - INTERVAL '4 minutes')
+      ORDER BY created_at DESC LIMIT 8`,
+  );
+  let verificados = 0;
+  let baixados = 0;
+  for (const p of rows) {
+    if (Date.now() - inicio > prazoMs) break;
+    verificados++;
+    const depois = await atualizarPagamento(p).catch(() => p);
+    if (depois.status === 'PAID') baixados++;
+  }
+  return { verificados, baixados };
+}
+
 /** Rede de segurança: boletos NF pagos nos últimos 3 dias que ainda não foram baixados aqui. */
 export async function conciliar(): Promise<{ verificados: number; baixados: number }> {
   const pagos = (await listarPagos(diaSP(-3), diaSP(0))).filter((b) => b.referencia.startsWith('NF'));

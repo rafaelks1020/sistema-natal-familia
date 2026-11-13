@@ -206,17 +206,20 @@ function chaveStorage(ano?: number, userId?: number): string {
   return `natal:conquistas-mostradas:${ano ?? 'atual'}:${userId ?? 'me'}`;
 }
 
-function lerMostradas(chave: string): string[] {
+/** null = aparelho novo (chave ausente) ou sem acesso ao localStorage. */
+function lerMostradas(chave: string): string[] | null {
   try {
     const bruto = window.localStorage.getItem(chave);
-    if (!bruto) return [];
+    if (!bruto) return null;
     const parsed: unknown = JSON.parse(bruto);
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) return null;
     return parsed.filter((x): x is string => typeof x === 'string');
   } catch {
-    return [];
+    return null;
   }
 }
+
+const FILA_MAXIMA = 3;
 
 function salvarMostradas(chave: string, ids: string[]): void {
   try {
@@ -265,23 +268,34 @@ export default function ToastConquista({ conquistas, ano, userId }: Props) {
     if (!listaEfetiva || listaEfetiva.length === 0) return;
     const chave = chaveStorage(anoEfetivo, userEfetivo);
     const jaMostradas = lerMostradas(chave);
+    if (jaMostradas === null) {
+      // Aparelho novo: o que já foi ganho antes não vira aviso em fila.
+      salvarMostradas(chave, listaEfetiva.filter((c) => Boolean(c.ganha_em)).map((c) => c.id));
+      return;
+    }
     const novas = filtrarConquistasNovas(listaEfetiva, jaMostradas);
     if (novas.length === 0) return;
-
-    const atualizado = Array.from(new Set([...jaMostradas, ...novas.map((c) => c.id)]));
-    salvarMostradas(chave, atualizado);
 
     const timer = window.setTimeout(() => {
       setFila((atual) => {
         const existentes = new Set(atual.map((c) => c.id));
         const adicionar = novas.filter((c) => !existentes.has(c.id));
-        return adicionar.length > 0 ? [...atual, ...adicionar] : atual;
+        if (adicionar.length === 0 || atual.length >= FILA_MAXIMA) return atual;
+        return [...atual, ...adicionar].slice(0, FILA_MAXIMA);
       });
     }, 0);
     return () => window.clearTimeout(timer);
   }, [listaEfetiva, anoEfetivo, userEfetivo]);
 
   const atual = fila[0] ?? null;
+
+  const idAtual = atual?.id;
+  useEffect(() => {
+    if (!idAtual) return;
+    const chave = chaveStorage(anoEfetivo, userEfetivo);
+    const vistas = lerMostradas(chave) ?? [];
+    if (!vistas.includes(idAtual)) salvarMostradas(chave, [...vistas, idAtual]);
+  }, [idAtual, anoEfetivo, userEfetivo]);
 
   useEffect(() => {
     if (!atual) return;
@@ -299,10 +313,10 @@ export default function ToastConquista({ conquistas, ano, userId }: Props) {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-0 top-[calc(env(safe-area-inset-top)+14px)] z-[85] mx-auto max-w-md px-4"
+      className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+14px)] z-[85] mx-auto max-w-md px-4"
     >
       <div
-        className={`rise surface relative overflow-hidden border ${estilo.borda} bg-carvao-2 p-4 shadow-2xl`}
+        className={`pointer-events-auto rise surface relative overflow-hidden border ${estilo.borda} bg-carvao-2 p-4 shadow-2xl`}
       >
         <div className="flex items-start gap-3.5">
           <span

@@ -36,11 +36,39 @@ import type { ConfigGamificacao } from './tipos';
 
 const LOCK_RECALCULAR = 20261224;
 const LOCK_CRON_GAMI = 20261225;
-const RECALCULO_FRESCO_MS = 60_000;
+const RECALCULO_MAXIMO_MS = 7 * 60_000;
+const ESQUEMA_TTL_MS = 10 * 60_000;
+const COLETA_TTL_MS = 15_000;
 export const CONTA_REVISAO_LOJAS = 'Revisão das Lojas';
 
 const ultimoRecalculoMemoria = new Map<number, number>();
 const recalculosEmAndamento = new Set<number>();
+
+interface EntradaCache {
+  expira: number;
+  valor: Promise<unknown>;
+}
+const cacheLeitura = new Map<string, EntradaCache>();
+
+/** Cache em memória por instância com promessa compartilhada (aberturas simultâneas viram uma só leitura). */
+export function lerComCache<T>(chave: string, ttlMs: number, carregar: () => Promise<T>): Promise<T> {
+  const agora = Date.now();
+  const existente = cacheLeitura.get(chave);
+  if (existente && existente.expira > agora) return existente.valor as Promise<T>;
+  const entrada: EntradaCache = { expira: agora + ttlMs, valor: carregar() };
+  cacheLeitura.set(chave, entrada);
+  entrada.valor.catch(() => {
+    if (cacheLeitura.get(chave) === entrada) cacheLeitura.delete(chave);
+  });
+  return entrada.valor as Promise<T>;
+}
+
+/** Descarta as leituras em cache (menos o esquema do banco). Chamar depois de mudar pontos ou configuração. */
+export function invalidarCachesGamificacao(): void {
+  for (const chave of [...cacheLeitura.keys()]) {
+    if (!chave.startsWith('esquema')) cacheLeitura.delete(chave);
+  }
+}
 
 const TABELAS_CONHECIDAS = [
   'gami_config',
@@ -113,7 +141,12 @@ export interface EsquemaBanco {
   semFuso: Map<string, Set<string>>;
 }
 
-export async function inspecionarEsquema(q: typeof query = query): Promise<EsquemaBanco> {
+export function inspecionarEsquema(q: typeof query = query): Promise<EsquemaBanco> {
+  if (q !== query) return lerEsquemaDoBanco(q);
+  return lerComCache('esquema', ESQUEMA_TTL_MS, () => lerEsquemaDoBanco(q));
+}
+
+async function lerEsquemaDoBanco(q: typeof query): Promise<EsquemaBanco> {
   const { rows } = await q<{ tabela: string; colunas: string[]; sem_fuso: string[] | null }>(
     `SELECT t.nome AS tabela,
             ARRAY_AGG(a.attname::text) AS colunas,
@@ -138,7 +171,7 @@ export function tem(e: EsquemaBanco, tabela: string, ...cols: string[]): boolean
 
 function tsSQL(e: EsquemaBanco, tabela: string, alias: string, col: string): string {
   const expr = `${alias}.${col}`;
-  return e.semFuso.get(tabela)?.has(col) ? `(${expr} AT TIME ZONE 'UTC')` : expr;
+  return e.semFuso.get(tabela)?.has(col) ? `(${expr} AT TIME ZONE 'America/Sao_Paulo')` : expr;
 }
 
 function anoSQL(e: EsquemaBanco, tabela: string, alias: string, colTs = 'created_at'): string {
@@ -157,6 +190,12 @@ function resumir(texto: string | null | undefined, max = 48): string {
   const s = (texto ?? '').trim().replace(/\s+/g, ' ');
   if (!s) return '';
   return s.length > max ? `${s.slice(0, max - 3)}...` : s;
+}
+
+function marcarMusica(mapa: Map<number, Set<string>>, uid: number, musicaId: string): void {
+  const s = mapa.get(uid) ?? new Set<string>();
+  s.add(musicaId);
+  mapa.set(uid, s);
 }
 
 function maiorSequenciaDias(diasOrdenados: readonly string[]): number {
@@ -1745,6 +1784,8 @@ export async function coletarDadosEdicao(
 
       const filasContadas = new Set<string>();
       const musicasPorUser = new Map<number, Set<string>>();
+      const musicasNota90PorUser = new Map<number, Set<string>>();
+      const musicasDificeisPorUser = new Map<number, Set<string>>();
       const parceirosPorUser = new Map<number, Set<number>>();
       const batalhas = new Map<string, {
         titulo: string;
@@ -1781,11 +1822,10 @@ export async function coletarDadosEdicao(
           const m = metricaDe(pid);
           if (!m) continue;
           marcarEdicao(pid, ano);
-          m.karaoke_cantadas++;
           if (nota > m.karaoke_melhor_nota) m.karaoke_melhor_nota = nota;
-          if (nota >= 90 && nivel !== 'facil') m.karaoke_nota_90++;
+          if (nota >= 90 && nivel !== 'facil') marcarMusica(musicasNota90PorUser, pid, musicaId);
           if (nota === 100 && nivel !== 'facil') m.karaoke_nota_100 = true;
-          if (nivel === 'dificil') m.karaoke_dificil_cantadas++;
+          if (nivel === 'dificil') marcarMusica(musicasDificeisPorUser, pid, musicaId);
           if (combo > m.karaoke_maior_combo) m.karaoke_maior_combo = combo;
 
           const sm = musicasPorUser.get(pid) ?? new Set<string>();
@@ -1855,10 +1895,9 @@ export async function coletarDadosEdicao(
         });
         const m = metricaDe(uid);
         if (m) {
-          m.karaoke_cantadas++;
-          m.karaoke_dificil_cantadas++;
+          marcarMusica(musicasDificeisPorUser, uid, musicaId);
           if (nota > m.karaoke_melhor_nota) m.karaoke_melhor_nota = nota;
-          if (nota >= 90) m.karaoke_nota_90++;
+          if (nota >= 90) marcarMusica(musicasNota90PorUser, uid, musicaId);
           if (nota === 100) m.karaoke_nota_100 = true;
           const sm = musicasPorUser.get(uid) ?? new Set<string>();
           sm.add(musicaId);
@@ -1866,9 +1905,14 @@ export async function coletarDadosEdicao(
         }
       }
 
+      // Conquistas de quantidade contam músicas distintas (cantar a mesma 30 vezes não rende todas), como os pontos.
       for (const [uid, sm] of musicasPorUser) {
         const m = metricaDe(uid);
-        if (m) m.karaoke_musicas_distintas = sm.size;
+        if (!m) continue;
+        m.karaoke_musicas_distintas = sm.size;
+        m.karaoke_cantadas = sm.size;
+        m.karaoke_nota_90 = musicasNota90PorUser.get(uid)?.size ?? 0;
+        m.karaoke_dificil_cantadas = musicasDificeisPorUser.get(uid)?.size ?? 0;
       }
     })(),
 
@@ -2197,6 +2241,15 @@ export interface ResultadoRecalculo {
   novas_conquistas: number;
 }
 
+/** Versão para telas de leitura: cache de 15 s por edição, compartilhado entre quem abre junto. Não alterar o resultado. */
+export function coletarDadosEdicaoCacheada(
+  e: EsquemaBanco,
+  ano: number,
+  encerraIso: string,
+): Promise<ColetaEdicao> {
+  return lerComCache(`coleta:${ano}:${encerraIso}`, COLETA_TTL_MS, () => coletarDadosEdicao(query, e, ano, encerraIso));
+}
+
 /**
  * Recalcula de forma idempotente todo o extrato do ano:
  * - Faz toda a coleta de leitura em paralelo no pool FORA da transação;
@@ -2394,6 +2447,7 @@ export async function recalcular(ano = edicaoAtual()): Promise<ResultadoRecalcul
       ultimoRecalculoMemoria.set(ano, Date.now());
       return true;
     });
+    invalidarCachesGamificacao();
 
     if (!rodou) {
       return { rodou: false, lancamentos: 0, novas_conquistas: 0 };
@@ -2472,12 +2526,52 @@ export async function recalcular(ano = edicaoAtual()): Promise<ResultadoRecalcul
   }
 }
 
-/** Garante que o extrato foi recalculado nos últimos 60 segundos antes de abrir páginas de pontos. */
-export async function garantirRecalculoRecente(ano = edicaoAtual()): Promise<void> {
-  const cfg = await lerConfigInterna(ano);
-  const ultimoMs = cfg.recalculado_em ? Date.parse(cfg.recalculado_em) : NaN;
-  if (Number.isFinite(ultimoMs) && Date.now() - ultimoMs <= RECALCULO_FRESCO_MS) return;
-  await recalcular(ano);
+/**
+ * Quem recalcula é o cron de 5 minutos. Nas rotas de leitura só recalcula se o último recálculo tiver mais de 7 minutos
+ * (cron falhou), e reserva a vez no banco antes (UPDATE atômico) para só uma requisição trabalhar.
+ * `recalculadoEm` evita reler a configuração quando quem chama já a tem. Devolve true se esta chamada recalculou.
+ */
+export async function garantirRecalculoRecente(
+  ano = edicaoAtual(),
+  recalculadoEm?: string | null,
+): Promise<boolean> {
+  const e = await inspecionarEsquema();
+  const ultimo = recalculadoEm !== undefined
+    ? recalculadoEm
+    : (await lerConfigInterna(ano, query, e)).recalculado_em;
+  const ultimoMs = ultimo ? Date.parse(ultimo) : NaN;
+  if (Number.isFinite(ultimoMs) && Date.now() - ultimoMs <= RECALCULO_MAXIMO_MS) return false;
+
+  try {
+    if (tem(e, 'gami_config', 'ano', 'encerra_em', 'ranking_oculto_em', 'missoes_surpresa', 'recalculado_em')) {
+      const cfg = await lerConfigInterna(ano, query, e);
+      const padrao = configPadrao(ano, cfg.excluidos);
+      const condicao = `gami_config.recalculado_em IS NULL OR gami_config.recalculado_em < NOW() - INTERVAL '7 minutes'`;
+      const reserva = tem(e, 'gami_config', 'excluidos')
+        ? await query(
+          `INSERT INTO gami_config (ano, encerra_em, ranking_oculto_em, missoes_surpresa, excluidos, recalculado_em, updated_at)
+           VALUES ($1, $2, $3, $4, $5::int[], NOW(), NOW())
+           ON CONFLICT (ano) DO UPDATE SET recalculado_em = NOW()
+             WHERE ${condicao}
+           RETURNING ano`,
+          [ano, padrao.encerra_em, padrao.ranking_oculto_em, padrao.missoes_surpresa, cfg.excluidos],
+        )
+        : await query(
+          `INSERT INTO gami_config (ano, encerra_em, ranking_oculto_em, missoes_surpresa, recalculado_em, updated_at)
+           VALUES ($1, $2, $3, $4, NOW(), NOW())
+           ON CONFLICT (ano) DO UPDATE SET recalculado_em = NOW()
+             WHERE ${condicao}
+           RETURNING ano`,
+          [ano, padrao.encerra_em, padrao.ranking_oculto_em, padrao.missoes_surpresa],
+        );
+      if (!reserva.rows.length) return false;
+    }
+    const res = await recalcular(ano);
+    return res.rodou;
+  } catch (err) {
+    console.error('[gamificacao:recalculo-sob-demanda]', err instanceof Error ? err.message : 'falha');
+    return false;
+  }
 }
 
 /** Retorna IDs dos participantes da competição (exclui gami_config.excluidos e 'Revisão das Lojas'). */

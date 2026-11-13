@@ -1,6 +1,6 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import PageHeader from '@/app/ui/PageHeader';
 import Avatar from '@/app/ui/Avatar';
 import LoopMedia from '@/app/ui/LoopMedia';
@@ -8,6 +8,7 @@ import { api, thumb, uploadImage } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
 import ModerationActions from '../../mural/_components/ModerationActions';
 import type { ChallengeData } from '@/app/api/festa/desafio/data';
+import { AvisoSemConexao, usePolling } from '../_polling';
 const endpoint = '/api/festa/desafio';
 const sugestoes = ['Melhor careta', 'Melhor look', 'Foto mais natalina', 'Melhor foto com a vó'];
 export default function ChallengeClient({ initial }: { initial: ChallengeData }) {
@@ -16,22 +17,21 @@ export default function ChallengeClient({ initial }: { initial: ChallengeData })
   const [legenda, setLegenda] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
-  const [erro, setErro] = useState('');
   const lock = useRef(false);
   const input = useRef<HTMLInputElement>(null);
   const toast = useToast();
-  const refresh = useCallback(async (signal?: AbortSignal) => {
-    const next = await api<ChallengeData>(endpoint, { signal }); setData(next); setErro('');
+  const refresh = useCallback(async () => {
+    setData(await api<ChallengeData>(endpoint));
   }, []);
-  useEffect(() => {
-    const controller = new AbortController();
-    const timer = setInterval(() => { void refresh(controller.signal).catch((e: Error) => { if (!controller.signal.aborted) setErro(e.message); }); }, 10000);
-    return () => { clearInterval(timer); controller.abort(); };
-  }, [refresh]);
+  const { semConexao, escrita } = usePolling(async (obsoleta) => {
+    const next = await api<ChallengeData>(endpoint);
+    if (obsoleta()) return;
+    setData(next);
+  }, 10000);
   async function mutate(method: string, json: unknown, success: string) {
     if (lock.current) return;
     lock.current = true; setBusy(true);
-    try { await api(endpoint, { method, json }); await refresh(); toast(success); }
+    try { await escrita(async () => { await api(endpoint, { method, json }); await refresh(); }); toast(success); }
     catch (e) { toast((e as Error).message, 'erro'); }
     finally { lock.current = false; setBusy(false); }
   }
@@ -40,9 +40,12 @@ export default function ChallengeClient({ initial }: { initial: ChallengeData })
     lock.current = true; setBusy(true);
     try {
       const image_url = await uploadImage(file);
-      await api(endpoint, { method: 'PUT', json: { acao: 'foto', desafio_id: desafio, image_url, legenda } });
+      await escrita(async () => {
+        await api(endpoint, { method: 'PUT', json: { acao: 'foto', desafio_id: desafio, image_url, legenda } });
+        await refresh();
+      });
       setFile(null); setLegenda(''); if (input.current) input.current.value = '';
-      await refresh(); toast('Foto enviada!');
+      toast('Foto enviada!');
     } catch (e) { toast((e as Error).message, 'erro'); }
     finally { lock.current = false; setBusy(false); }
   }
@@ -50,7 +53,7 @@ export default function ChallengeClient({ initial }: { initial: ChallengeData })
   const minha = data.fotos.find((p) => p.desafio_id === aberto?.id && p.user_id === data.me.id);
   return <><PageHeader back="/festa" kicker={`Natal ${data.ano}`} title="Desafio de foto" /><div className="space-y-6 px-5 pb-8">
     <p className="text-sm text-marfim-2">Uma foto por pessoa em cada desafio. Escolha a sua favorita e vote. Você pode trocar seu voto até encerrar.</p>
-    {erro && <p role="status" className="text-sm text-champagne">Não foi possível atualizar: {erro} <button className="btn btn-quiet min-h-11" onClick={() => { void refresh().catch((e: Error) => setErro(e.message)); }}>Tentar novamente</button></p>}
+    <AvisoSemConexao visivel={semConexao} />
     {data.me.is_admin && !aberto && <form className="space-y-4 rounded-2xl border border-linha bg-carvao-2 p-5" onSubmit={(e) => { e.preventDefault(); void mutate('POST', { titulo }, 'Desafio aberto. A família será avisada.'); }}>
       <h2 className="display text-2xl">Começar um desafio</h2><div className="flex flex-wrap gap-2">{sugestoes.map((s) => <button key={s} type="button" disabled={busy} className="btn btn-ghost min-h-11 text-xs" onClick={() => setTitulo(s)}>{s}</button>)}</div>
       <label className="block text-sm">Nome do desafio<input className="field mt-2" value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={120} required disabled={busy} /></label><button className="btn btn-primary w-full" disabled={busy}>Abrir desafio</button>

@@ -1,27 +1,88 @@
 'use client';
 
-// Cliente das rotas /api: devolve o JSON ou lança Error com a mensagem do servidor.
-// 401 manda para /entrar (sessão expirou).
+// Cliente das rotas /api: devolve o JSON ou lança ErroApi com a mensagem do servidor.
+// 401 manda para /entrar (sessão expirou). Passou de 20 s sem resposta, desiste com aviso.
+// 403 da proteção da Vercel (x-vercel-mitigated) recarrega a página uma vez por minuto:
+// só o navegador resolve o desafio, e só ao recarregar.
 
-export async function api<T = any>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
-  const { json, headers, ...rest } = init ?? {};
-  const res = await fetch(path, {
-    ...rest,
-    headers: json !== undefined ? { 'Content-Type': 'application/json', ...headers } : headers,
-    body: json !== undefined ? JSON.stringify(json) : rest.body,
-    cache: 'no-store',
-  });
-  let data: any = null;
+export class ErroApi extends Error {
+  status: number;
+  bloqueio: boolean;
+  constructor(message: string, status: number, bloqueio = false) {
+    super(message);
+    this.name = 'ErroApi';
+    this.status = status;
+    this.bloqueio = bloqueio;
+  }
+}
+
+const TIMEOUT_PADRAO_MS = 20_000;
+const CHAVE_RECARGA_BLOQUEIO = 'natal:recarga-bloqueio';
+
+function recarregarPorBloqueio() {
+  if (typeof window === 'undefined') return;
   try {
-    data = await res.json();
+    const ultima = Number(window.sessionStorage.getItem(CHAVE_RECARGA_BLOQUEIO) || 0);
+    if (Date.now() - ultima < 60_000) return;
+    window.sessionStorage.setItem(CHAVE_RECARGA_BLOQUEIO, String(Date.now()));
+    window.location.reload();
   } catch {
-    /* corpo vazio */
+    /* sem sessionStorage: não recarrega para não entrar em laço */
   }
-  if (res.status === 401 && typeof window !== 'undefined' && !path.startsWith('/api/auth')) {
-    window.location.href = '/entrar';
+}
+
+export async function api<T = any>(
+  path: string,
+  init?: RequestInit & { json?: unknown; timeoutMs?: number },
+): Promise<T> {
+  const { json, headers, timeoutMs = TIMEOUT_PADRAO_MS, signal: sinalDeFora, ...rest } = init ?? {};
+  const controle = new AbortController();
+  let estourou = false;
+  const timer = setTimeout(() => {
+    estourou = true;
+    controle.abort();
+  }, timeoutMs);
+  const repassar = () => controle.abort(sinalDeFora?.reason);
+  if (sinalDeFora) {
+    if (sinalDeFora.aborted) repassar();
+    else sinalDeFora.addEventListener('abort', repassar, { once: true });
   }
-  if (!res.ok) throw new Error(data?.error || 'Não deu certo. Tente de novo.');
-  return data as T;
+  try {
+    const res = await fetch(path, {
+      ...rest,
+      signal: controle.signal,
+      headers: json !== undefined ? { 'Content-Type': 'application/json', ...headers } : headers,
+      body: json !== undefined ? JSON.stringify(json) : rest.body,
+      cache: 'no-store',
+    });
+    let data: any = null;
+    let leuJson = true;
+    try {
+      data = await res.json();
+    } catch (e) {
+      if (estourou) throw e;
+      leuJson = false;
+    }
+    if (res.status === 401 && typeof window !== 'undefined' && !path.startsWith('/api/auth')) {
+      window.location.href = '/entrar';
+    }
+    if (!res.ok) {
+      const bloqueio = res.status === 403 && res.headers.has('x-vercel-mitigated');
+      if (bloqueio) {
+        recarregarPorBloqueio();
+        throw new ErroApi('A proteção do servidor pediu uma checagem. Tente de novo em instantes.', 403, true);
+      }
+      const msg = data?.error || (leuJson ? 'Não deu certo. Tente de novo.' : 'O servidor não respondeu direito. Tente de novo em instantes.');
+      throw new ErroApi(msg, res.status);
+    }
+    return data as T;
+  } catch (e) {
+    if (estourou) throw new ErroApi('Demorou demais. Confira a internet e tente de novo.', 0);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+    sinalDeFora?.removeEventListener('abort', repassar);
+  }
 }
 
 /**
@@ -53,11 +114,16 @@ async function comprimir(file: File, lado = 1600, qualidade = 0.82): Promise<Fil
   }
 }
 
+// A Vercel corta o corpo em 4,5 MB: recusa antes, com aviso claro.
+const LIMITE_UPLOAD_BYTES = 4 * 1024 * 1024;
+
 /** Envia uma foto para /api/upload (já comprimida) e devolve a URL pública. */
 export async function uploadImage(file: File): Promise<string> {
+  const pronta = await comprimir(file);
+  if (pronta.size > LIMITE_UPLOAD_BYTES) throw new ErroApi('Essa foto é grande demais (máximo 4 MB). Tente outra foto.', 413);
   const form = new FormData();
-  form.append('file', await comprimir(file));
-  const { url } = await api<{ url: string }>('/api/upload', { method: 'POST', body: form });
+  form.append('file', pronta);
+  const { url } = await api<{ url: string }>('/api/upload', { method: 'POST', body: form, timeoutMs: 60_000 });
   return url;
 }
 

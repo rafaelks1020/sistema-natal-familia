@@ -62,19 +62,18 @@ Presença já segue esse padrão e bloqueia toques concorrentes.
 Biometria é opcional, oferecida após autenticação por senha em aparelho compatível.
 O token migra para uma entrada requireAuthentication do SecureStore. O próprio
 Keychain/Keystore solicita a biometria para ler esse token; LocalAuthentication
-confere hardware e cadastro. Segundo plano limpa token da memória e bloqueia a UI.
+confere hardware e cadastro. Voltar de um segundo plano com mais de 60 s limpa token da
+memória e bloqueia a UI (idas rápidas, como câmera, galeria e compartilhar, não bloqueiam).
 Senha continua disponível se a biometria falhar ou mudar.
 
-## Pendências da fase 2
+## Estado da fase 2
 
-Substituir ComingSoon nas quatro abas pelos fluxos reais do mural, amigo oculto,
-vaquinha e álbum. Não mostrar dados fictícios como se viessem da família.
-Câmera, galeria, compressão, clipboard e notificações têm dependências instaladas,
-mas os fluxos dessas funções pertencem à fase 2.
-Push remoto está desligado no plugin expo-notifications: habilitar somente ao
-configurar APNs/FCM e backend. A mensagem nativa do sistema para notificações é
-controlada pelo iOS/Android, apesar da descrição e do contexto em português no app.
-Não há pedido de permissão prematuro ao abrir ou fazer login.
+Mural, amigo oculto, vaquinha, álbum e as demais telas já existem e leem dados reais da
+família. Câmera, galeria, compressão e clipboard estão em uso.
+Push nativo (APNs/FCM) já funciona: o aparelho registra o token em /api/push, o toque no
+aviso abre a rota de data.rota (rota que o app não tem cai no início; /pontos e /missoes
+vão para /conquistas). A permissão só é pedida quando a pessoa toca em "Ativar avisos".
+A mensagem nativa do sistema para notificações é controlada pelo iOS/Android.
 
 Links HTTPS precisam de apple-app-site-association e assetlinks.json no domínio,
 com Team ID Apple e impressão digital do certificado Android reais. Os filtros e

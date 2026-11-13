@@ -244,7 +244,7 @@ export default function MuralClient({ initial }: { initial: PostItem[] }) {
     }
   }
 
-  async function handleAddComment(postId: number, content: string) {
+  async function handleAddComment(postId: number, content: string): Promise<boolean> {
     const tempId = -Date.now();
     const optimisticComment: CommentItem = {
       id: tempId,
@@ -274,9 +274,11 @@ export default function MuralClient({ initial }: { initial: PostItem[] }) {
             : p,
         ),
       );
+      return true;
     } catch (err) {
       setPosts(previousPosts);
       toast((err as Error).message, 'erro');
+      return false;
     }
   }
 

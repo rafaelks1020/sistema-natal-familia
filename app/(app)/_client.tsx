@@ -278,7 +278,7 @@ export default function InicioClient({ initial }: { initial: HomeData }) {
         </section>
 
         <div className="space-y-8 px-6">
-          <CartaoGamificacao />
+          <CartaoGamificacao missoesDoPai={missoes} />
 
           <section aria-labelledby="mural-title">
             <div className="mb-2 flex items-center justify-between">

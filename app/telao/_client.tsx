@@ -52,6 +52,21 @@ const DEPENDEM_DE_DADO: ReadonlySet<Cena> = new Set<Cena>(['fotos', 'tocando', '
 const OCIOSO_MS = 3500;
 const SANTA_PARADO_MS = 8 * 60_000;
 const FIM_CICLO_MS = 15 * 60_000;
+const TIMEOUT_ESTADO_MS = 8000;
+const INTERVALO_REVELACAO_MS = 30_000;
+const CHAVE_RECARGA_403 = 'telao.recarga403';
+const INTERVALO_RECARGA_403_MS = 120_000;
+
+/** 403 da proteção da Vercel: o navegador só passa no desafio ao recarregar. No máximo uma vez a cada 2 min. */
+function recarregarSe403(erro: unknown) {
+  if ((erro as { status?: number }).status !== 403 || typeof window === 'undefined') return;
+  try {
+    const ultima = Number(window.sessionStorage.getItem(CHAVE_RECARGA_403) || 0);
+    if (Number.isFinite(ultima) && ultima > 0 && Date.now() - ultima < INTERVALO_RECARGA_403_MS) return;
+    window.sessionStorage.setItem(CHAVE_RECARGA_403, String(Date.now()));
+    window.location.reload();
+  } catch { /* sem sessionStorage: não recarrega, para não entrar em laço */ }
+}
 
 /** A virada de Natal toma a tela de 1 minuto antes até 3 minutos depois da meia-noite. */
 function naVirada(agora: number, meiaNoite: number): boolean {
@@ -224,6 +239,8 @@ export default function ScreenClient({ initial }: { initial: EstadoTelao }) {
 
   useEffect(() => {
     let vivo = true;
+    let exibida = false;
+    const ctrl = { timer: 0 };
     const consultar = async () => {
       try {
         const d = await api<RevelacaoTelao>('/api/telao/gamificacao');
@@ -234,19 +251,18 @@ export default function ScreenClient({ initial }: { initial: EstadoTelao }) {
         const chave = `telao.revelacao.${initial.ano}`;
         let vista = false;
         try { vista = sessionStorage.getItem(chave) === 'sim'; } catch { /* sem armazenamento, a trava local permanece */ }
-        if (vista) return;
+        if (vista || exibida) { window.clearInterval(ctrl.timer); return; }
         try { sessionStorage.setItem(chave, 'sim'); } catch { /* navegador sem armazenamento */ }
-        if (exibida) return;
         exibida = true;
+        window.clearInterval(ctrl.timer);
         const agora = Date.now() + offsetRef.current;
         setFixaLocal({ cena: 'revelacao', ate: agora + 100000 });
         irPara('revelacao');
       } catch { /* a API pode aguardar a liberação dos resultados */ }
     };
-    let exibida = false;
     void consultar();
-    const timer = window.setInterval(() => void consultar(), 10000);
-    return () => { vivo = false; window.clearInterval(timer); };
+    ctrl.timer = window.setInterval(() => void consultar(), INTERVALO_REVELACAO_MS);
+    return () => { vivo = false; window.clearInterval(ctrl.timer); };
   }, [initial.ano, irPara]);
 
   const navegar = useCallback((delta: 1 | -1) => {
@@ -340,13 +356,15 @@ export default function ScreenClient({ initial }: { initial: EstadoTelao }) {
         const meiaNoite = Date.parse(ctxRef.current?.lean.evento.meiaNoite ?? '');
         const perto = Math.abs(Date.now() + offsetRef.current - meiaNoite) < 10 * 60_000;
         const inclui = `fotos,recados,advento,ceia,linha${perto ? ',nomes' : ''}`;
-        const e = await api<EstadoTelao>(`/api/telao/estado${pesado ? `?inclui=${inclui}` : ''}`, { signal: ctl.signal });
+        const e = await api<EstadoTelao>(`/api/telao/estado${pesado ? `?inclui=${inclui}` : ''}`, { signal: ctl.signal, timeoutMs: TIMEOUT_ESTADO_MS });
         if (ctl.signal.aborted) return;
         if (pesado) { precisaPesadoRef.current = false; ultimoPesado = Date.now(); }
         aplicar(e);
         setErro('');
-      } catch (e) {
-        if (!ctl.signal.aborted) setErro((e as Error).message);
+      } catch (err) {
+        if (ctl.signal.aborted) return;
+        recarregarSe403(err);
+        setErro((err as Error).message);
       } finally { lendo = false; }
     };
     const t = setInterval(() => void rodar(), 3000);

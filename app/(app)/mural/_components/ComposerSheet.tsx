@@ -60,6 +60,15 @@ export default function ComposerSheet({
 
   const isEditing = Boolean(editingPost);
   const isBusy = submitting || uploadingInfo !== null;
+  const temConteudo = editingPost
+    ? content !== editingPost.content || images.join('|') !== (editingPost.images ?? []).join('|')
+    : content.trim() !== '' || images.length > 0 || question.trim() !== '' || options.some((o) => o.trim() !== '');
+
+  function pedirFechar() {
+    if (isBusy) return;
+    if (temConteudo && !window.confirm('Descartar o que você escreveu?')) return;
+    onClose();
+  }
 
   async function handleFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const fileList = e.target.files;
@@ -181,7 +190,7 @@ export default function ComposerSheet({
   return (
     <div
       className="fixed inset-0 z-[70] flex flex-col justify-end bg-black/75 backdrop-blur-xs fade-in"
-      onClick={() => !isBusy && onClose()}
+      onClick={pedirFechar}
     >
       <div
         role="dialog"
@@ -206,7 +215,7 @@ export default function ComposerSheet({
           <button
             type="button"
             disabled={isBusy}
-            onClick={onClose}
+            onClick={pedirFechar}
             aria-label="Fechar"
             className="flex h-11 w-11 items-center justify-center rounded-full text-marfim-2 hover:text-marfim"
           >

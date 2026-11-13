@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   BarChart3,
@@ -24,6 +24,7 @@ import {
   type EnqueteData,
   type LivePollItem,
 } from '@/app/api/festa/enquete/_tipos';
+import { AvisoSemConexao, usePolling } from '../_polling';
 
 export default function EnqueteClient({
   initial,
@@ -48,31 +49,22 @@ export default function EnqueteClient({
     setModoTv(initialTv);
   }, [initialTv]);
 
-  const recarregar = useCallback(async () => {
-    try {
-      const res = await api<EnqueteData>('/api/festa/enquete');
-      setData(res);
-    } catch {
-      /* ignora falha pontual de polling */
-    }
-  }, []);
-
-  // Atualiza a cada 2 s conforme requisito
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      void recarregar();
-    }, 2000);
-    return () => window.clearInterval(id);
-  }, [recarregar]);
+  const { semConexao, escrita } = usePolling(async (obsoleta) => {
+    const res = await api<EnqueteData>('/api/festa/enquete');
+    if (obsoleta()) return;
+    setData(res);
+  }, 3000);
 
   async function votar(pollId: number, opcaoIndex: number) {
     if (busy) return;
     setBusy(true);
     try {
-      const res = await api<EnqueteData>('/api/festa/enquete', {
-        method: 'POST',
-        json: { acao: 'votar', poll_id: pollId, opcao_index: opcaoIndex },
-      });
+      const res = await escrita(() =>
+        api<EnqueteData>('/api/festa/enquete', {
+          method: 'POST',
+          json: { acao: 'votar', poll_id: pollId, opcao_index: opcaoIndex },
+        }),
+      );
       setData(res);
     } catch (err) {
       toast((err as Error).message, 'erro');
@@ -85,10 +77,12 @@ export default function EnqueteClient({
     if (busy) return;
     setBusy(true);
     try {
-      const res = await api<EnqueteData>('/api/festa/enquete', {
-        method: 'POST',
-        json: payload,
-      });
+      const res = await escrita(() =>
+        api<EnqueteData>('/api/festa/enquete', {
+          method: 'POST',
+          json: payload,
+        }),
+      );
       setData(res);
       if (msg) toast(msg);
     } catch (err) {
@@ -107,10 +101,12 @@ export default function EnqueteClient({
     }
     setBusy(true);
     try {
-      const res = await api<EnqueteData>('/api/festa/enquete', {
-        method: 'POST',
-        json: { acao: 'criar', pergunta: pergunta.trim(), opcoes: limpas },
-      });
+      const res = await escrita(() =>
+        api<EnqueteData>('/api/festa/enquete', {
+          method: 'POST',
+          json: { acao: 'criar', pergunta: pergunta.trim(), opcoes: limpas },
+        }),
+      );
       setData(res);
       setPergunta('');
       setOpcoes(['', '', '']);
@@ -135,6 +131,7 @@ export default function EnqueteClient({
   if (modoTv) {
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto bg-carvao p-6 md:p-12">
+        <AvisoSemConexao visivel={semConexao} />
         <div className="mx-auto max-w-5xl space-y-8">
           <header className="flex flex-wrap items-center justify-between gap-4 border-b border-linha pb-6">
             <div>
@@ -230,6 +227,7 @@ export default function EnqueteClient({
 
   return (
     <div className="pb-nav">
+      <AvisoSemConexao visivel={semConexao} />
       <PageHeader
         kicker="Jogos da Ceia"
         title="Enquete ao Vivo"

@@ -10,7 +10,7 @@
 .videoCaixa { position: absolute; z-index: 1; left: 2.4vmin; top: 9vmin; right: calc(var(--lateral) + 4.8vmin); bottom: calc(var(--faixa) + 2.4vmin); border-radius: 1.6vmin; overflow: hidden; background: #000; box-shadow: 0 2vmin 8vmin rgba(0, 0, 0, 0.55); border: 0.2vmin solid rgba(243, 235, 220, 0.14); }
 .videoCaixa > div, .videoCaixa iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 .videoOculto { visibility: hidden; }
-.semMic { position: absolute; z-index: 3; left: 2.4vmin; top: 9vmin; padding: 0.8vmin 1.8vmin; border-radius: 999px; background: rgba(197, 41, 45, 0.9); font-size: 1.8vmin; font-weight: 700; }
+.semMic { position: absolute; z-index: 3; left: 2.4vmin; top: 9vmin; max-width: 70vw; padding: 0.8vmin 1.8vmin; border-radius: 1.6vmin; background: rgba(197, 41, 45, 0.9); font-size: 1.8vmin; font-weight: 700; line-height: 1.35; }
 
 /* ---------- lateral: medidor ---------- */
 .lateral { position: absolute; z-index: 2; top: 9vmin; right: 2.4vmin; bottom: calc(var(--faixa) + 2.4vmin); width: var(--lateral); display: flex; flex-direction: column; gap: 1.6vmin; padding: 2.2vmin; border-radius: 2vmin; background: rgba(29, 34, 31, 0.92); border: 0.2vmin solid rgba(243, 235, 220, 0.16); }

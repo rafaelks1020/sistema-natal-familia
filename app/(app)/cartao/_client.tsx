@@ -130,7 +130,7 @@ export default function CartaoClient() {
       const blob = await buscarPng();
       const form = new FormData();
       form.append('file', new File([blob], 'cartao-de-natal.png', { type: 'image/png' }));
-      const { url } = await api<{ url: string }>('/api/upload', { method: 'POST', body: form });
+      const { url } = await api<{ url: string }>('/api/upload', { method: 'POST', body: form, timeoutMs: 60_000 });
       await api('/api/posts', { method: 'POST', json: { content: 'Meu cartão de Natal.', images: [url] } });
       toast('Cartão postado no mural.');
       router.push('/mural');

@@ -43,7 +43,11 @@ export function urlDeEnvio(caminho: string, tipo: string, max: number, validadeS
 /** Envia do próprio servidor (rotas que recebem multipart). Devolve a URL pública. */
 export async function enviarArquivo(caminho: string, dados: Blob, tipo: string): Promise<string> {
   const { uploadUrl, url } = urlDeEnvio(caminho, tipo, dados.size, 5 * 60);
-  const r = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': tipo }, body: dados });
+  const r = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': tipo }, body: dados, signal: AbortSignal.timeout(45_000) }).catch((e) => {
+    console.error('[arquivos] envio falhou:', e instanceof Error ? e.name : 'erro');
+    return null;
+  });
+  if (!r) throw new HttpError(502, 'O armazenamento demorou para responder. Tente de novo.');
   if (!r.ok) {
     console.error('[arquivos] envio recusado', r.status);
     throw new HttpError(502, 'Não consegui salvar o arquivo. Tente de novo.');
@@ -60,7 +64,7 @@ export async function apagarArquivos(urls: string[]): Promise<number> {
     const exp = Math.floor(Date.now() / 1000) + 300;
     const q = new URLSearchParams({ p, exp: String(exp), s: assinar(`DELETE\n${p}\n${exp}`) });
     try {
-      const r = await fetch(`${BASE_ARQUIVOS}/apagar?${q}`, { method: 'DELETE' });
+      const r = await fetch(`${BASE_ARQUIVOS}/apagar?${q}`, { method: 'DELETE', signal: AbortSignal.timeout(10_000) });
       if (!r.ok) falhas++;
     } catch { falhas++; }
   }

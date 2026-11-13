@@ -4,6 +4,7 @@ import FaceGrinning from 'lucide-react-native/icons/face-grinning';
 import Heart from 'lucide-react-native/icons/heart';
 import MessageCircle from 'lucide-react-native/icons/message-circle';
 import Star from 'lucide-react-native/icons/star';
+import Trophy from 'lucide-react-native/icons/trophy';
 import Wine from 'lucide-react-native/icons/wine';
 import { timeAgo } from '../../format';
 import type { NotificationItem } from '../../types/mural';
@@ -16,6 +17,7 @@ import { Text } from '../../ui/Text';
 import { describeNotification } from './reactions';
 
 function Badge({ item }: { item: NotificationItem }) {
+  if (item.type === 'conquista') return <Trophy size={12} color={theme.colors.champagne} strokeWidth={1.8} />;
   if (item.type === 'post_comment') return <MessageCircle size={12} color={theme.colors.champagne} strokeWidth={1.8} />;
   if (item.reaction_type === 'estrela') return <Star size={12} color={theme.colors.champagne} strokeWidth={1.8} />;
   if (item.reaction_type === 'risada') return <FaceGrinning size={12} color={theme.colors.champagne} strokeWidth={1.8} />;
@@ -47,13 +49,13 @@ export function NotificationsSheet({ visible, items, freshIds, loading, error, o
         </View>
         : items.map(item => {
           const fresh = !item.read || freshIds.includes(item.id);
-          return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`${item.actor_name} ${describeNotification(item)}`} onPress={() => { onClose(); if (item.type === 'report') router.push('/organizar'); else if (item.post_id) onSelect(item.post_id); }} style={styles.row}>
+          return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={item.type === 'conquista' ? describeNotification(item) : `${item.actor_name} ${describeNotification(item)}`} onPress={() => { onClose(); if (item.type === 'conquista') router.push('/conquistas'); else if (item.type === 'report') router.push('/organizar'); else if (item.post_id) onSelect(item.post_id); }} style={styles.row}>
             <View>
               <Avatar name={item.actor_name} src={item.actor_avatar} size={40} />
               <View style={styles.badge}><Badge item={item} /></View>
             </View>
             <View style={styles.body}>
-              <Text style={styles.copy}><Text style={styles.name}>{item.actor_name}</Text> <Text style={styles.action}>{describeNotification(item)}</Text></Text>
+              <Text style={styles.copy}>{item.type === 'conquista' ? <Text style={styles.name}>{describeNotification(item)}</Text> : <><Text style={styles.name}>{item.actor_name}</Text> <Text style={styles.action}>{describeNotification(item)}</Text></>}</Text>
               <Text variant="muted" style={styles.time}>{timeAgo(item.created_at)}</Text>
             </View>
             {fresh ? <View style={styles.dot} accessibilityLabel="Não lida" /> : null}

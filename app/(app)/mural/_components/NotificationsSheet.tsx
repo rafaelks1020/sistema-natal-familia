@@ -169,7 +169,7 @@ export default function NotificationsSheet({
                   </p>
                   <p className="mt-1 text-xs text-marfim-3">
                     {timeAgo(item.created_at)}
-                    {item.type === 'conquista' ? ' · Ver em /conquistas' : ''}
+                    {item.type === 'conquista' ? ' · Ver conquistas' : ''}
                   </p>
                 </div>
                 {!item.read && (

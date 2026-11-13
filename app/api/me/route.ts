@@ -57,10 +57,46 @@ export const DELETE = route(async (req) => {
     }
   }
   const urls = await transaction(async (q) => {
-    const { rows: users } = await q('SELECT avatar_url FROM family_users WHERE id = $1 FOR UPDATE', [me.id]);
+    await q('LOCK TABLE family_users IN SHARE ROW EXCLUSIVE MODE');
+    const { rows: users } = await q('SELECT avatar_url, is_admin FROM family_users WHERE id = $1 FOR UPDATE', [me.id]);
+    if (users[0]?.is_admin) {
+      const { rows: outros } = await q(
+        `SELECT count(*) FILTER (WHERE is_admin AND id <> $1)::int AS admins,
+                count(*) FILTER (WHERE id <> $1)::int AS pessoas
+           FROM family_users`,
+        [me.id],
+      );
+      if (outros[0].pessoas > 0 && outros[0].admins === 0) {
+        throw new HttpError(409, 'Você é o único organizador. Torne outra pessoa organizadora antes de excluir sua conta.');
+      }
+    }
     const { rows: posts } = await q('SELECT image_url, image_urls FROM family_posts WHERE user_id = $1', [me.id]);
     const images = posts.flatMap((post) => parsePostImages(post.image_urls, post.image_url));
     if (isBlobUrl(users[0]?.avatar_url)) images.push(users[0].avatar_url);
+    const { rows: arquivos } = await q<{ url: string }>(
+      `SELECT url FROM (
+         SELECT image_url AS url FROM album_photos WHERE user_id = $1
+         UNION ALL SELECT foto_url FROM family_recipes WHERE user_id = $1
+         UNION ALL SELECT audio_url FROM family_recipes WHERE user_id = $1
+         UNION ALL SELECT foto_url FROM family_stories WHERE user_id = $1
+         UNION ALL SELECT audio_url FROM family_stories WHERE user_id = $1
+         UNION ALL SELECT image_url FROM family_official_photos WHERE user_id = $1
+         UNION ALL SELECT image_url FROM time_capsules WHERE user_id = $1 OR para_user_id = $1
+         UNION ALL SELECT image_url FROM party_photo_entries WHERE user_id = $1
+         UNION ALL SELECT image_url FROM advent_responses WHERE user_id = $1
+         UNION ALL SELECT image_url FROM family_tributes WHERE user_id = $1
+         UNION ALL SELECT image_url FROM gami_missoes_respostas WHERE user_id = $1
+         UNION ALL SELECT foto_url FROM party_bebe WHERE resposta_user_id = $1
+         UNION ALL SELECT video_url FROM karaoke_fila WHERE user_id = $1
+         UNION ALL SELECT reel_url FROM karaoke_fila WHERE user_id = $1
+         UNION ALL SELECT m.url FROM karaoke_momentos m JOIN karaoke_fila f ON f.id = m.fila_id WHERE f.user_id = $1
+         UNION ALL SELECT image_url FROM wish_list
+           WHERE participant_id IN (SELECT id FROM participants WHERE user_id = $1)
+       ) arquivos
+       WHERE url IS NOT NULL AND btrim(url) <> ''`,
+      [me.id],
+    );
+    for (const arquivo of arquivos) images.push(arquivo.url);
     const { rows: participants } = await q<{ id: number }>(
       "UPDATE participants SET name = 'Ex-participante', user_id = NULL WHERE user_id = $1 RETURNING id", [me.id],
     );

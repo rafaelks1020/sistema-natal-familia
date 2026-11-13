@@ -58,3 +58,119 @@ test('rejeita pedido vazio ou grande demais', () => {
   assert.equal(parsePedido('a'.repeat(121)), null);
   assert.equal(parsePedido(null), null);
 });
+
+function compilar(nome, dependencias) {
+  const caminho = path.join(path.dirname(fileURLToPath(import.meta.url)), nome);
+  const js = ts.transpileModule(fs.readFileSync(caminho, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const m = { exports: {} };
+  new Function('require', 'module', 'exports', js)((id) => {
+    if (!(id in dependencias)) throw new Error(`Dependência não simulada: ${id}`);
+    return dependencias[id];
+  }, m, m.exports);
+  return m.exports;
+}
+
+const A = 'spotify:track:aaaaaaaaaaaaaaaaaaaaaa';
+const B = 'spotify:track:bbbbbbbbbbbbbbbbbbbbbb';
+const C = 'spotify:track:cccccccccccccccccccccc';
+
+test('containsTrack para na página da música e a reordenação só apaga a pendência no fim', async () => {
+  const db = {
+    query: async () => ({ rows: [], rowCount: 0 }),
+    transaction(fn) { return fn((sql, params) => db.query(sql, params)); },
+  };
+  const { containsTrack, reordenar } = compilar('_service.ts', {
+    'server-only': {},
+    '@/app/lib/api': { HttpError: class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } } },
+    '@/app/lib/db': db,
+    '@/app/lib/edicao': { edicaoAtual: () => 2026, hojeSP: () => '2026-11-12' },
+    '@/app/lib/session': {},
+    './link': mod.exports,
+    './momentos': compilar('momentos.ts', {}),
+  });
+  const fetchOriginal = globalThis.fetch;
+  const agoraOriginal = Date.now;
+  const envId = process.env.SPOTIFY_CLIENT_ID;
+  const envSegredo = process.env.SPOTIFY_CLIENT_SECRET;
+  process.env.SPOTIFY_CLIENT_ID = 'id';
+  process.env.SPOTIFY_CLIENT_SECRET = 'segredo';
+  try {
+    let paginas = 0;
+    globalThis.fetch = async (url) => {
+      paginas++;
+      const offset = Number(new URL(url).searchParams.get('offset'));
+      const uri = offset === 0 ? A : B;
+      return { ok: true, status: 200, json: async () => ({ items: [{ item: { uri } }], next: offset === 0 ? 'proxima' : null }) };
+    };
+    assert.equal(await containsTrack('pl123', A, 'tok'), true);
+    assert.equal(paginas, 1);
+    paginas = 0;
+    assert.equal(await containsTrack('pl123', B, 'tok'), true);
+    assert.equal(paginas, 2);
+    paginas = 0;
+    assert.equal(await containsTrack('pl123', C, 'tok'), false);
+    assert.equal(paginas, 2);
+
+    const linha = [];
+    let relogio = 1_700_000_000_000;
+    Date.now = () => relogio;
+    db.query = async (sql, params = []) => {
+      if (sql.includes('SELECT key, value FROM app_settings')) {
+        return { rows: [
+          { key: 'spotify_refresh_token', value: 'r' },
+          { key: 'spotify_access_token', value: 'tok' },
+          { key: 'spotify_access_expires', value: '1700003600000' },
+          { key: 'spotify_playlist_2026_festa', value: 'pl123' },
+        ] };
+      }
+      if (sql.includes('RETURNING key')) return { rowCount: 1, rows: [{ key: 'vaga' }] };
+      if (sql.includes('jsonb_each_text')) { linha.push('pendente'); return { rowCount: 1, rows: [] }; }
+      if (sql.includes('FROM playlist_tracks')) return { rows: [{ track_uri: A }, { track_uri: B }, { track_uri: C }] };
+      if (sql.includes('DELETE FROM app_settings')) { linha.push('limpa'); return { rowCount: 1, rows: [] }; }
+      return { rows: [], rowCount: 0 };
+    };
+    globalThis.fetch = async (url, init = {}) => {
+      const metodo = init.method || 'GET';
+      linha.push(metodo);
+      if (metodo === 'PUT') relogio += 21_000;
+      if (String(url).includes('/items?')) {
+        return { ok: true, status: 200, json: async () => ({ items: [{ item: { uri: C } }, { item: { uri: B } }, { item: { uri: A } }], next: null }) };
+      }
+      if (metodo === 'PUT') return { ok: true, status: 200, json: async () => ({}) };
+      throw new Error(`fetch inesperado ${url}`);
+    };
+    assert.equal(await reordenar('festa', 2026), false);
+    assert.deepEqual(linha, ['pendente', 'GET', 'PUT']);
+
+    linha.length = 0;
+    relogio = 1_700_000_000_000;
+    globalThis.fetch = async (url, init = {}) => {
+      const metodo = init.method || 'GET';
+      linha.push(metodo);
+      if (String(url).includes('/items?')) {
+        return { ok: true, status: 200, json: async () => ({ items: [{ item: { uri: C } }, { item: { uri: B } }, { item: { uri: A } }], next: null }) };
+      }
+      if (metodo === 'PUT') return { ok: true, status: 200, json: async () => ({}) };
+      throw new Error(`fetch inesperado ${url}`);
+    };
+    assert.equal(await reordenar('festa', 2026), true);
+    assert.deepEqual(linha, ['pendente', 'GET', 'PUT', 'PUT', 'limpa']);
+
+    linha.length = 0;
+    globalThis.fetch = async (url, init = {}) => {
+      const metodo = init.method || 'GET';
+      linha.push(metodo);
+      if (String(url).includes('/items?')) {
+        return { ok: true, status: 200, json: async () => ({ items: [{ item: { uri: C } }, { item: { uri: B } }, { item: { uri: A } }], next: null }) };
+      }
+      throw new Error('spotify caiu');
+    };
+    assert.equal(await reordenar('festa', 2026), false);
+    assert.deepEqual(linha, ['pendente', 'GET', 'PUT']);
+  } finally {
+    globalThis.fetch = fetchOriginal;
+    Date.now = agoraOriginal;
+    if (envId === undefined) delete process.env.SPOTIFY_CLIENT_ID; else process.env.SPOTIFY_CLIENT_ID = envId;
+    if (envSegredo === undefined) delete process.env.SPOTIFY_CLIENT_SECRET; else process.env.SPOTIFY_CLIENT_SECRET = envSegredo;
+  }
+});

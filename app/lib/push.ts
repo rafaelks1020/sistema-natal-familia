@@ -6,6 +6,20 @@ import { query } from './db';
 import { parseAssinatura, vapidPronto } from './push-web';
 
 type Mensagem = { titulo: string; corpo: string; rota?: string };
+
+// O app e o site dão nomes diferentes a algumas telas: cada aparelho recebe a rota que existe nele.
+const DO_APP_PARA_O_SITE: Record<string, string> = {
+  '/festa-quiz': '/festa/quiz', '/festa-bingo': '/festa/bingo', '/festa-enquete': '/festa/enquete',
+  '/festa-desafio': '/festa/desafio', '/festa-foto-oficial': '/festa/foto-oficial',
+  '/amigo-oculto-ao-vivo': '/amigo-oculto/ao-vivo',
+};
+const DO_SITE_PARA_O_APP: Record<string, string> = {
+  ...Object.fromEntries(Object.entries(DO_APP_PARA_O_SITE).map(([app, site]) => [site, app])),
+  // Telas que só o site tem: no app, a mais próxima.
+  '/missoes': '/conquistas', '/pontos': '/conquistas', '/karaoke': '/natal', '/admin/notificacoes': '/admin',
+};
+export const rotaDoSite = (rota: string) => DO_APP_PARA_O_SITE[rota] ?? rota;
+export const rotaDoApp = (rota: string) => DO_SITE_PARA_O_APP[rota] ?? rota;
 type Envio = 'ok' | 'invalido' | 'falhou';
 export type ResultadoPush = { recebidos: number; falharam: number };
 type Device = { id: number; user_id: number; platform: 'ios' | 'android' | 'web'; token: string; last_seen_at: string };
@@ -69,7 +83,7 @@ async function sendAndroid(device: Device, msg: Mensagem): Promise<Envio> {
     body: JSON.stringify({ message: {
       token: device.token,
       notification: { title: msg.titulo, body: msg.corpo },
-      ...(msg.rota ? { data: { rota: msg.rota } } : {}),
+      ...(msg.rota ? { data: { rota: rotaDoApp(msg.rota) } } : {}),
     } }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
@@ -136,7 +150,7 @@ async function sendIos(device: Device, msg: Mensagem): Promise<Envio> {
       request.on('end', () => finish(undefined, { status, body }));
       request.end(JSON.stringify({
         aps: { alert: { title: msg.titulo, body: msg.corpo }, sound: 'default' },
-        ...(msg.rota ? { rota: msg.rota } : {}),
+        ...(msg.rota ? { rota: rotaDoApp(msg.rota) } : {}),
       }));
     } catch (error) {
       finish(error instanceof Error ? error : new Error('Falha APNs'));
@@ -170,7 +184,7 @@ async function sendWeb(device: Device, msg: Mensagem): Promise<Envio> {
     await sendNotification(parsed.assinatura, JSON.stringify({
       titulo: msg.titulo,
       corpo: msg.corpo,
-      ...(msg.rota ? { rota: msg.rota } : {}),
+      ...(msg.rota ? { rota: rotaDoSite(msg.rota) } : {}),
     }), { timeout: TIMEOUT_MS, TTL: 12 * 60 * 60 });
     return 'ok';
   } catch (error) {
@@ -220,7 +234,7 @@ async function dispatch(userIds: number[], msg: Mensagem, platforms: string[]): 
           // Um novo registro ou troca de dono durante o envio prevalece sobre esta resposta.
           await query(
             `UPDATE push_devices SET disabled_at = NOW()
-              WHERE id = $1 AND user_id = $2 AND token = $3 AND last_seen_at = $4::timestamp`,
+              WHERE id = $1 AND user_id = $2 AND token = $3 AND last_seen_at = $4::timestamptz`,
             [device.id, device.user_id, device.token, device.last_seen_at],
           );
         }

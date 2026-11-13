@@ -9,11 +9,12 @@ import {
   montarConquistasVistas,
 } from '@/app/lib/gamificacao/catalogo';
 import {
-  coletarDadosEdicao,
+  coletarDadosEdicaoCacheada,
+  garantirRecalculoRecente,
   inspecionarEsquema,
-  lerConfigInterna,
   tem,
 } from '@/app/lib/gamificacao/motor';
+import { carregarBaseRankingEConquistas } from '@/app/lib/gamificacao/painel';
 
 export interface Selo { id: string; nome: string; descricao: string; conquistado: boolean }
 export interface Destaque { id: number; nome: string; avatar_url: string | null; total: number }
@@ -27,7 +28,10 @@ export interface Conquistas {
 export async function carregarConquistas(viewerId: number, userId = viewerId): Promise<Conquistas> {
   const ano = edicaoAtual();
   const e = await inspecionarEsquema();
-  const cfg = await lerConfigInterna(ano, query, e);
+  let base = await carregarBaseRankingEConquistas(ano, e);
+  if (await garantirRecalculoRecente(ano, base.cfg.recalculado_em)) {
+    base = await carregarBaseRankingEConquistas(ano, e);
+  }
 
   const bloqueados = new Set<number>();
   if (tem(e, 'user_blocks', 'blocker_id', 'blocked_id')) {
@@ -44,43 +48,26 @@ export async function carregarConquistas(viewerId: number, userId = viewerId): P
     throw new HttpError(404, 'Pessoa não encontrada.');
   }
 
-  const coleta = await coletarDadosEdicao(query, e, ano, cfg.encerra_em);
-  const pessoasVisiveis = coleta.usuarios.filter((u) => !bloqueados.has(Number(u.id)));
+  const coleta = await coletarDadosEdicaoCacheada(e, ano, base.cfg.encerra_em);
+  const pessoasVisiveis = base.usuarios.filter((u) => !bloqueados.has(Number(u.id)));
   if (!pessoasVisiveis.some((p) => Number(p.id) === userId)) {
     throw new HttpError(404, 'Pessoa não encontrada.');
   }
 
   const metricasAlvo = coleta.metricasPorUser.get(userId) ?? metricasVazias();
-
-  const ganhasDoUsuario = new Map<string, string>();
-  const contagemFamilia = new Map<string, number>();
-
-  if (tem(e, 'gami_conquistas', 'ano', 'user_id', 'conquista_id', 'ganha_em')) {
-    const { rows } = await query<{ user_id: number; conquista_id: string; ganha_em: Date | string }>(
-      `SELECT user_id, conquista_id, ganha_em FROM gami_conquistas WHERE ano = $1`,
-      [ano],
-    );
-    for (const r of rows) {
-      const uid = Number(r.user_id);
-      contagemFamilia.set(r.conquista_id, (contagemFamilia.get(r.conquista_id) ?? 0) + 1);
-      if (uid === userId) {
-        ganhasDoUsuario.set(
-          r.conquista_id,
-          r.ganha_em instanceof Date ? r.ganha_em.toISOString() : String(r.ganha_em),
-        );
-      }
-    }
-  }
+  const ganhasDoUsuario = new Map(base.ganhasPorUser.get(userId) ?? []);
+  const contagemFamilia = new Map(base.contagemFamilia);
 
   // Também reflete conquistas já alcançadas nas métricas atuais mesmo antes do próximo ciclo do motor.
   const agoraIso = new Date().toISOString();
   for (const [uid, m] of coleta.metricasPorUser) {
+    const participa = !base.excluidosSet.has(uid);
     for (const def of CATALOGO_CONQUISTAS) {
       if (conquistaAlcancada(def, m)) {
         if (uid === userId && !ganhasDoUsuario.has(def.id)) {
           ganhasDoUsuario.set(def.id, agoraIso);
         }
-        if ((contagemFamilia.get(def.id) ?? 0) === 0) {
+        if (participa && (contagemFamilia.get(def.id) ?? 0) === 0) {
           contagemFamilia.set(def.id, 1);
         }
       }
@@ -97,6 +84,7 @@ export async function carregarConquistas(viewerId: number, userId = viewerId): P
 
   function top(extrator: (uid: number) => number): Destaque[] {
     return pessoasVisiveis
+      .filter((p) => !base.excluidosSet.has(Number(p.id)))
       .map((p) => ({
         id: Number(p.id),
         nome: p.name,

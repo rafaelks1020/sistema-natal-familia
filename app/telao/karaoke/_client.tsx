@@ -198,6 +198,7 @@ function NotaCena({ item, r, posicao, foto, momentos, nivel }: { item: ItemFila;
 
 function KaraokeLivre({ admin }: { admin: boolean }) {
   const [estado, setEstado] = useState<EstadoKaraoke | null>(null);
+  const [erroFila, setErroFila] = useState('');
   const [fase, setFase] = useState<Fase>('ocioso');
   const [contagem, setContagem] = useState(CONTAGEM_S);
   const [resultado, setResultado] = useState<{ item: ItemFila; r: Resultado | null; nivel: Nivel | null } | null>(null);
@@ -307,6 +308,9 @@ function KaraokeLivre({ admin }: { admin: boolean }) {
   /** Ajuste da letra (ms) da música em andamento; vale na hora e é gravado depois de uma pequena espera. */
   const offsetRef = useRef(0);
   const timerOffset = useRef<number | undefined>(undefined);
+  /** Erros seguidos do <audio> do estúdio antes de pular a vez. */
+  const retentativasAudioRef = useRef(0);
+  const timerAudioRef = useRef<number | undefined>(undefined);
   const relogioRef = useRef({ v: 0, w: 0, saida: 0 });
   const trocasRef = useRef<Map<number, number>>(new Map());
 
@@ -381,6 +385,10 @@ function KaraokeLivre({ admin }: { admin: boolean }) {
   const limparTimers = useCallback(() => {
     cancelarPreparoAudio();
     window.clearInterval(timerContagem.current); window.clearTimeout(timerNota.current); window.clearInterval(timerEspera.current);
+    window.clearTimeout(timerOffset.current);
+    window.clearTimeout(timerAudioRef.current);
+    timerAudioRef.current = undefined;
+    retentativasAudioRef.current = 0;
   }, [cancelarPreparoAudio]);
 
   const abortar = useCallback(() => {
@@ -498,8 +506,11 @@ function KaraokeLivre({ admin }: { admin: boolean }) {
     const s = ++seqRef.current;
     try {
       const novo = await api<EstadoKaraoke>('/api/karaoke/fila?letra=1');
-      if (s === seqRef.current && !ocupadoRef.current) aplicar(novo);
-    } catch { /* tenta de novo no próximo ciclo */ }
+      if (s === seqRef.current && !ocupadoRef.current) { setErroFila(''); aplicar(novo); }
+    } catch (e) {
+      if (s !== seqRef.current || ocupadoRef.current || estadoRef.current) return;
+      setErroFila((e as Error).message || 'Não consegui carregar a fila.');
+    }
   }, [aplicar]);
 
   /** Ação de admin na fila (PATCH). Pausa a sincronização enquanto roda, para a resposta antiga não desfazer o passo. */
@@ -742,8 +753,9 @@ function KaraokeLivre({ admin }: { admin: boolean }) {
     offsetRef.current = Math.max(-OFFSET_MAX_MS, Math.min(OFFSET_MAX_MS, offsetRef.current + delta));
     setOffsetMs(offsetRef.current);
     if (usaEstudio(atualEm)) { gravarLS(LS_OFFSET_ESTUDIO, String(offsetRef.current)); return; }
+    const offset = offsetRef.current;
     window.clearTimeout(timerOffset.current);
-    timerOffset.current = window.setTimeout(() => { void acao({ acao: 'offset', id, offset_ms: offsetRef.current }); }, ATRASO_GRAVAR_OFFSET_MS);
+    timerOffset.current = window.setTimeout(() => { void acao({ acao: 'offset', id, offset_ms: offset }); }, ATRASO_GRAVAR_OFFSET_MS);
   }, [acao]);
 
   const pular = useCallback(async () => {
@@ -797,6 +809,7 @@ function KaraokeLivre({ admin }: { admin: boolean }) {
       morto = true;
       cancelarPreparoAudio();
       window.clearInterval(timerContagem.current); window.clearTimeout(timerNota.current); window.clearInterval(timerEspera.current);
+      window.clearTimeout(timerOffset.current); window.clearTimeout(timerAudioRef.current); timerAudioRef.current = undefined;
       try { playerRef.current?.destroy(); } catch { /* já destruído */ }
       playerRef.current = null; prontoRef.current = false;
       alvo.remove();
@@ -1090,6 +1103,7 @@ function KaraokeLivre({ admin }: { admin: boolean }) {
   const audioRodando = useCallback(() => { const a = audioRef.current; return Boolean(a && !a.paused && !a.ended); }, []);
   const aoTocarAudio = () => {
     if (faseRef.current !== 'cantando') return;
+    retentativasAudioRef.current = 0;
     setTocando(true);
     ultimoQuadroRef.current = -1;
     if (!gravandoRef.current) { iniciarGravacao(msVideo); gravandoRef.current = true; } else pausarGravacao(false);
@@ -1116,7 +1130,25 @@ function KaraokeLivre({ admin }: { admin: boolean }) {
       });
       return;
     }
-    if (!audioPendenteRef.current) tratadores.current.erroVideo();
+    if (audioPendenteRef.current || timerAudioRef.current) return;
+    if (retentativasAudioRef.current < 2) {
+      const espera = retentativasAudioRef.current === 0 ? 2000 : 5000;
+      retentativasAudioRef.current += 1;
+      const pos = faseRef.current === 'cantando' ? a.currentTime : 0;
+      const url = src || it.estudio.audio_url;
+      avisar(espera === 2000 ? 'O som falhou. Tentando de novo em 2 segundos.' : 'O som falhou de novo. Última tentativa em 5 segundos.');
+      timerAudioRef.current = window.setTimeout(() => {
+        timerAudioRef.current = undefined;
+        const atualEm = emCursoRef.current;
+        if (audioRef.current !== a || !usaEstudio(atualEm) || atualEm.id !== it.id) return;
+        if ((a.getAttribute('src') || '') !== url) a.src = url;
+        if (pos > 0) a.addEventListener('loadedmetadata', () => { a.currentTime = pos; }, { once: true });
+        a.load();
+        if (faseRef.current === 'cantando') a.play().catch(() => avisar('O navegador bloqueou o som. Toque na tela e aperte Continuar.'));
+      }, espera);
+      return;
+    }
+    tratadores.current.erroVideo();
   };
   const aoPausarAudio = () => { if (faseRef.current !== 'cantando') return; setTocando(false); pausarGravacao(true); };
 
@@ -1132,7 +1164,12 @@ function KaraokeLivre({ admin }: { admin: boolean }) {
   const estudioAtivo = fase === 'cantando' && Boolean(dadosEstudio) && Boolean(emCurso);
 
   const cartazOcioso = () => {
-    if (!estado) return <div className={styles.cartaz}><p className={styles.kicker}>Karaokê</p><p className={styles.subtitulo}>Carregando a fila...</p></div>;
+    if (!estado) return <div className={styles.cartaz}>
+      <p className={styles.kicker}>Karaokê</p>
+      {erroFila
+        ? <><p className={styles.subtitulo} role="alert">{erroFila}</p><button type="button" className={styles.botao} onClick={() => void recarregar()}>Tentar de novo</button></>
+        : <p className={styles.subtitulo}>Carregando a fila...</p>}
+    </div>;
     const alvo = !admin && atual ? atual : proximo;
     return <div className={styles.cartaz}>
       <p className={styles.kicker}>{alvo ? (alvo === atual ? 'Agora' : 'Próximo') : 'Karaokê da família'}</p>
@@ -1203,7 +1240,7 @@ function KaraokeLivre({ admin }: { admin: boolean }) {
       <p className={styles.latDica}>{pitch.status === 'ativo' ? 'Verde: no tom. Dourado: quase. Vermelho: fora. A barra ao lado é o volume.' : 'Microfone desligado: esta música fica sem nota.'}</p>
     </aside> : null}
 
-    {admin && emPalco && pitch.status !== 'ativo' ? <p className={styles.semMic}>Microfone desligado: sem nota</p> : null}
+    {admin && emPalco && pitch.status !== 'ativo' ? <p className={styles.semMic}>{pitch.status === 'erro' && pitch.erro ? pitch.erro : 'Microfone desligado: sem nota'}</p> : null}
 
     {fase === 'contagem' && item ? <div className={`${styles.cartaz} ${styles.cartazContagem}`}>
       <p className={styles.kicker}>Prepare-se</p>

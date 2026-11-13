@@ -22,8 +22,8 @@ export function albumYear(value: unknown = edicaoAtual()): number {
 export const PHOTO_CTE = `WITH sources AS (
   SELECT p.id, 'post'::text AS source, p.ano, p.user_id, p.content AS caption,
     p.image_url, p.image_urls,
-    p.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo' AS created_at,
-    (p.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date AS taken_on,
+    p.created_at::timestamptz AS created_at,
+    (p.created_at::timestamptz AT TIME ZONE 'America/Sao_Paulo')::date AS taken_on,
     (SELECT count(*)::int FROM family_post_reactions r WHERE r.post_id = p.id
       AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = $1 AND b.blocked_id = r.user_id)) AS likes,
     (SELECT count(*)::int FROM family_post_comments c WHERE c.post_id = p.id
@@ -31,10 +31,10 @@ export const PHOTO_CTE = `WITH sources AS (
     EXISTS(SELECT 1 FROM family_post_reactions r WHERE r.post_id = p.id AND r.user_id = $1) AS liked
   FROM family_posts p
   UNION ALL
-  SELECT id, 'compra', ano, NULL::int, description, image_url, image_urls, created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date, 0, 0, false FROM purchases
+  SELECT id, 'compra', ano, NULL::int, description, image_url, image_urls, created_at::timestamptz, (created_at::timestamptz AT TIME ZONE 'America/Sao_Paulo')::date, 0, 0, false FROM purchases
   UNION ALL
   SELECT a.id, 'album', a.ano, a.user_id, a.caption, a.image_url, NULL::text,
-    a.taken_on::timestamp + interval '12 hours', a.taken_on,
+    (a.taken_on::timestamp + interval '12 hours') AT TIME ZONE 'America/Sao_Paulo', a.taken_on,
     (SELECT count(*)::int FROM album_photo_likes l WHERE l.photo_id = a.id
       AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = $1 AND b.blocked_id = l.user_id)), 0,
     EXISTS(SELECT 1 FROM album_photo_likes l WHERE l.photo_id = a.id AND l.user_id = $1)
@@ -42,8 +42,8 @@ export const PHOTO_CTE = `WITH sources AS (
 ), photos AS (
   SELECT s.id, s.source, s.ano, s.user_id, s.caption, s.likes, s.comments, s.liked,
     s.source || '-' || s.id || '-' || (image.ordinality - 1) AS key, image.url,
-    to_char(s.created_at, 'YYYY-MM-DD"T"HH24:MI:SS.US') AS sort_date,
-    to_char(s.created_at AT TIME ZONE 'America/Sao_Paulo' AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US') || 'Z' AS created_at,
+    to_char(s.created_at AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD"T"HH24:MI:SS.US') AS sort_date,
+    to_char(s.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US') || 'Z' AS created_at,
     to_char(s.taken_on, 'YYYY-MM-DD') AS taken_on,
     COALESCE(u.name, 'Compras da ceia') AS author_name, u.avatar_url AS author_avatar
   FROM sources s CROSS JOIN LATERAL unnest(album_urls(s.image_urls, s.image_url)) WITH ORDINALITY AS image(url, ordinality)

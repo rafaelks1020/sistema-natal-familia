@@ -1,12 +1,28 @@
+import { enviarPush } from '@/app/lib/push';
 import { cleanText, HttpError, ok, requireAdmin, requireUser, route, toInt } from '@/app/lib/api';
-import { query } from '@/app/lib/db';
+import { query, transaction } from '@/app/lib/db';
 import { findPhoto, readAlbumJson } from '../data';
 export const POST = route(async req => {
   const me = await requireUser(); const body = await readAlbumJson(req); const photo = await findPhoto(me, body.key);
   if (photo.source !== 'album') throw new HttpError(400, 'Denuncie esta foto na publicação original.');
   const motivo = cleanText(body.motivo, 'motivo', 1000);
-  await query('INSERT INTO album_photo_reports(ano, photo_id, user_id, motivo) VALUES($1,$2,$3,$4)', [photo.ano, photo.id, me.id, motivo]);
-  return ok({ ok: true }, 201);
+  const nova = await transaction(async (q) => {
+    await q('SELECT id FROM album_photos WHERE id = $1 FOR UPDATE', [photo.id]);
+    const aberta = await q(
+      'SELECT id FROM album_photo_reports WHERE user_id = $1 AND photo_id = $2 AND resolved_at IS NULL LIMIT 1',
+      [me.id, photo.id],
+    );
+    if (aberta.rows.length) return false;
+    await q('INSERT INTO album_photo_reports(ano, photo_id, user_id, motivo) VALUES($1,$2,$3,$4)', [photo.ano, photo.id, me.id, motivo]);
+    await q(`INSERT INTO family_notifications (user_id, actor_id, type)
+      SELECT id, $1, 'report' FROM family_users WHERE is_admin`, [me.id]);
+    return true;
+  });
+  if (nova) {
+    const { rows: admins } = await query<{ id: number }>('SELECT id FROM family_users WHERE is_admin');
+    void enviarPush(admins.map((a) => a.id), { titulo: 'Nova denúncia', corpo: 'Foto do álbum denunciada para análise.', rota: '/album' });
+  }
+  return ok({ ok: true }, nova ? 201 : 200);
 });
 export const GET = route(async () => {
   await requireAdmin();

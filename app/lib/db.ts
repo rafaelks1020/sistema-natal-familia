@@ -6,6 +6,15 @@ const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
 const globalForPg = globalThis as unknown as { natalPool?: Pool };
 
+function bancoLocal(url: string): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  } catch {
+    return false;
+  }
+}
+
 function createPool(): Pool {
   if (!connectionString) {
     throw new Error('DATABASE_URL não está definida');
@@ -15,6 +24,11 @@ function createPool(): Pool {
     max: 3,
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 8_000,
+    // Consulta presa não segura a conexão para sempre: o cliente desiste e a conexão é descartada.
+    query_timeout: 20_000,
+    // O caminho da Vercel até a VPS é a internet: sempre criptografado. O certificado do pgbouncer é próprio,
+    // por isso sem conferir a cadeia. Banco local de desenvolvimento não tem TLS.
+    ssl: bancoLocal(connectionString) ? undefined : { rejectUnauthorized: false },
   });
   // Sem ouvinte, uma conexão encerrada pelo servidor derruba o processo Node.
   pool.on('error', (err) => {
@@ -38,6 +52,8 @@ export async function query<T extends QueryResultRow = any>(
 /** Executa várias queries na mesma transação (mesma conexão). */
 export async function transaction<T>(fn: (q: typeof query) => Promise<T>): Promise<T> {
   const client = await getPool().connect();
+  // Conexão que não conseguiu desfazer a transação não volta para o pool.
+  let descartar = false;
   try {
     await client.query('BEGIN');
     const q = (<R extends QueryResultRow = any>(text: string, params?: unknown[]) =>
@@ -46,9 +62,9 @@ export async function transaction<T>(fn: (q: typeof query) => Promise<T>): Promi
     await client.query('COMMIT');
     return result;
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
+    await client.query('ROLLBACK').catch(() => { descartar = true; });
     throw err;
   } finally {
-    client.release();
+    client.release(descartar);
   }
 }

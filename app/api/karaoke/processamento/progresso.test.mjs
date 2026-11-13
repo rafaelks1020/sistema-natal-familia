@@ -54,6 +54,31 @@ test('histórico inválido usa a referência e relógio adiantado não gera prog
   assert.equal(r.progresso, 5);
 });
 
+test('etapa parada há mais de 6 horas vira falha, avisa e não segura a fila', () => {
+  const preso = 6 * 60 * 60 * 1000;
+  const r = estimarProcessamento([
+    linha(1, { status: 'baixando', etapa: 'baixando', progresso: 5, etapa_em: new Date(agora - preso - 1).toISOString() }),
+    linha(2, { status: 'processando', etapa: 'alinhando_letra', progresso: 40, etapa_em: new Date(agora - preso - 1).toISOString() }),
+    linha(3),
+  ], {}, 9, agora);
+  assert.equal(r[0].status, 'falhou');
+  assert.equal(r[0].etapa, 'falhou');
+  assert.equal(r[0].posicao_fila, null);
+  assert.equal(r[0].minutos_estimados, null);
+  assert.match(r[0].erro, /mais de 6 horas/);
+  assert.equal(r[1].status, 'falhou');
+  assert.equal(r[1].erro, r[0].erro);
+  assert.equal(r[2].status, 'na_fila');
+  assert.equal(r[2].posicao_fila, 1);
+  assert.equal(r[2].minutos_estimados, 15);
+  assert.equal(r[2].erro, null);
+  const noLimite = estimarProcessamento([
+    linha(1, { status: 'processando', etapa: 'publicando', progresso: 95, etapa_em: new Date(agora - preso).toISOString() }),
+  ], {}, 2, agora);
+  assert.equal(noLimite[0].status, 'processando');
+  assert.equal(noLimite[0].erro, null);
+});
+
 test('registro do worker anterior ganha previsão compatível pelo status', () => {
   const [r] = estimarProcessamento([linha(1, { status: 'processando', etapa: 'na_fila', progresso: 0 })], {}, 2, agora);
   assert.equal(r.minutos_estimados, 13);

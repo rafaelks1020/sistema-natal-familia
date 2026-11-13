@@ -286,10 +286,12 @@ function TrocarSenha({ onClose }: { onClose: () => void }) {
   const salvar = useMutation({
     mutationFn: (vars: { current: string; next: string; generation: number }) => {
       if (!sessaoVigente(vars.generation)) throw new ApiError('A sessão mudou. Tente novamente.', 401);
-      return api<{ ok: boolean }>('/api/me/password', { method: 'POST', json: { current: vars.current, next: vars.next } });
+      return api<{ ok: boolean; token?: string }>('/api/me/password', { method: 'POST', json: { current: vars.current, next: vars.next, client: 'app' } });
     },
-    onSuccess: (_dado, vars) => {
+    onSuccess: async (dado, vars) => {
       if (!sessaoVigente(vars.generation)) return;
+      // O servidor troca a versão da sessão: sem gravar o token novo a pessoa seria deslogada.
+      if (dado.token) await sessionStore.replaceToken(dado.token).catch(() => {});
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       toast('Senha alterada.');
       onClose();

@@ -11,6 +11,8 @@ export const NOME_CACHE = 'karaoke-v1';
 export const ROTA_CATALOGO = '/api/karaoke/catalogo';
 /** Rede lenta: a busca de JSON desiste e usa o que já está salvo. */
 export const TIMEOUT_JSON_MS = 4000;
+/** Instrumental (arquivo grande): desiste e a tela pode baixar de novo. */
+export const TIMEOUT_AUDIO_MS = 60_000;
 
 export type MusicaParaOffline = { id: number; status: string };
 
@@ -49,9 +51,18 @@ let emUso: string | null = null;
 /** Object URLs que ficaram de fora de uma limpeza por estarem em uso. Saem quando o áudio troca. */
 const adiados = new Set<string>();
 
-/** Informa qual src o <audio> do telão está tocando (ou null). Solta o que ficou adiado e já não está em uso. */
+/** Informa qual src o <audio> do telão está tocando (ou null). Solta a faixa anterior e o que ficou adiado. */
 export function marcarEmUso(src: string | null): void {
-  emUso = src && src.startsWith('blob:') ? src : null;
+  const proximo = src && src.startsWith('blob:') ? src : null;
+  const anterior = emUso;
+  emUso = proximo;
+  if (anterior && anterior !== proximo) {
+    adiados.delete(anterior);
+    for (const [chave, obj] of objetos) {
+      if (obj === anterior) { objetos.delete(chave); break; }
+    }
+    URL.revokeObjectURL(anterior);
+  }
   for (const obj of [...adiados]) {
     if (obj === emUso) continue;
     URL.revokeObjectURL(obj);
@@ -294,17 +305,31 @@ async function buscarNaRede(url: string, sinal: AbortSignal | undefined, timeout
 }
 
 async function baixarArquivo(url: string, sinal: AbortSignal | undefined): Promise<number> {
+  const ctrl = new AbortController();
+  const noPai = () => ctrl.abort();
+  sinal?.addEventListener('abort', noPai, { once: true });
+  let estourou = false;
+  const timer = setTimeout(() => { estourou = true; ctrl.abort(); }, TIMEOUT_AUDIO_MS);
   const g = geracao;
-  if (sinal?.aborted || g !== geracao) throw abortado();
-  const res = await fetch(url, { signal: sinal, cache: 'no-store' });
-  if (g !== geracao) throw abortado();
-  if (!res.ok) throw await erroHttp(res);
-  const buf = await res.arrayBuffer();
-  if (sinal?.aborted || g !== geracao) throw abortado();
-  soltarObjeto(url);
-  const tipo = res.headers.get('content-type') || 'application/octet-stream';
-  await guardarBytes(url, buf, tipo, g);
-  return buf.byteLength;
+  try {
+    if (sinal?.aborted || g !== geracao) throw abortado();
+    const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
+    if (g !== geracao) throw abortado();
+    if (!res.ok) throw await erroHttp(res);
+    const buf = await res.arrayBuffer();
+    if (sinal?.aborted || g !== geracao) throw abortado();
+    soltarObjeto(url);
+    const tipo = res.headers.get('content-type') || 'application/octet-stream';
+    await guardarBytes(url, buf, tipo, g);
+    return buf.byteLength;
+  } catch (err) {
+    if (sinal?.aborted || g !== geracao) throw cancelado(err) ? err : abortado();
+    if (estourou) throw new Error('O download do instrumental demorou demais. Tente de novo.');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    sinal?.removeEventListener('abort', noPai);
+  }
 }
 
 async function obterCatalogo(sinal?: AbortSignal): Promise<MusicaParaOffline[]> {

@@ -18,7 +18,7 @@ function photo(overrides = {}) {
     liked: false, sort_date: '2025-12-24T12:00:00.123456', created_at: '2025-12-24T12:00:00.123456-03:00', taken_on: '2025-12-24', ...overrides };
 }
 function harness({ now = '2026-11-05T18:00:00Z', user = member, tree = false, resolve } = {}) {
-  const calls = []; const cache = new Map(); const saved = new Map(); let nextId = 1;
+  const calls = []; const cache = new Map(); const saved = new Map(); const pushes = []; let nextId = 1;
   const CurrentDate = class extends Date { constructor(...args) { super(...(args.length ? args : [now])); } static now() { return new Date(now).getTime(); } };
   async function query(sql, params = []) {
     calls.push({ sql, params });
@@ -49,6 +49,7 @@ function harness({ now = '2026-11-05T18:00:00Z', user = member, tree = false, re
     execute(compiledModule.exports, spec => {
       if (spec === 'server-only') return {};
       if (spec === '@/app/lib/db') return db;
+      if (spec === '@/app/lib/push') return { enviarPush: (ids, msg) => { pushes.push({ ids, msg }); } };
       if (spec === './session' && filename.endsWith('/lib/api.ts')) return session;
       if (spec === '@/app/lib/api') return load('app/lib/api.ts');
       if (spec.startsWith('@/')) return load(`${spec.slice(2)}.ts`);
@@ -57,7 +58,7 @@ function harness({ now = '2026-11-05T18:00:00Z', user = member, tree = false, re
     }, compiledModule);
     return compiledModule.exports;
   }
-  return { calls, load, saved };
+  return { calls, load, saved, pushes };
 }
 function request(body, method = 'POST') { return new Request('https://familia.test/api/album', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
 const upload = (extra = {}) => ({ ano: 2025, taken_on: '2025-12-24', caption: 'Natal', people: ['user:8'], photos: [{ url: blob, client_key: 'envio-1' }], ...extra });
@@ -139,8 +140,34 @@ test('denúncias têm fila exclusiva do organizador e autor da sessão', async (
   assert.equal((await route.PATCH(request({ id: 1 }, 'PATCH'))).status, 403);
   assert.equal((await route.POST(request({ key: 'album-42-0', motivo: 'Foto indevida', user_id: 99 }))).status, 201);
   assert.deepEqual(Array.from(mutations(h)[0].params), [2025, 42, 7, 'Foto indevida']);
+  assert.equal(mutations(h).some((c) => c.sql.includes('family_notifications')), true);
+  assert.equal(h.pushes.length, 1);
+  assert.equal(h.pushes[0].msg.titulo, 'Nova denúncia');
+  assert.equal(h.pushes[0].msg.rota, '/album');
   const admin = harness({ user: { ...member, is_admin: true } }).load('app/api/album/reports/route.ts');
   assert.equal((await admin.PATCH(request({ id: 1e15 }, 'PATCH'))).status, 400);
+});
+test('denúncia aberta da mesma foto não grava nem avisa de novo', async () => {
+  const h = harness({ resolve: (sql) => sql.startsWith('SELECT id FROM album_photo_reports') ? [{ id: 9 }] : undefined });
+  const route = h.load('app/api/album/reports/route.ts');
+  const res = await route.POST(request({ key: 'album-42-0', motivo: 'Foto indevida' }));
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { ok: true });
+  assert.equal(mutations(h).length, 0);
+  assert.equal(h.pushes.length, 0);
+});
+test('edição anterior aceita janeiro e fevereiro do ano seguinte e recusa março', async () => {
+  for (const taken_on of ['2026-01-01', '2026-02-28']) {
+    const h = harness();
+    const res = await h.load('app/api/album/route.ts').POST(request(upload({ taken_on })));
+    assert.equal(res.status, 201);
+    assert.equal(mutations(h).find((c) => c.sql.startsWith('INSERT INTO album_photos')).params[4], taken_on);
+  }
+  const marco = harness();
+  assert.equal((await marco.load('app/api/album/route.ts').POST(request(upload({ taken_on: '2026-03-01' })))).status, 400);
+  assert.equal(mutations(marco).length, 0);
+  const mesmoAno = harness();
+  assert.equal((await mesmoAno.load('app/api/album/route.ts').POST(request(upload({ taken_on: '2025-01-15' })))).status, 201);
 });
 test('curtidas são idempotentes e vinculadas à sessão', async () => {
   const h = harness(); const route = h.load('app/api/album/likes/route.ts');

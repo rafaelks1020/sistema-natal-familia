@@ -74,7 +74,7 @@ export async function carregarEstatisticas(): Promise<Estatisticas> {
          SELECT generate_series($1::date, $2::date, INTERVAL '1 day')::date AS dia
        ),
        posts AS (
-         SELECT (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date AS dia,
+         SELECT (created_at::timestamptz AT TIME ZONE 'America/Sao_Paulo')::date AS dia,
                 COUNT(*)::int AS n
            FROM family_posts
           WHERE ano = $3 AND created_at IS NOT NULL

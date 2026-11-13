@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   BellRing,
@@ -19,6 +19,7 @@ import { api } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
 import { useMe } from '@/app/ui/user';
 import type { BingoCasa, BingoData, BingoItemRow } from '@/app/api/festa/bingo/_data';
+import { AvisoSemConexao, usePolling } from '../_polling';
 
 export default function BingoClient({ initial }: { initial: BingoData }) {
   const me = useMe();
@@ -27,6 +28,7 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
   const [data, setData] = useState<BingoData>(initial);
   const [busyPos, setBusyPos] = useState<number | null>(null);
   const [busyAction, setBusyAction] = useState(false);
+  const travaCasa = useRef(false);
   const [casaSelecionada, setCasaSelecionada] = useState<BingoCasa | null>(null);
 
   // Gerenciamento da lista de situacoes pelo organizador
@@ -34,21 +36,11 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
   const [novoTexto, setNovoTexto] = useState('');
   const [editItem, setEditItem] = useState<BingoItemRow | null>(null);
 
-  const recarregar = useCallback(async () => {
-    try {
-      const res = await api<BingoData>('/api/festa/bingo');
-      setData(res);
-    } catch {
-      /* ignora falha de rede em polling */
-    }
-  }, []);
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      void recarregar();
-    }, 3500);
-    return () => window.clearInterval(id);
-  }, [recarregar]);
+  const { semConexao, escrita } = usePolling(async (obsoleta) => {
+    const res = await api<BingoData>('/api/festa/bingo');
+    if (obsoleta()) return;
+    setData(res);
+  }, 3500);
 
   const marcadasSet = useMemo(() => new Set(data.cartela.marcadas), [data.cartela.marcadas]);
 
@@ -62,17 +54,21 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
 
   async function alternarCasa(casa: BingoCasa) {
     setCasaSelecionada(casa);
-    if (casa.livre || busyPos !== null) return;
+    if (casa.livre || travaCasa.current) return;
+    travaCasa.current = true;
     setBusyPos(casa.posicao);
     try {
-      const res = await api<BingoData>('/api/festa/bingo', {
-        method: 'POST',
-        json: { acao: 'alternar_casa', posicao: casa.posicao },
-      });
+      const res = await escrita(() =>
+        api<BingoData>('/api/festa/bingo', {
+          method: 'POST',
+          json: { acao: 'alternar_casa', posicao: casa.posicao },
+        }),
+      );
       setData(res);
     } catch (err) {
       toast((err as Error).message, 'erro');
     } finally {
+      travaCasa.current = false;
       setBusyPos(null);
     }
   }
@@ -81,10 +77,12 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
     if (busyAction) return;
     setBusyAction(true);
     try {
-      const res = await api<BingoData>('/api/festa/bingo', {
-        method: 'POST',
-        json: { acao: 'gritar_bingo' },
-      });
+      const res = await escrita(() =>
+        api<BingoData>('/api/festa/bingo', {
+          method: 'POST',
+          json: { acao: 'gritar_bingo' },
+        }),
+      );
       setData(res);
       toast('BINGO! Toda a família recebeu o aviso!');
     } catch (err) {
@@ -104,10 +102,12 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
     }
     setBusyAction(true);
     try {
-      const res = await api<BingoData>('/api/festa/bingo', {
-        method: 'POST',
-        json: { acao: 'nova_cartela' },
-      });
+      const res = await escrita(() =>
+        api<BingoData>('/api/festa/bingo', {
+          method: 'POST',
+          json: { acao: 'nova_cartela' },
+        }),
+      );
       setData(res);
       setCasaSelecionada(null);
       toast('Nova cartela sorteada!');
@@ -122,10 +122,12 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
     if (busyAction) return;
     setBusyAction(true);
     try {
-      const res = await api<BingoData>('/api/festa/bingo', {
-        method: 'POST',
-        json: { acao: 'confirmar_bingo', claim_id: claimId, decisao },
-      });
+      const res = await escrita(() =>
+        api<BingoData>('/api/festa/bingo', {
+          method: 'POST',
+          json: { acao: 'confirmar_bingo', claim_id: claimId, decisao },
+        }),
+      );
       setData(res);
       toast(decisao === 'confirmado' ? 'Bingo confirmado!' : 'Pedido descartado.');
     } catch (err) {
@@ -140,10 +142,12 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
     if (!novoTexto.trim() || busyAction) return;
     setBusyAction(true);
     try {
-      const res = await api<BingoData>('/api/festa/bingo', {
-        method: 'POST',
-        json: { acao: 'adicionar_item', texto: novoTexto.trim() },
-      });
+      const res = await escrita(() =>
+        api<BingoData>('/api/festa/bingo', {
+          method: 'POST',
+          json: { acao: 'adicionar_item', texto: novoTexto.trim() },
+        }),
+      );
       setData(res);
       setNovoTexto('');
       toast('Situação adicionada à lista!');
@@ -159,15 +163,17 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
     if (!editItem || busyAction) return;
     setBusyAction(true);
     try {
-      const res = await api<BingoData>('/api/festa/bingo', {
-        method: 'POST',
-        json: {
-          acao: 'editar_item',
-          id: editItem.id,
-          texto: editItem.texto,
-          ativo: editItem.ativo,
-        },
-      });
+      const res = await escrita(() =>
+        api<BingoData>('/api/festa/bingo', {
+          method: 'POST',
+          json: {
+            acao: 'editar_item',
+            id: editItem.id,
+            texto: editItem.texto,
+            ativo: editItem.ativo,
+          },
+        }),
+      );
       setData(res);
       setEditItem(null);
       toast('Situação atualizada!');
@@ -182,10 +188,12 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
     if (!window.confirm('Remover esta situação da lista do Bingo?')) return;
     setBusyAction(true);
     try {
-      const res = await api<BingoData>('/api/festa/bingo', {
-        method: 'POST',
-        json: { acao: 'excluir_item', id },
-      });
+      const res = await escrita(() =>
+        api<BingoData>('/api/festa/bingo', {
+          method: 'POST',
+          json: { acao: 'excluir_item', id },
+        }),
+      );
       setData(res);
       toast('Situação removida.');
     } catch (err) {
@@ -199,6 +207,7 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
 
   return (
     <div className="pb-nav">
+      <AvisoSemConexao visivel={semConexao} />
       <PageHeader kicker="Jogos da Ceia" title="Bingo da Ceia" back="/festa" />
 
       <nav aria-label="Jogos da ceia" className="mb-5 flex gap-2 overflow-x-auto px-5 no-scrollbar">
