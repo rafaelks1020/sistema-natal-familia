@@ -182,3 +182,15 @@ Cada fase sai no site na hora e no app numa versão nova das lojas (Android vers
 - [ ] (R) Reconectar o Spotify uma vez para o "tocando agora" do telão
 - [x] Telão super top no ar (/telao e /telao/controle): cenas, tocando agora, jogos ao vivo, QR, voz "Natal"
 - [ ] Telão: testar a voz numa TV/Chrome de verdade e o "tocando agora" com música tocando
+
+## H. Revisão geral (12 e 13/11/2026)
+Lista completa, com o que foi corrigido e o que ficou aberto: `docs/REVISAO-2026-11-12.md`.
+- [x] Revisão do site, do app, do banco e da infraestrutura, com teste de carga e 12 leituras de código
+- [x] Datas com fuso (migration 050 aplicada), tela de Pontos leve, jogos com menos consultas, banco criptografado
+- [x] Quiz, bingo, telão, karaokê, vaquinha, Pix a cada 5 minutos, bloqueio, exclusão de conta, telas de erro, Next 16.4.6
+- [x] Publicado no site em 13/11 (commit ced0ba6), conferido em produção
+- [ ] (R) Regra de bypass no Firewall da Vercel para o IP da casa da ceia (a proteção bloqueia o IP sob carga)
+- [ ] (R) Ensaio com uns 10 celulares no mesmo Wi-Fi antes do dia 24
+- [ ] Nova versão do app nas lojas com as correções (trocar senha, tela de erro, biometria, avisos)
+- [ ] Liberar disco da VPS de arquivos (96%) e monitorar `arquivos.natalemfamilia.com.br` no painel
+
