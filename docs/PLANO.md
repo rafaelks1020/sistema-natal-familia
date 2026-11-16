@@ -189,8 +189,12 @@ Lista completa, com o que foi corrigido e o que ficou aberto: `docs/REVISAO-2026
 - [x] Datas com fuso (migration 050 aplicada), tela de Pontos leve, jogos com menos consultas, banco criptografado
 - [x] Quiz, bingo, telão, karaokê, vaquinha, Pix a cada 5 minutos, bloqueio, exclusão de conta, telas de erro, Next 16.4.6
 - [x] Publicado no site em 13/11 (commit ced0ba6), conferido em produção
-- [ ] (R) Regra de bypass no Firewall da Vercel para o IP da casa da ceia (a proteção bloqueia o IP sob carga)
+- [ ] (R) Regra de bypass no Firewall da Vercel para o IP da casa da ceia e para o desta VPS, 169.58.196.17 (a proteção bloqueia o IP sob carga; em 16/11 barrou o cron por 15 minutos sem carga nenhuma)
 - [ ] (R) Ensaio com uns 10 celulares no mesmo Wi-Fi antes do dia 24
-- [ ] Nova versão do app nas lojas com as correções (trocar senha, tela de erro, biometria, avisos)
-- [ ] Liberar disco da VPS de arquivos (96%) e monitorar `arquivos.natalemfamilia.com.br` no painel
+- [x] Play 1.2.1 (versionCode 5) com as correções (trocar senha, tela de erro, biometria, avisos, atalhos de Pontos e Missões) enviada à produção em 16/11; pacote guardado em `/mnt/storage/backups/natal-familia/app/`
+- [ ] iPhone: build 1.2.1 (buildNumber 5) com as mesmas correções, só depois que a Apple responder à disputa da 1.1
+- [x] Disco da VPS de arquivos baixou para 79% (16/11)
+- [ ] Monitorar `arquivos.natalemfamilia.com.br` no painel
+- [x] Limite de conexões do site no banco: de 10 para 30 (16/11)
+- [x] Disco do servidor do banco: 3 imagens Docker sem uso apagadas, de 92% para 86% (16/11)
 
