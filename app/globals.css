@@ -44,9 +44,12 @@
   --ease-cine: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Letra maior para quem prefere (Perfil > Letra maior): tudo em rem cresce junto. */
+/* Tamanho da letra para quem prefere (aba Eu): tudo em rem cresce junto. */
 html.letra-grande {
   font-size: 115%;
+}
+html.letra-maior {
+  font-size: 130%;
 }
 
 html {
@@ -191,7 +194,7 @@ body[data-tela-limpa]::after { display: none; }
 }
 .btn-quiet {
   color: var(--marfim-2);
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 0.75rem;
 }
 

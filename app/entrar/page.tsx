@@ -131,9 +131,13 @@ export default function EntrarPage() {
 
         <form onSubmit={submit} className="rise space-y-3" style={{ animationDelay: '0.16s' }}>
           {mode === 'register' && (
-            <input className="field" placeholder="Seu nome (como a família te chama)" autoComplete="name" value={form.name} onChange={set('name')} required />
+            <input className="field" aria-label="Seu nome" placeholder="Seu nome (como a família te chama)" autoComplete="name" value={form.name} onChange={set('name')} required />
           )}
+          <label htmlFor="campo-usuario" className="block px-1 text-sm font-semibold text-marfim">
+            {mode === 'register' ? 'Escolha um nome de usuário' : 'Seu usuário'}
+          </label>
           <input
+            id="campo-usuario"
             className="field"
             placeholder="Usuário"
             autoComplete="username"
@@ -145,14 +149,18 @@ export default function EntrarPage() {
             required
           />
           {form.username.trim() && normalizarUsuario(form.username) !== form.username.trim() && (
-            <p className="-mt-1 px-1 text-xs text-marfim-3">
+            <p className="-mt-1 px-1 text-xs text-marfim-2">
               {mode === 'register' ? 'Seu usuário vai ficar: ' : 'Entrando como: '}
               <span className="text-champagne">{normalizarUsuario(form.username) || '...'}</span>
             </p>
           )}
+          <label htmlFor="campo-senha" className="block px-1 pt-1 text-sm font-semibold text-marfim">
+            {mode === 'register' ? 'Crie uma senha' : 'Sua senha'}
+          </label>
           <div className="relative">
             <input
-              className="field pr-12"
+              id="campo-senha"
+              className="field pr-14"
               type={show ? 'text' : 'password'}
               placeholder={mode === 'register' ? 'Senha (mínimo 6)' : 'Senha'}
               minLength={mode === 'register' ? 6 : undefined}
@@ -165,9 +173,9 @@ export default function EntrarPage() {
               type="button"
               onClick={() => setShow((s) => !s)}
               aria-label={show ? 'Esconder senha' : 'Mostrar senha'}
-              className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-marfim-3"
+              className="absolute right-1 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center text-marfim-2"
             >
-              {show ? <EyeOff size={18} strokeWidth={1.5} /> : <Eye size={18} strokeWidth={1.5} />}
+              {show ? <EyeOff size={22} strokeWidth={1.5} /> : <Eye size={22} strokeWidth={1.5} />}
             </button>
           </div>
           {mode === 'register' && !convite && (
@@ -192,12 +200,17 @@ export default function EntrarPage() {
           <button type="submit" disabled={busy} className="btn btn-primary w-full">
             {busy ? 'Um instante…' : mode === 'login' ? 'Entrar' : 'Criar meu acesso'}
           </button>
+          {mode === 'login' && (
+            <p className="px-1 pt-1 text-center text-sm leading-relaxed text-marfim-2">
+              Esqueceu a senha? Peça uma senha nova para quem organiza o Natal.
+            </p>
+          )}
         </form>
 
         <button
           type="button"
           onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}
-          className="mt-6 text-center text-sm text-marfim-2"
+          className="mt-4 flex min-h-12 items-center justify-center text-center text-sm text-marfim-2"
         >
           {mode === 'login' ? (
             <>Primeira vez aqui? <span className="text-marfim underline decoration-cereja underline-offset-4">Cadastrar parente</span></>

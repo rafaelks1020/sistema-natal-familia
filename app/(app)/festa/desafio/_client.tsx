@@ -55,12 +55,12 @@ export default function ChallengeClient({ initial }: { initial: ChallengeData })
     <p className="text-sm text-marfim-2">Uma foto por pessoa em cada desafio. Escolha a sua favorita e vote. Você pode trocar seu voto até encerrar.</p>
     <AvisoSemConexao visivel={semConexao} />
     {data.me.is_admin && !aberto && <form className="space-y-4 rounded-2xl border border-linha bg-carvao-2 p-5" onSubmit={(e) => { e.preventDefault(); void mutate('POST', { titulo }, 'Desafio aberto. A família será avisada.'); }}>
-      <h2 className="display text-2xl">Começar um desafio</h2><div className="flex flex-wrap gap-2">{sugestoes.map((s) => <button key={s} type="button" disabled={busy} className="btn btn-ghost min-h-11 text-xs" onClick={() => setTitulo(s)}>{s}</button>)}</div>
+      <h2 className="display text-2xl">Começar um desafio</h2><div className="flex flex-wrap gap-2">{sugestoes.map((s) => <button key={s} type="button" disabled={busy} className="btn btn-ghost min-h-12 text-xs" onClick={() => setTitulo(s)}>{s}</button>)}</div>
       <label className="block text-sm">Nome do desafio<input className="field mt-2" value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={120} required disabled={busy} /></label><button className="btn btn-primary w-full" disabled={busy}>Abrir desafio</button>
     </form>}
     {aberto && <section className="space-y-4 rounded-2xl border border-champagne/30 p-5"><p className="kicker">Valendo agora</p><h2 className="display text-3xl break-words">{aberto.titulo}</h2>
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); void sendPhoto(aberto.id); }}>
-        <label className="block text-sm">{minha ? 'Trocar minha foto' : 'Escolher minha foto'}<input ref={input} className="field mt-2 min-h-11 w-full min-w-0 text-sm" type="file" accept="image/*" disabled={busy} onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></label>
+        <label className="block text-sm">{minha ? 'Trocar minha foto' : 'Escolher minha foto'}<input ref={input} className="field mt-2 min-h-12 w-full min-w-0 text-sm" type="file" accept="image/*" disabled={busy} onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></label>
         <label className="block text-sm">Legenda (opcional)<textarea className="field mt-2" value={legenda} onChange={(e) => setLegenda(e.target.value)} maxLength={500} disabled={busy} /></label>
         {minha && <p className="text-xs text-marfim-3">Ao trocar a foto, os votos que ela recebeu são zerados.</p>}
         <button className="btn btn-primary w-full" disabled={busy || !file}>{busy ? 'Aguarde...' : minha ? 'Trocar foto' : 'Enviar foto'}</button>
@@ -78,8 +78,8 @@ export default function ChallengeClient({ initial }: { initial: ChallengeData })
         {fotos.map((p) => <article key={p.id} className={`overflow-hidden rounded-2xl border bg-carvao-2 ${p.vencedor ? 'border-champagne' : 'border-linha'}`}>
           <img src={thumb(p.image_url)} alt={p.legenda || `Foto de ${p.name}`} loading="lazy" className="aspect-[4/3] w-full object-contain" /><div className="space-y-3 p-4"><div className="flex items-center gap-3"><Avatar name={p.name} src={p.avatar_url} size={36} /><p className="min-w-0 break-words text-sm">{p.name}{p.vencedor && ' · Vencedor'}</p></div><p className="whitespace-pre-wrap break-words text-sm text-marfim-2">{p.legenda}</p><p className="text-sm text-champagne">{p.votos} {p.votos === 1 ? 'voto' : 'votos'}</p>
           {c.aberto && p.user_id !== data.me.id && <button className={`btn w-full ${voto === p.id ? 'btn-primary' : 'btn-ghost'}`} disabled={busy || voto === p.id} onClick={() => { void mutate('PUT', { acao: 'votar', desafio_id: c.id, entry_id: p.id }, 'Voto registrado!'); }}>{voto === p.id ? 'Seu voto está aqui' : 'Votar nesta foto'}</button>}
-          {((c.aberto && p.user_id === data.me.id) || data.me.is_admin) && <button className="btn btn-quiet min-h-11 w-full" disabled={busy} onClick={() => { if (window.confirm('Apagar esta foto e os votos recebidos?')) void mutate('DELETE', { entry_id: p.id }, 'Foto apagada.'); }}>Apagar foto</button>}
-          {p.user_id !== data.me.id && <details><summary className="min-h-11 cursor-pointer py-3 text-xs text-marfim-3">Opções desta foto</summary><ModerationActions userId={p.user_id} name={p.name} alvoTipo="desafio" alvoId={p.id} /></details>}
+          {((c.aberto && p.user_id === data.me.id) || data.me.is_admin) && <button className="btn btn-quiet min-h-12! w-full" disabled={busy} onClick={() => { if (window.confirm('Apagar esta foto e os votos recebidos?')) void mutate('DELETE', { entry_id: p.id }, 'Foto apagada.'); }}>Apagar foto</button>}
+          {p.user_id !== data.me.id && <details><summary className="min-h-12 cursor-pointer py-3 text-xs text-marfim-3">Opções desta foto</summary><ModerationActions userId={p.user_id} name={p.name} alvoTipo="desafio" alvoId={p.id} /></details>}
         </div></article>)}
       </section>;
     })}

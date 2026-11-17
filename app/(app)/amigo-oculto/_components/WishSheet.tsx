@@ -100,7 +100,7 @@ export default function WishSheet({
         ? await api<WishDetail>(`/api/wishlist/${form.id}`, { method: 'PUT', json })
         : await api<WishDetail>('/api/wishlist', { method: 'POST', json });
       onSaved(saved);
-      toast(form.id ? 'Desejo atualizado' : 'Desejo anotado');
+      toast(form.id ? 'Desejo atualizado' : 'Desejo anotado. Cada presente na lista vale 5 pontos (até 5).');
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -208,7 +208,7 @@ export default function WishSheet({
                     type="button"
                     disabled={uploadingPhoto || busy}
                     onClick={() => fileRef.current?.click()}
-                    className="mt-1 min-h-11 text-xs text-champagne underline"
+                    className="mt-1 min-h-12 text-xs text-champagne underline"
                   >
                     Trocar foto
                   </button>
@@ -218,7 +218,7 @@ export default function WishSheet({
                   aria-label="Remover foto"
                   disabled={uploadingPhoto || busy}
                   onClick={() => setForm((f) => ({ ...f, image_url: null }))}
-                  className="flex h-11 w-11 items-center justify-center text-marfim-3"
+                  className="flex h-12 w-12 items-center justify-center text-marfim-3"
                 >
                   <X size={18} strokeWidth={1.5} />
                 </button>
@@ -288,7 +288,7 @@ export default function WishSheet({
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    className="btn btn-quiet"
+                    className="btn btn-quiet min-h-12!"
                     disabled={busy}
                     onClick={() => setAskDelete(false)}
                   >
@@ -296,7 +296,7 @@ export default function WishSheet({
                   </button>
                   <button
                     type="button"
-                    className="btn btn-quiet text-cereja"
+                    className="btn btn-quiet min-h-12! text-cereja"
                     disabled={busy}
                     onClick={() => void remove()}
                   >
@@ -305,7 +305,7 @@ export default function WishSheet({
                 </div>
               </div>
             ) : (
-              <button type="button" className="btn btn-quiet text-marfim-3" onClick={() => setAskDelete(true)}>
+              <button type="button" className="btn btn-quiet min-h-12! text-marfim-3" onClick={() => setAskDelete(true)}>
                 <Trash2 size={16} strokeWidth={1.5} /> Apagar este desejo
               </button>
             )}

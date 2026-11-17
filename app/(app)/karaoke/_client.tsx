@@ -251,7 +251,7 @@ export default function KaraokeClient() {
   }
 
   return <>
-    <PageHeader kicker="A festa canta junto" title="Karaokê da família" />
+    <PageHeader kicker="A festa canta junto" title="Karaokê da família" back="/festa" />
     <div className="space-y-6 px-5 pb-8">
       <div role="tablist" aria-label="Partes do karaokê" className="grid grid-cols-3 gap-1 rounded-full bg-carvao-2 p-1">
         {ABAS.map((item) => <button key={item.id} type="button" role="tab" id={`aba-${item.id}`} aria-selected={aba === item.id} aria-controls={`painel-${item.id}`} className={`min-h-12 rounded-full px-2 text-sm font-semibold ${aba === item.id ? 'bg-cereja text-marfim' : 'text-marfim-2'}`} onClick={() => irParaAba(item.id)}>{item.rotulo}</button>)}
@@ -274,7 +274,7 @@ export default function KaraokeClient() {
             {convites.map(({ f, desafiante }) => <div key={f.id} className="space-y-2">
               <p className="break-words font-medium">{desafiante} te desafiou em {f.titulo}</p>
               <p className="text-sm text-marfim-2">Vocês cantam a mesma música, um de cada vez. Quando chegar a sua vez, é só cantar.</p>
-              <button type="button" className="btn btn-quiet" style={{ minHeight: 48 }} disabled={ocupado} onClick={() => void recusar(f.batalha_id as string)}>Recusar</button>
+              <button type="button" className="btn btn-quiet min-h-12!" style={{ minHeight: 48 }} disabled={ocupado} onClick={() => void recusar(f.batalha_id as string)}>Recusar</button>
             </div>)}
           </div> : null}
 
@@ -300,11 +300,11 @@ export default function KaraokeClient() {
               </div>
               {me.is_admin || (f.user_id === me.id && f.status === 'fila') ? <div className="flex flex-wrap gap-2" role="group" aria-label={me.is_admin ? `Organizar ${f.titulo}` : `Seu pedido ${f.titulo}`}>
                 {me.is_admin ? <>
-                  <button type="button" className="btn btn-quiet" style={{ minHeight: 48 }} disabled={ocupado || i === 0} aria-label="Subir na fila" onClick={() => void admin(f.id, 'subir')}><ArrowUp size={18} aria-hidden="true" /></button>
-                  <button type="button" className="btn btn-quiet" style={{ minHeight: 48 }} disabled={ocupado || i === estado.fila.length - 1} aria-label="Descer na fila" onClick={() => void admin(f.id, 'descer')}><ArrowDown size={18} aria-hidden="true" /></button>
-                  <button type="button" className="btn btn-quiet gap-1" style={{ minHeight: 48 }} disabled={ocupado} onClick={() => void admin(f.id, 'pular')}><SkipForward size={18} aria-hidden="true" />Pular</button>
+                  <button type="button" className="btn btn-quiet min-h-12!" style={{ minHeight: 48 }} disabled={ocupado || i === 0} aria-label="Subir na fila" onClick={() => void admin(f.id, 'subir')}><ArrowUp size={18} aria-hidden="true" /></button>
+                  <button type="button" className="btn btn-quiet min-h-12!" style={{ minHeight: 48 }} disabled={ocupado || i === estado.fila.length - 1} aria-label="Descer na fila" onClick={() => void admin(f.id, 'descer')}><ArrowDown size={18} aria-hidden="true" /></button>
+                  <button type="button" className="btn btn-quiet min-h-12! gap-1" style={{ minHeight: 48 }} disabled={ocupado} onClick={() => void admin(f.id, 'pular')}><SkipForward size={18} aria-hidden="true" />Pular</button>
                 </> : null}
-                <button type="button" className="btn btn-quiet gap-1" style={{ minHeight: 48 }} disabled={ocupado} onClick={() => void (me.is_admin ? admin(f.id, 'remover') : removerPedido(f.id))}><Trash2 size={18} aria-hidden="true" />Remover</button>
+                <button type="button" className="btn btn-quiet min-h-12! gap-1" style={{ minHeight: 48 }} disabled={ocupado} onClick={() => void (me.is_admin ? admin(f.id, 'remover') : removerPedido(f.id))}><Trash2 size={18} aria-hidden="true" />Remover</button>
               </div> : null}
             </li>)}
           </ol> : null}
@@ -316,8 +316,8 @@ export default function KaraokeClient() {
           <label className="block text-sm">Buscar no catálogo
             <input className="field mt-2" value={buscaCat} onChange={(e) => { setBuscaCat(e.target.value); setVerTodas(false); }} maxLength={120} placeholder="Artista ou música" />
           </label>
-          <label className="flex min-h-12 items-center gap-2 text-sm">
-            <input type="checkbox" checked={batalha} onChange={(e) => setBatalha(e.target.checked)} disabled={ocupado} />
+          <label className="flex min-h-12 items-center gap-3 text-base">
+            <input type="checkbox" className="h-6 w-6 shrink-0 accent-cereja" checked={batalha} onChange={(e) => setBatalha(e.target.checked)} disabled={ocupado} />
             Desafiar alguém (batalha)
           </label>
           {batalha ? <label className="block text-sm">Quem você quer desafiar?
@@ -367,7 +367,7 @@ export default function KaraokeClient() {
                 <input className="field mt-2" value={busca} onChange={(e) => { setBusca(e.target.value); setBuscou(false); setResultados([]); setMusicas([]); }} maxLength={120} placeholder={porVideo ? 'Então é Natal ou https://youtu.be/...' : 'Então é Natal'} required />
               </label>
               <button className="btn btn-primary w-full" disabled={buscando || !busca.trim()}>{buscando ? 'Buscando...' : porVideo ? 'Buscar vídeo' : 'Buscar música'}</button>
-              <button type="button" className="btn btn-quiet w-full" style={{ minHeight: 48 }} onClick={() => { setPorVideo((v) => !v); setBuscou(false); setResultados([]); setMusicas([]); }}>{porVideo ? 'Voltar para a busca de música com letra' : 'Não achou? Buscar vídeo de karaokê no YouTube'}</button>
+              <button type="button" className="btn btn-quiet min-h-12! w-full" style={{ minHeight: 48 }} onClick={() => { setPorVideo((v) => !v); setBuscou(false); setResultados([]); setMusicas([]); }}>{porVideo ? 'Voltar para a busca de música com letra' : 'Não achou? Buscar vídeo de karaokê no YouTube'}</button>
             </form>
 
             {buscou && !porVideo ? <section aria-live="polite"><h2 className="display mb-3 text-2xl">Resultado da busca</h2>

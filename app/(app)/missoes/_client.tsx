@@ -77,7 +77,7 @@ function ContagemMissao({
             className="rounded-xl border border-linha bg-carvao-3 px-2 py-2.5 text-center"
           >
             <span className="numeral block text-xl leading-none text-marfim">{valor}</span>
-            <span className="mt-1 block text-[10px] uppercase tracking-[0.14em] text-marfim-3">
+            <span className="mt-1 block text-xs uppercase tracking-[0.14em] text-marfim-3">
               {rotulo}
             </span>
           </div>
@@ -134,7 +134,7 @@ function GaleriaRespostas({
                   {r.nome}
                   {r.minha ? ' (você)' : ''}
                 </p>
-                <p className="text-[11px] text-marfim-3">{timeAgo(r.created_at)}</p>
+                <p className="text-xs text-marfim-3">{timeAgo(r.created_at)}</p>
               </div>
             </div>
             {r.texto && (
@@ -219,11 +219,11 @@ function CartaoMissaoAtiva({
           Missão relâmpago ativa
         </span>
         <div className="flex items-center gap-2">
-          <span className="rounded-full border border-linha bg-carvao-3 px-2.5 py-0.5 text-[11px] text-marfim-2">
+          <span className="rounded-full border border-linha bg-carvao-3 px-2.5 py-0.5 text-xs text-marfim-2">
             {ROTULOS_TIPO_MISSAO[missao.tipo]}
           </span>
           <span className="numeral rounded-full border border-champagne/60 bg-carvao-3 px-3 py-0.5 text-sm font-semibold text-champagne">
-            +{missao.pontos} pts
+            +{missao.pontos} pontos
           </span>
         </div>
       </div>
@@ -242,7 +242,7 @@ function CartaoMissaoAtiva({
         <div className="rounded-2xl border border-champagne/50 bg-carvao-3/80 p-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-champagne">
             <Check size={16} strokeWidth={2} aria-hidden />
-            Você já cumpriu esta missão! (+{missao.pontos} pts)
+            Você já cumpriu esta missão! (+{missao.pontos} pontos)
           </p>
           {minha.image_url && (
             <img
@@ -310,7 +310,7 @@ function CartaoMissaoAtiva({
                   <button
                     type="button"
                     onClick={() => setImageUrl('')}
-                    className="btn btn-quiet mt-1 text-xs text-marfim-3"
+                    className="btn btn-quiet min-h-12! mt-1 text-xs text-marfim-3"
                   >
                     Trocar foto
                   </button>
@@ -345,7 +345,7 @@ function CartaoMissaoAtiva({
             <Send size={17} strokeWidth={1.6} aria-hidden />
             {enviando
               ? 'Enviando resposta...'
-              : `Responder e ganhar +${missao.pontos} pts`}
+              : `Responder e ganhar +${missao.pontos} pontos`}
           </button>
         </form>
       )}
@@ -391,11 +391,11 @@ export default function MissoesClient() {
   return (
     <div className="pb-12">
       <PageHeader
-        kicker={painel ? `Edição ${painel.ano}` : 'Natal em Família'}
+        kicker={painel ? `Natal de ${painel.ano}` : 'Natal em Família'}
         title="Missões Relâmpago"
         back="/"
         action={
-          <Link href="/pontos" className="btn btn-quiet text-xs">
+          <Link href="/pontos" className="btn btn-quiet min-h-12! text-xs">
             <Trophy size={15} className="text-champagne" aria-hidden />
             Pontos
           </Link>
@@ -404,7 +404,7 @@ export default function MissoesClient() {
 
       <div className="space-y-8 px-5">
         <p className="text-sm leading-relaxed text-marfim-2">
-          Desafios surpresa que aparecem a qualquer momento. Quem responde dentro do prazo ganha pontos na hora e compartilha memórias com a família.
+          Desafios surpresa que aparecem a qualquer momento. Quem responde dentro do prazo ganha os pontos da missão (eles entram no seu total em até 5 minutos) e compartilha memórias com a família.
         </p>
 
         {erro ? (
@@ -477,13 +477,13 @@ export default function MissoesClient() {
                         </div>
                         <div className="flex items-center gap-2">
                           {m.minha_resposta?.status === 'aprovada' && (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-champagne/50 bg-carvao-3 px-2.5 py-0.5 text-[11px] text-champagne">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-champagne/50 bg-carvao-3 px-2.5 py-0.5 text-xs text-champagne">
                               <Check size={12} strokeWidth={2} aria-hidden />
                               Participou
                             </span>
                           )}
                           <span className="numeral rounded-full border border-linha bg-carvao-3 px-2.5 py-0.5 text-xs text-marfim-2">
-                            {m.pontos} pts
+                            {m.pontos} pontos
                           </span>
                         </div>
                       </div>

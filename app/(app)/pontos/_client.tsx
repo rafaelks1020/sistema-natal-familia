@@ -3,14 +3,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  ArrowUpRight,
   Award,
   Crown,
-  Flame,
+  Check,
+  ChevronDown,
+  ChevronRight,
   HelpCircle,
   Lock,
   MicVocal,
-  Sparkles,
+  Plus,
   Trophy,
 } from 'lucide-react';
 import PageHeader from '@/app/ui/PageHeader';
@@ -34,6 +35,8 @@ import {
   filtrarExtratoPorOrigem,
   formatarDataHoraSP,
   formatarDiaExtrato,
+  situacaoSugestao,
+  textoPontos,
   formatarHoraSP,
   separarPodioEResto,
 } from './_logica';
@@ -102,7 +105,7 @@ function ContagemAteEncerrar({ encerraEm }: { encerraEm: string }) {
             className="rounded-2xl border border-linha bg-carvao-3 px-2 py-3 text-center"
           >
             <span className="numeral block text-2xl leading-none text-marfim">{num}</span>
-            <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-marfim-3">
+            <span className="mt-1 block text-xs text-marfim-2">
               {rotulo}
             </span>
           </div>
@@ -150,15 +153,15 @@ function CartaoPodio({
       <div className="my-2">
         <Avatar name={item.nome} src={item.avatar_url} size={primeiro ? 52 : 44} ring={primeiro || souEu} />
       </div>
-      <span className="w-full truncate text-xs font-medium text-marfim">
+      <span className="w-full truncate text-sm font-medium text-marfim">
         {item.nome.trim().split(/\s+/)[0]}
         {souEu ? ' (você)' : ''}
       </span>
       <span className="numeral mt-1 text-lg text-champagne">
         {item.total.toLocaleString('pt-BR')}
       </span>
-      <span className="text-[10px] text-marfim-3">
-        {item.conquistas} {item.conquistas === 1 ? 'selo' : 'selos'}
+      <span className="text-xs text-marfim-2">
+        {item.conquistas} {item.conquistas === 1 ? 'conquista' : 'conquistas'}
       </span>
     </button>
   );
@@ -202,6 +205,7 @@ export default function PontosClient() {
     }
   }
 
+  const sugestoes = painel?.sugestoes ?? [];
   const extratoFiltrado = painel ? filtrarExtratoPorOrigem(painel.extrato, filtroOrigem) : [];
   const { podio, resto } = painel?.ranking ? separarPodioEResto(painel.ranking) : { podio: [], resto: [] };
 
@@ -215,8 +219,8 @@ export default function PontosClient() {
         />
       )}
       <PageHeader
-        kicker={painel ? `Edição ${painel.ano}` : 'Natal em Família'}
-        title="Pontos e Ranking"
+        kicker={painel ? `Natal de ${painel.ano}` : 'Natal em Família'}
+        title="Meus pontos"
         back="/"
       />
 
@@ -236,79 +240,134 @@ export default function PontosClient() {
           <Loading />
         ) : (
           <>
-            {/* Resumo principal: total grande animado e posição */}
+            {/* Resumo: quanto a pessoa tem e para que servem os pontos */}
             <section
-              aria-label="Sua pontuação"
+              aria-label="Seus pontos"
               className="surface relative overflow-hidden border border-champagne/40 p-6"
             >
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="kicker">Sua pontuação na edição</p>
-                  <p className="numeral mt-2 text-[clamp(3rem,13vw,4.4rem)] leading-none text-marfim">
-                    <NumeroAnimado valor={painel.total} />
-                    <span className="ml-2 text-lg font-normal text-champagne">pts</span>
-                  </p>
-                </div>
-                <div className="text-right">
-                  {painel.posicao !== null ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-champagne/60 bg-carvao-3 px-3.5 py-1.5 text-sm font-semibold text-champagne">
-                      <Trophy size={16} strokeWidth={1.6} aria-hidden />
-                      {painel.posicao}º lugar
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-linha-forte bg-carvao-3 px-3.5 py-1.5 text-xs text-marfim-2">
-                      <Lock size={14} strokeWidth={1.6} aria-hidden />
-                      Posição em suspense
-                    </span>
-                  )}
-                  <p className="mt-2 text-xs text-marfim-3">
-                    {painel.conquistas_ganhas} de {painel.conquistas_total} conquistas
-                  </p>
-                </div>
+              <p className="kicker">Você tem</p>
+              <p className="numeral mt-2 text-[clamp(3rem,13vw,4.4rem)] leading-none text-marfim">
+                <NumeroAnimado valor={painel.total} />
+                <span className="ml-3 text-2xl font-normal text-champagne">
+                  {painel.total === 1 ? 'ponto' : 'pontos'}
+                </span>
+              </p>
+              <p className="mt-4 flex items-center gap-2 text-base font-semibold text-champagne">
+                {painel.posicao !== null ? (
+                  <>
+                    <Trophy size={18} strokeWidth={1.6} className="shrink-0" aria-hidden />
+                    Você está em {painel.posicao}º lugar na família
+                  </>
+                ) : (
+                  <>
+                    <Lock size={18} strokeWidth={1.6} className="shrink-0" aria-hidden />
+                    Sua posição fica em segredo até a festa
+                  </>
+                )}
+              </p>
+              <p className="mt-4 text-base leading-relaxed text-marfim">
+                {painel.encerrado
+                  ? 'A contagem de pontos terminou. O Campeão do Natal é revelado na TV da festa.'
+                  : 'Quem tiver mais pontos na noite de Natal é o Campeão do Natal e ganha um brinde.'}
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-marfim-2">
+                Os pontos não se trocam por nada: servem para a classificação da família.
+                {painel.encerrado ? '' : ' Ponto novo leva até 5 minutos para aparecer aqui.'}
+              </p>
+            </section>
+
+            {/* Como ganhar pontos: o que ainda vale hoje, com o valor de cada coisa e o atalho para fazer */}
+            <section aria-labelledby="sec-como-ganhar" className="space-y-4">
+              <div>
+                <p className="kicker">É só participar</p>
+                <h2 id="sec-como-ganhar" className="display mt-1 text-3xl">
+                  Como ganhar pontos
+                </h2>
+                {sugestoes.length > 0 && (
+                  <p className="mt-1 text-sm text-marfim-2">Toque em uma linha para ir direto fazer.</p>
+                )}
               </div>
 
-              {/* Resumo por origem */}
-              <dl className="mt-5 grid grid-cols-3 gap-2 border-t border-linha pt-4">
-                {ORDEM_ORIGENS.map((origem) => {
-                  const valor = painel.por_origem?.[origem] ?? 0;
-                  return (
-                    <div
-                      key={origem}
-                      className="rounded-xl border border-linha bg-carvao-3/60 px-3 py-2"
-                    >
-                      <dt className="truncate text-[11px] text-marfim-3">
-                        {ROTULOS_ORIGEM[origem]}
-                      </dt>
-                      <dd className="numeral mt-0.5 text-base text-marfim">
-                        {valor >= 0 ? `+${valor}` : valor}
-                      </dd>
-                    </div>
-                  );
-                })}
-              </dl>
+              {sugestoes.length > 0 && (
+                <ul className="surface divide-y divide-linha px-4">
+                  {sugestoes.map((s) => {
+                    const { texto, completo } = situacaoSugestao(s);
+                    return (
+                      <li key={s.regra}>
+                        <Link href={s.href} className="flex min-h-16 items-center gap-3 py-3">
+                          <span
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
+                              completo ? 'border-salvia bg-salvia/40 text-marfim' : 'border-champagne/50 text-champagne'
+                            }`}
+                          >
+                            {completo ? (
+                              <Check size={18} strokeWidth={2} aria-hidden />
+                            ) : (
+                              <Plus size={18} strokeWidth={1.8} aria-hidden />
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-base font-medium text-marfim">{s.titulo}</span>
+                            <span className="mt-0.5 block text-sm text-marfim-2">{texto}</span>
+                          </span>
+                          <span className="shrink-0 text-right">
+                            <span className="numeral block text-xl leading-none text-champagne">+{s.pontos}</span>
+                            <span className="mt-1 block text-xs text-marfim-2">{s.pontos === 1 ? 'ponto' : 'pontos'}</span>
+                          </span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
 
-              {/* Atalhos rápidos */}
-              <div className="mt-5 grid grid-cols-2 gap-2.5">
-                <Link
-                  href="/conquistas"
-                  className="btn btn-ghost min-h-11 justify-between px-4 text-xs"
+              <div className="surface px-4">
+                <h3 className="pt-4 text-base font-semibold text-marfim">
+                  {painel.encerrado ? 'O que valeu pontos' : 'Também valem pontos'}
+                </h3>
+                <ul className="divide-y divide-linha">
+                  <li className="py-3.5">
+                    <p className="text-base text-marfim">Abrir o aplicativo</p>
+                    <p className="mt-0.5 text-sm text-marfim-2">5 pontos por dia. Conta sozinho, é só entrar.</p>
+                  </li>
+                  <li>
+                    <Link href="/missoes" className="flex min-h-16 items-center gap-3 py-3">
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-base text-marfim">Missões relâmpago</span>
+                        <span className="mt-0.5 block text-sm text-marfim-2">
+                          Um desafio surpresa, com prazo. De 20 a 80 pontos.
+                        </span>
+                      </span>
+                      <ChevronRight size={20} strokeWidth={1.6} className="shrink-0 text-champagne" aria-hidden />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/conquistas" className="flex min-h-16 items-center gap-3 py-3">
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-base text-marfim">
+                          Conquistas ({painel.conquistas_ganhas} de {painel.conquistas_total})
+                        </span>
+                        <span className="mt-0.5 block text-sm text-marfim-2">
+                          Prêmios por participar bastante. De 20 a 250 pontos cada.
+                        </span>
+                      </span>
+                      <ChevronRight size={20} strokeWidth={1.6} className="shrink-0 text-champagne" aria-hidden />
+                    </Link>
+                  </li>
+                  <li className="py-3.5">
+                    <p className="text-base text-marfim">Na noite de Natal</p>
+                    <p className="mt-0.5 text-sm text-marfim-2">
+                      Quiz, bingo, karaokê e brincadeiras também valem pontos.
+                    </p>
+                  </li>
+                </ul>
+                <a
+                  href="#tabela"
+                  className="flex min-h-12 items-center gap-2 border-t border-linha text-sm font-semibold text-champagne"
                 >
-                  <span className="inline-flex items-center gap-1.5">
-                    <Sparkles size={15} className="text-champagne" aria-hidden />
-                    Conquistas ({painel.conquistas_ganhas}/{painel.conquistas_total})
-                  </span>
-                  <ArrowUpRight size={15} className="text-champagne" aria-hidden />
-                </Link>
-                <Link
-                  href="/missoes"
-                  className="btn btn-ghost min-h-11 justify-between px-4 text-xs"
-                >
-                  <span className="inline-flex items-center gap-1.5">
-                    <Flame size={15} className="text-cereja" aria-hidden />
-                    Missões relâmpago
-                  </span>
-                  <ArrowUpRight size={15} className="text-champagne" aria-hidden />
-                </Link>
+                  Ver a tabela completa de pontos
+                  <ChevronDown size={18} strokeWidth={1.6} aria-hidden />
+                </a>
               </div>
             </section>
 
@@ -322,8 +381,8 @@ export default function PontosClient() {
                   </h2>
                 </div>
                 {painel.ranking !== null && !painel.encerrado && (
-                  <p className="text-right text-xs text-marfim-3">
-                    Visível até {formatarDataHoraSP(painel.ranking_oculto_em)}
+                  <p className="max-w-[45%] text-right text-xs text-marfim-2">
+                    Aparece até {formatarDataHoraSP(painel.ranking_oculto_em)}
                   </p>
                 )}
               </div>
@@ -336,10 +395,10 @@ export default function PontosClient() {
                     </span>
                     <div>
                       <h3 className="display text-2xl text-marfim">
-                        O ranking está escondido: o resultado sai na festa
+                        A classificação está em segredo: o resultado sai na festa
                       </h3>
                       <p className="mt-1 text-sm leading-relaxed text-marfim-2">
-                        Na reta final a tabela fica secreta para manter o suspense. Continue participando: cada ponto segue valendo até o encerramento!
+                        Nos últimos dias ninguém vê a posição de ninguém, para manter a surpresa. Continue participando: os pontos seguem valendo até o fim.
                       </p>
                     </div>
                   </div>
@@ -403,7 +462,8 @@ export default function PontosClient() {
                                 </span>
                               </span>
                               <span className="numeral shrink-0 text-lg text-marfim">
-                                {linha.total.toLocaleString('pt-BR')} pts
+                                {linha.total.toLocaleString('pt-BR')}
+                                <span className="ml-1 font-sans text-sm text-marfim-2">pontos</span>
                               </span>
                             </button>
                           </li>
@@ -411,11 +471,69 @@ export default function PontosClient() {
                       })}
                     </ol>
                   )}
-                  <p className="text-xs text-marfim-3">
-                    Toque em qualquer pessoa para ver as conquistas que ela já desbloqueou.
+                  <p className="text-sm text-marfim-2">
+                    Toque em qualquer pessoa para ver as conquistas dela.
                   </p>
                 </div>
               )}
+            </section>
+
+            {/* Como funciona: explicação dos dois brindes + tabela de regras */}
+            <section aria-labelledby="sec-como-funciona" className="space-y-5">
+              <div>
+                <p className="kicker">Para que servem os pontos</p>
+                <h2 id="sec-como-funciona" className="display mt-1 text-3xl">
+                  Os dois brindes da noite
+                </h2>
+                <p className="mt-1 text-sm text-marfim-2">
+                  Na noite de Natal a família conhece dois vencedores, revelados na TV da festa.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
+                <article className="surface border border-champagne/40 p-5">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-champagne/50 text-champagne">
+                      <Trophy size={18} strokeWidth={1.6} aria-hidden />
+                    </span>
+                    <div>
+                      <p className="kicker">1º Brinde</p>
+                      <h3 className="display text-2xl">Campeão do Natal</h3>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-marfim-2">
+                    Para quem tiver mais pontos. Vale tudo o que está na lista Como ganhar pontos: recados, fotos, Advento, brincadeiras da festa, karaokê, missões e conquistas.
+                  </p>
+                </article>
+
+                <article className="surface border border-cereja/40 p-5">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-cereja/60 text-cereja">
+                      <MicVocal size={18} strokeWidth={1.6} aria-hidden />
+                    </span>
+                    <div>
+                      <p className="kicker">2º Brinde</p>
+                      <h3 className="display text-2xl">Voz do Natal</h3>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-marfim-2">
+                    Para quem vencer a Prova do Karaokê, que não depende destes pontos: 5 músicas oficiais no nível Difícil, uma tentativa por música, e a final ao vivo na noite de Natal. A mesma pessoa pode ganhar os dois brindes.
+                  </p>
+                </article>
+              </div>
+
+              <div className="surface space-y-2 p-5 text-sm leading-relaxed text-marfim-2">
+                <p className="flex items-center gap-2 font-medium text-marfim">
+                  <HelpCircle size={16} className="text-champagne" aria-hidden />
+                  Regras de justiça
+                </p>
+                <p>
+                  Carona e dinheiro (vaquinha ou pagamentos) não dão pontos, para ninguém levar vantagem por ter mais dinheiro. As conquistas ligadas a dinheiro valem 0 pontos: são só uma lembrança.
+                </p>
+                <p>
+                  Os pontos contam até {formatarDataHoraSP(painel.encerra_em)}. A classificação aparece até {formatarDataHoraSP(painel.ranking_oculto_em)} e depois fica em segredo até ser revelada na TV da festa.
+                </p>
+              </div>
             </section>
 
             {/* Extrato por dia com filtro por origem */}
@@ -430,6 +548,19 @@ export default function PontosClient() {
                 </p>
               </div>
 
+              {/* De onde vieram os pontos */}
+              <dl className="grid grid-cols-2 gap-2">
+                {ORDEM_ORIGENS.map((origem) => {
+                  const valor = painel.por_origem?.[origem] ?? 0;
+                  return (
+                    <div key={origem} className="rounded-xl border border-linha bg-carvao-2 px-3.5 py-2.5">
+                      <dt className="text-xs text-marfim-2">{ROTULOS_ORIGEM[origem]}</dt>
+                      <dd className="numeral mt-0.5 text-lg text-marfim">{valor >= 0 ? `+${valor}` : valor}</dd>
+                    </div>
+                  );
+                })}
+              </dl>
+
               <div
                 className="no-scrollbar flex gap-2 overflow-x-auto pb-1"
                 role="group"
@@ -439,7 +570,7 @@ export default function PontosClient() {
                   type="button"
                   aria-pressed={filtroOrigem === 'todas'}
                   onClick={() => setFiltroOrigem('todas')}
-                  className={`btn min-h-10 shrink-0 px-3.5 text-xs ${
+                  className={`btn shrink-0 px-4 text-sm ${
                     filtroOrigem === 'todas' ? 'btn-primary' : 'btn-ghost'
                   }`}
                 >
@@ -451,7 +582,7 @@ export default function PontosClient() {
                     type="button"
                     aria-pressed={filtroOrigem === origem}
                     onClick={() => setFiltroOrigem(origem)}
-                    className={`btn min-h-10 shrink-0 px-3.5 text-xs ${
+                    className={`btn shrink-0 px-4 text-sm ${
                       filtroOrigem === origem ? 'btn-primary' : 'btn-ghost'
                     }`}
                   >
@@ -463,7 +594,7 @@ export default function PontosClient() {
               {extratoFiltrado.length === 0 ? (
                 <p className="surface p-5 text-sm text-marfim-2">
                   {filtroOrigem === 'todas'
-                    ? 'Você ainda não tem pontos registrados nesta edição. Participe do mural, álbum, Advento ou karaokê para começar!'
+                    ? 'Você ainda não tem pontos neste Natal. Mande um recado no mural ou uma foto para o álbum para começar!'
                     : `Nenhum lançamento encontrado em "${ROTULOS_ORIGEM[filtroOrigem]}".`}
                 </p>
               ) : (
@@ -475,7 +606,7 @@ export default function PontosClient() {
                           {formatarDiaExtrato(dia.dia)}
                         </h3>
                         <span className="numeral text-sm text-marfim">
-                          {dia.total >= 0 ? `+${dia.total}` : dia.total} pts no dia
+                          {dia.total >= 0 ? `+${dia.total}` : dia.total} no dia
                         </span>
                       </header>
                       <ul className="divide-y divide-linha">
@@ -510,107 +641,34 @@ export default function PontosClient() {
               )}
             </section>
 
-            {/* Como funciona: explicação dos dois brindes + tabela de regras */}
-            <section aria-labelledby="sec-como-funciona" className="space-y-5">
+            {/* Tabela completa, uma regra por linha (cabe na tela do celular sem cortar a coluna do limite) */}
+            <section id="tabela" aria-labelledby="sec-tabela" className="scroll-mt-6 space-y-4">
               <div>
-                <p className="kicker">Jogo limpo e claro</p>
-                <h2 id="sec-como-funciona" className="display mt-1 text-3xl">
-                  Como funciona
+                <p className="kicker">Para quem quer os detalhes</p>
+                <h2 id="sec-tabela" className="display mt-1 text-3xl">
+                  Tabela completa de pontos
                 </h2>
                 <p className="mt-1 text-sm text-marfim-2">
-                  Tudo o que vale pontos e como funcionam os dois brindes da noite de Natal.
+                  O dia vira à meia-noite, no horário de Brasília. O que for apagado deixa de contar.
                 </p>
               </div>
-
-              <div className="grid grid-cols-1 gap-3">
-                <article className="surface border border-champagne/40 p-5">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-champagne/50 text-champagne">
-                      <Trophy size={18} strokeWidth={1.6} aria-hidden />
-                    </span>
-                    <div>
-                      <p className="kicker">1º Brinde</p>
-                      <h3 className="display text-2xl">Campeão do Natal</h3>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-sm leading-relaxed text-marfim-2">
-                    Para quem mais participa da vida da família no app: soma os pontos de uso diário, mural, álbum, Advento, brincadeiras da festa, apresentações no karaokê, missões relâmpago e conquistas desbloqueadas.
-                  </p>
-                </article>
-
-                <article className="surface border border-cereja/40 p-5">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-cereja/60 text-cereja">
-                      <MicVocal size={18} strokeWidth={1.6} aria-hidden />
-                    </span>
-                    <div>
-                      <p className="kicker">2º Brinde</p>
-                      <h3 className="display text-2xl">Voz do Natal</h3>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-sm leading-relaxed text-marfim-2">
-                    Para a maior pontuação na Prova do Karaokê: eliminatória nas 5 músicas oficiais em nível Difícil (uma tentativa por música) e grande final ao vivo na noite de Natal. A mesma pessoa pode ganhar os dois brindes!
-                  </p>
-                </article>
-              </div>
-
-              <div className="surface space-y-2 p-5 text-sm leading-relaxed text-marfim-2">
-                <p className="flex items-center gap-2 font-medium text-marfim">
-                  <HelpCircle size={16} className="text-champagne" aria-hidden />
-                  Regras de justiça
-                </p>
-                <p>
-                  Carona e dinheiro (vaquinha ou pagamentos) não dão pontos, para ninguém levar vantagem financeira. Conquistas ligadas a dinheiro dão apenas o selo de lembrança, com 0 pontos.
-                </p>
-                <p>
-                  O ranking fica visível até 48 horas antes do encerramento ({formatarDataHoraSP(painel.ranking_oculto_em)}) e depois entra em suspense até a revelação no telão da festa.
-                </p>
-              </div>
-
-              {/* Tabela de regras vinda de PainelPontos.regras */}
-              <div className="surface overflow-hidden">
-                <div className="border-b border-linha px-5 py-4">
-                  <h3 className="display text-2xl">Tabela de pontuação</h3>
-                  <p className="mt-1 text-xs text-marfim-3">
-                    Limites diários seguem o horário de São Paulo. Conteúdo apagado deixa de contar.
-                  </p>
-                </div>
-                {painel.regras.length === 0 ? (
-                  <p className="p-5 text-sm text-marfim-2">
-                    A tabela de regras será carregada em instantes.
-                  </p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-linha text-[11px] uppercase tracking-wider text-marfim-3">
-                          <th className="px-4 py-3 font-semibold">Atividade</th>
-                          <th className="px-3 py-3 font-semibold">Pontos</th>
-                          <th className="px-4 py-3 font-semibold">Limite</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-linha">
-                        {painel.regras.map((r) => (
-                          <tr key={r.regra}>
-                            <td className="px-4 py-3">
-                              <span className="block font-medium text-marfim">{r.titulo}</span>
-                              <span className="text-xs text-marfim-3">
-                                {ROTULOS_ORIGEM[r.origem] ?? r.origem}
-                              </span>
-                            </td>
-                            <td className="numeral whitespace-nowrap px-3 py-3 text-champagne">
-                              {r.pontos}
-                            </td>
-                            <td className="px-4 py-3 text-xs text-marfim-2">
-                              {r.teto ?? 'Sem teto'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
+              {painel.regras.length === 0 ? (
+                <p className="surface p-5 text-sm text-marfim-2">A tabela será carregada em instantes.</p>
+              ) : (
+                <ul className="surface divide-y divide-linha px-4">
+                  {painel.regras.map((r) => (
+                    <li key={r.regra} className="flex items-start justify-between gap-4 py-3.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-base font-medium text-marfim">{r.titulo}</p>
+                        <p className="mt-0.5 text-sm text-marfim-2">
+                          {r.teto ? `Limite: ${r.teto}` : 'Vale toda vez'}
+                        </p>
+                      </div>
+                      <p className="numeral max-w-[42%] shrink-0 text-right text-lg text-champagne">{r.pontos}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
           </>
         )}
@@ -626,13 +684,13 @@ export default function PontosClient() {
             <div className="flex items-center gap-4">
               <Avatar name={perfilAberto.nome} src={perfilAberto.avatar_url} size={56} ring />
               <div>
-                <p className="text-sm text-marfim-2">Pontuação acumulada</p>
+                <p className="text-sm text-marfim-2">Pontos neste Natal</p>
                 {perfilAberto.total !== null ? (
                   <p className="numeral text-3xl text-champagne">
-                    {perfilAberto.total.toLocaleString('pt-BR')} pts
+                    {textoPontos(perfilAberto.total)}
                   </p>
                 ) : (
-                  <p className="text-sm text-marfim-3">Ranking oculto até a festa</p>
+                  <p className="text-sm text-marfim-2">Pontos em segredo até a festa</p>
                 )}
               </div>
             </div>
@@ -667,7 +725,7 @@ export default function PontosClient() {
                             <p className="truncate text-xs text-marfim-2">{c.descricao}</p>
                           </div>
                           <span
-                            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${est.selo}`}
+                            className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold uppercase ${est.selo}`}
                           >
                             {ROTULOS_NIVEL[c.nivel]}
                           </span>

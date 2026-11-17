@@ -236,7 +236,7 @@ export default function EnqueteClient({
           <Link
             href="/festa/enquete?tv=1"
             onClick={() => setModoTv(true)}
-            className="btn btn-ghost min-h-11 px-3.5 text-xs"
+            className="btn btn-ghost min-h-12 px-3.5 text-xs"
           >
             <Tv size={16} /> Modo TV
           </Link>
@@ -244,13 +244,13 @@ export default function EnqueteClient({
       />
 
       <nav aria-label="Jogos da ceia" className="mb-5 flex gap-2 overflow-x-auto px-5 no-scrollbar">
-        <Link href="/festa/quiz" className="btn btn-ghost min-h-11 shrink-0 px-4 text-xs">
+        <Link href="/festa/quiz" className="btn btn-ghost min-h-12 shrink-0 px-4 text-xs">
           Quiz da Família
         </Link>
-        <Link href="/festa/bingo" className="btn btn-ghost min-h-11 shrink-0 px-4 text-xs">
+        <Link href="/festa/bingo" className="btn btn-ghost min-h-12 shrink-0 px-4 text-xs">
           Bingo da Ceia
         </Link>
-        <Link href="/festa/enquete" className="btn btn-primary min-h-11 shrink-0 px-4 text-xs">
+        <Link href="/festa/enquete" className="btn btn-primary min-h-12 shrink-0 px-4 text-xs">
           Enquete ao Vivo
         </Link>
       </nav>
@@ -366,7 +366,7 @@ export default function EnqueteClient({
                         <button
                           type="button"
                           onClick={() => setOpcoes((xs) => xs.filter((_, i) => i !== idx))}
-                          className="btn btn-quiet px-2"
+                          className="btn btn-quiet min-h-12! px-2"
                           aria-label="Remover opção"
                         >
                           <X size={16} />
@@ -548,7 +548,7 @@ function EnqueteCard({
             type="button"
             disabled={busy}
             onClick={onExcluir}
-            className="btn btn-quiet px-2.5 text-marfim-3"
+            className="btn btn-quiet min-h-12! px-2.5 text-marfim-3"
             aria-label="Excluir enquete"
           >
             <Trash2 size={15} />

@@ -222,7 +222,7 @@ export default function VaquinhaClient({ initial }: { initial: VaquinhaData }) {
             <button
               type="button"
               onClick={() => setCreateSheet({ open: true, mode: 'participant' })}
-              className="btn btn-ghost min-h-11 px-3.5 text-xs"
+              className="btn btn-ghost min-h-12 px-3.5 text-xs"
             >
               <UserPlus size={15} strokeWidth={1.5} className="text-champagne" />
               Parente
@@ -272,7 +272,7 @@ export default function VaquinhaClient({ initial }: { initial: VaquinhaData }) {
                 </div>
 
                 <div className="mt-4">
-                  <span className="block text-xs uppercase tracking-widest text-marfim-3">
+                  <span className="block text-xs uppercase tracking-widest text-marfim-2">
                     Saldo disponível
                   </span>
                   <p
@@ -287,7 +287,7 @@ export default function VaquinhaClient({ initial }: { initial: VaquinhaData }) {
                 {/* Linha Arrecadado e Gasto separados por fio de 1px */}
                 <div className="mt-6 flex items-stretch border-y border-linha py-4">
                   <div className="flex-1 pr-4">
-                    <span className="block text-[11px] uppercase tracking-wider text-marfim-3">
+                    <span className="block text-xs uppercase tracking-wider text-marfim-2">
                       Arrecadado
                     </span>
                     <span className="numeral mt-1 block text-xl text-champagne">
@@ -298,7 +298,7 @@ export default function VaquinhaClient({ initial }: { initial: VaquinhaData }) {
                   <div className="w-px bg-linha-forte" aria-hidden />
 
                   <div className="flex-1 pl-4">
-                    <span className="block text-[11px] uppercase tracking-wider text-marfim-3">
+                    <span className="block text-xs uppercase tracking-wider text-marfim-2">
                       Gasto
                     </span>
                     <span className="numeral mt-1 block text-xl text-marfim">
@@ -434,7 +434,7 @@ export default function VaquinhaClient({ initial }: { initial: VaquinhaData }) {
                                     <p className="flex min-w-0 items-center gap-2">
                                       <span className="truncate font-medium text-marfim">{p.name}</span>
                                       {p.pix && (
-                                        <span className="shrink-0 rounded-full border border-champagne/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-champagne">
+                                        <span className="shrink-0 rounded-full border border-champagne/50 px-2 py-0.5 text-xs font-medium uppercase tracking-[0.14em] text-champagne">
                                           Pix
                                         </span>
                                       )}
@@ -515,7 +515,7 @@ export default function VaquinhaClient({ initial }: { initial: VaquinhaData }) {
                                         </span>
                                       )}
                                       <div className="min-w-0">
-                                        <span className="kicker block text-[10px]">
+                                        <span className="kicker block text-xs">
                                           {pur.category}
                                         </span>
                                         <p className="mt-0.5 truncate font-medium text-marfim">
@@ -621,7 +621,7 @@ export default function VaquinhaClient({ initial }: { initial: VaquinhaData }) {
                                       )}
 
                                       <div className="min-w-0">
-                                        <span className="kicker block text-[10px]">
+                                        <span className="kicker block text-xs">
                                           {isPayment ? 'Contribuição' : ev.category || 'Gasto'}
                                         </span>
                                         <p className="truncate text-sm font-medium text-marfim">

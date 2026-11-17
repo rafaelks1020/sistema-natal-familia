@@ -146,7 +146,7 @@ export default function ComposerSheet({
           json: { content: trimmed, images },
         });
         onPostSaved(created, false);
-        toast('Publicado no mural');
+        toast('Publicado no mural. Cada recado vale 5 pontos (até 3 por dia).');
       }
       onClose();
     } catch (err) {
@@ -203,7 +203,7 @@ export default function ComposerSheet({
 
         <div className="flex items-center justify-between gap-3 pb-4">
           <div>
-            <p className="kicker">{isEditing ? 'Editar' : 'Mural da família'}</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-champagne">{isEditing ? 'Editar' : 'Mural da família'}</p>
             <h2 className="display mt-0.5 text-2xl text-marfim">
               {isEditing
                 ? 'Editar publicação'
@@ -217,7 +217,7 @@ export default function ComposerSheet({
             disabled={isBusy}
             onClick={pedirFechar}
             aria-label="Fechar"
-            className="flex h-11 w-11 items-center justify-center rounded-full text-marfim-2 hover:text-marfim"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-marfim-2 hover:text-marfim"
           >
             <X size={20} strokeWidth={1.5} />
           </button>
@@ -228,7 +228,7 @@ export default function ComposerSheet({
             <button
               type="button"
               onClick={() => setMode('post')}
-              className={`min-h-[40px] rounded-full text-sm font-medium transition-colors ${
+              className={`min-h-12 rounded-full text-sm font-medium transition-colors ${
                 mode === 'post' ? 'bg-cereja text-marfim' : 'text-marfim-2 hover:text-marfim'
               }`}
             >
@@ -237,7 +237,7 @@ export default function ComposerSheet({
             <button
               type="button"
               onClick={() => setMode('poll')}
-              className={`inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-full text-sm font-medium transition-colors ${
+              className={`inline-flex min-h-12 items-center justify-center gap-1.5 rounded-full text-sm font-medium transition-colors ${
                 mode === 'poll' ? 'bg-cereja text-marfim' : 'text-marfim-2 hover:text-marfim'
               }`}
             >
@@ -270,7 +270,7 @@ export default function ComposerSheet({
                       type="button"
                       onClick={() => removeImage(idx)}
                       aria-label={`Remover foto ${idx + 1}`}
-                      className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-carvao/85 text-marfim shadow-md backdrop-blur-xs"
+                      className="absolute right-1 top-1 flex h-12 w-12 items-center justify-center rounded-full bg-carvao/85 text-marfim shadow-md backdrop-blur-xs"
                     >
                       <X size={15} strokeWidth={1.8} />
                     </button>
@@ -361,7 +361,7 @@ export default function ComposerSheet({
                       type="button"
                       onClick={() => setOptions((prev) => prev.filter((_, i) => i !== idx))}
                       aria-label={`Remover opção ${idx + 1}`}
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-linha text-marfim-3 hover:text-marfim"
+                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-linha text-marfim-2 hover:text-marfim"
                     >
                       <Trash2 size={16} strokeWidth={1.5} />
                     </button>

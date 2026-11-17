@@ -18,7 +18,7 @@ export function PeoplePicker({ people, selected, onChange }: { people: AlbumPers
     <input className="field" aria-label="Buscar pessoa da família" placeholder="Buscar pessoa" value={search} onChange={e => setSearch(e.target.value)} />
     <div className="max-h-48 overflow-y-auto">{people.filter(p => p.name.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR'))).map(p => {
       const key = `${p.source}:${p.id}`;
-      return <label key={key} className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={selected.includes(key)} onChange={e => onChange(e.target.checked ? [...selected, key] : selected.filter(k => k !== key))} />{p.name}</label>;
+      return <label key={key} className="flex min-h-12 items-center gap-3 text-sm"><input type="checkbox" className="h-6 w-6 shrink-0 accent-cereja" checked={selected.includes(key)} onChange={e => onChange(e.target.checked ? [...selected, key] : selected.filter(k => k !== key))} />{p.name}</label>;
     })}{!people.length && <p className="text-sm text-marfim-3">Ainda não há pessoas para marcar.</p>}</div>
   </fieldset>;
 }
@@ -55,14 +55,14 @@ export default function AlbumClient({ initial, metadata, ano, pessoa }: { initia
         saved++; setProgress(saved);
       }
       if (year === ano) await refreshPhotos();
-      toast(`${saved} fotos guardadas no álbum de ${year}.`); setShowUpload(false); setFiles([]);
+      toast(`${saved} ${saved === 1 ? 'foto guardada' : 'fotos guardadas'} no álbum de ${year}. Cada foto vale 3 pontos (até 5 por dia).`); setShowUpload(false); setFiles([]);
       router.push(`/album?ano=${year}`); router.refresh();
     } catch (e) { setFiles(old => old.slice(saved)); toast(`${saved} fotos salvas. ${(e as Error).message} Você pode enviar as restantes.`, 'erro'); if (year === ano && saved > 0) await refreshPhotos(); router.refresh(); }
     finally { setUploading(false); }
   }
   const visible = items.filter(p => source === 'tudo' || p.source === source);
   const photo = visible.find(p => p.key === selected);
-  return <div className="pb-28"><PageHeader kicker="Memórias que ficam" title="Álbum da família" back="/familia" action={<Link className="btn btn-quiet" href="/memorias">Memórias</Link>} />
+  return <div className="pb-28"><PageHeader kicker="Memórias que ficam" title="Álbum da família" back="/familia" action={<Link className="btn btn-quiet min-h-12!" href="/memorias">Memórias</Link>} />
     <div className="space-y-5 px-5">
       <nav aria-label="Edição do álbum" className="flex gap-2 overflow-x-auto">{[...new Set([ano, ...metadata.years])].sort((a, b) => b - a).map(y => <Link key={y} className={`btn shrink-0 ${y === ano ? 'btn-primary' : 'btn-ghost'}`} aria-current={y === ano ? 'page' : undefined} href={`/album?ano=${y}${pessoa ? `&pessoa=${encodeURIComponent(pessoa)}` : ''}`}>{y}</Link>)}</nav>
       <label className="block text-sm text-marfim-2">Fotos de uma pessoa<select className="field mt-2" value={pessoa} onChange={e => router.push(`/album?ano=${ano}&pessoa=${encodeURIComponent(e.target.value)}`)}><option value="">Todas as pessoas</option>{metadata.people.map(p => <option key={`${p.source}:${p.id}`} value={`${p.source}:${p.id}`}>{p.name}</option>)}</select></label>
@@ -87,7 +87,7 @@ export default function AlbumClient({ initial, metadata, ano, pessoa }: { initia
       </form>}
       <p className="kicker">Natal de {ano} · {visible.length} fotos{cursor ? ' carregadas' : ''}</p>
       {!visible.length && <p className="rounded-2xl bg-carvao-2 p-6 text-marfim-2">Ainda não há fotos neste filtro. Adicione os registros da família.</p>}
-      <div className="columns-2 gap-2">{visible.map(item => <button key={item.key} className="relative mb-2 block min-h-11 w-full break-inside-avoid overflow-hidden rounded-xl text-left" onClick={() => setSelected(item.key)} aria-label={`Abrir foto de ${item.author_name}`}>
+      <div className="columns-2 gap-2">{visible.map(item => <button key={item.key} className="relative mb-2 block min-h-12 w-full break-inside-avoid overflow-hidden rounded-xl text-left" onClick={() => setSelected(item.key)} aria-label={`Abrir foto de ${item.author_name}`}>
         <img src={thumb(item.url, 640)} alt={item.caption || 'Foto da família'} loading="lazy" className="h-auto w-full" /><span className="absolute inset-x-0 bottom-0 bg-carvao/80 p-2 text-xs">{item.author_name}</span>
       </button>)}</div>
       {cursor && <button className="btn btn-ghost w-full" disabled={busy} onClick={() => void more()}>{busy ? 'Carregando...' : 'Carregar mais fotos'}</button>}
@@ -113,17 +113,17 @@ export function PhotoDialog({ photo, people, onClose, onUpdate, onDelete, previo
     try { await run(); done?.(); } catch (e) { toast((e as Error).message, 'erro'); } finally { setBusy(false); }
   }
   return <dialog ref={ref} onCancel={onClose} onClose={onClose} aria-label="Foto do álbum" className="fixed inset-0 m-auto max-h-dvh w-full max-w-3xl overflow-y-auto border border-linha bg-carvao p-4 text-marfim backdrop:bg-black/90">
-    <div className="mb-3 flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2"><Avatar name={photo.author_name} src={photo.author_avatar} size={36} /><p className="min-w-0 truncate text-sm">{photo.author_name} · {photo.ano}</p></div><button className="btn btn-quiet" onClick={onClose}>Fechar</button></div>
+    <div className="mb-3 flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2"><Avatar name={photo.author_name} src={photo.author_avatar} size={36} /><p className="min-w-0 truncate text-sm">{photo.author_name} · {photo.ano}</p></div><button className="btn btn-quiet min-h-12!" onClick={onClose}>Fechar</button></div>
     <img src={thumb(photo.url, 1280, 85)} alt={photo.caption || 'Foto da família'} className="mx-auto max-h-[60dvh] w-full object-contain" />
     <p className="mt-3 whitespace-pre-wrap break-words">{photo.caption}</p><p className="my-2 text-sm text-marfim-2">{photo.tags.map(p => p.name).join(', ') || 'Sem pessoas marcadas'}</p>
     <div className="flex flex-wrap gap-2"><button className="btn btn-ghost" disabled={!previous} onClick={() => previous && onNavigate(previous)}>Anterior</button><button className="btn btn-ghost" disabled={!next} onClick={() => next && onNavigate(next)}>Próxima</button><a className="btn btn-ghost" href={photo.url} target="_blank" rel="noreferrer" download>Baixar foto</a></div>
-    {photo.source === 'post' && <><Link className="btn btn-quiet" href={`/mural?post=${photo.post_id}`}>Ver no mural</Link>{photo.user_id && photo.user_id !== me.id && <ModerationActions userId={photo.user_id} name={photo.author_name} postId={photo.post_id} />}</>}
+    {photo.source === 'post' && <><Link className="btn btn-quiet min-h-12!" href={`/mural?post=${photo.post_id}`}>Ver no mural</Link>{photo.user_id && photo.user_id !== me.id && <ModerationActions userId={photo.user_id} name={photo.author_name} postId={photo.post_id} />}</>}
     {photo.source === 'album' && <div className="mt-3 space-y-2">
       <button className="btn btn-ghost" disabled={busy} onClick={() => void action(() => api('/api/album/likes', { method: 'PUT', json: { key: photo.key, liked: !photo.liked } }), () => onUpdate({ ...photo, liked: !photo.liked, likes: photo.likes + (photo.liked ? -1 : 1) }))}>{photo.liked ? 'Descurtir' : 'Curtir'} · {photo.likes}</button>
-      {photo.user_id !== me.id && <>      <button className="btn btn-quiet" onClick={() => setReport(v => !v)}>Denunciar foto</button>
-      <button className="btn btn-quiet" disabled={busy} onClick={() => { if (window.confirm(`Bloquear ${photo.author_name}? Você deixará de ver os registros dessa pessoa.`)) void action(() => api('/api/blocks', { method: 'POST', json: { user_id: photo.user_id } }), () => window.location.reload()); }}>Bloquear {photo.author_name}</button>
+      {photo.user_id !== me.id && <>      <button className="btn btn-quiet min-h-12!" onClick={() => setReport(v => !v)}>Denunciar foto</button>
+      <button className="btn btn-quiet min-h-12!" disabled={busy} onClick={() => { if (window.confirm(`Bloquear ${photo.author_name}? Você deixará de ver os registros dessa pessoa.`)) void action(() => api('/api/blocks', { method: 'POST', json: { user_id: photo.user_id } }), () => window.location.reload()); }}>Bloquear {photo.author_name}</button>
       {report && <form className="space-y-2" onSubmit={e => { e.preventDefault(); void action(() => api('/api/album/reports', { method: 'POST', json: { key: photo.key, motivo: reason } }), () => { toast('Denúncia enviada. Quem organiza vai analisar.'); setReport(false); }); }}><label>Motivo<textarea required maxLength={1000} className="field mt-2" value={reason} onChange={e => setReason(e.target.value)} /></label><button disabled={busy} className="btn btn-primary">Enviar denúncia</button></form>}</>}
-      {photo.can_edit && <button className="btn btn-quiet" disabled={busy} onClick={() => { if (window.confirm('Apagar esta foto do álbum?')) void action(() => api('/api/album', { method: 'DELETE', json: { key: photo.key } }), onDelete); }}>Apagar foto</button>}
+      {photo.can_edit && <button className="btn btn-quiet min-h-12!" disabled={busy} onClick={() => { if (window.confirm('Apagar esta foto do álbum?')) void action(() => api('/api/album', { method: 'DELETE', json: { key: photo.key } }), onDelete); }}>Apagar foto</button>}
     </div>}
     {photo.can_edit && <div className="mt-4 space-y-3"><button className="btn btn-ghost" onClick={() => setEdit(v => !v)}>Marcar pessoas</button>{edit && <><PeoplePicker people={people} selected={tags} onChange={setTags} /><button className="btn btn-primary" disabled={busy} onClick={() => void action(() => api('/api/album/tags', { method: 'PUT', json: { key: photo.key, people: tags } }), () => { onUpdate({ ...photo, tags: people.filter(p => tags.includes(`${p.source}:${p.id}`)) }); setEdit(false); })}>Salvar marcações</button></>}</div>}
   </dialog>;

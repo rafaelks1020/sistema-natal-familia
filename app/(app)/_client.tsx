@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, CalendarDays, Check, Flame, Gift, MapPin, PartyPopper, Sparkles, Users, Wallet, Wine } from 'lucide-react';
 import AtivarNotificacoes from '@/app/components/AtivarNotificacoes';
+import { PerguntaLetra } from '@/app/ui/LetraMaior';
 import type { PainelMissoes } from '@/app/lib/gamificacao/tipos';
 import Avatar from '@/app/ui/Avatar';
 import LoopMedia from '@/app/ui/LoopMedia';
@@ -154,7 +155,7 @@ export default function InicioClient({ initial }: { initial: HomeData }) {
         setCelebrate(true);
         if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
         celebrationTimer.current = setTimeout(() => setCelebrate(false), 2500);
-        toast('Seu lugar à mesa está confirmado!');
+        toast('Seu lugar à mesa está confirmado! Confirmar presença vale 30 pontos.');
       } else toast('Sua resposta foi salva.');
     } catch (error) {
       setData((current) => current ? { ...current, attendance: previous } : current);
@@ -219,7 +220,7 @@ export default function InicioClient({ initial }: { initial: HomeData }) {
             <p className="kicker mb-3 text-center">{settings.event_title}</p>
             {remaining === 0 ? <p className="display py-2 text-center text-4xl">Feliz Natal</p> : (
               <div className="grid grid-cols-3 divide-x divide-linha-forte text-center">
-                {countdown.map((value, i) => <div key={i}><p className="numeral text-4xl text-marfim">{remaining === null ? '··' : String(value).padStart(2, '0')}</p><p className="mt-1 text-sm text-marfim-2">{['dias', 'horas', 'min'][i]}</p></div>)}
+                {countdown.map((value, i) => <div key={i}><p className="numeral text-4xl text-marfim">{remaining === null ? '··' : String(value).padStart(2, '0')}</p><p className="mt-1 text-sm text-marfim-2">{['dias', 'horas', 'minutos'][i]}</p></div>)}
               </div>
             )}
           </div>
@@ -232,6 +233,7 @@ export default function InicioClient({ initial }: { initial: HomeData }) {
               <CartaoAcao href="/festa" icone={PartyPopper} titulo="A festa começou!" texto="Entrar" cereja />
             </div>
           )}
+          <div className="px-6 empty:hidden"><PerguntaLetra /></div>
           <AtivarNotificacoes modo="banner" />
           <div className="relative space-y-3 px-6">
             {attendance.mine === null ? (

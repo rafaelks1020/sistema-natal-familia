@@ -18,6 +18,7 @@ const {
   pontosKaraokeApresentacao,
   postValidoParaPontos,
   rankingEstaOculto,
+  sugestoesDePontos,
 } = await import('./regras.ts');
 
 const {
@@ -441,4 +442,38 @@ test('nenhum arquivo da parte P1 contém travessão ou meia-risca', () => {
       assert.equal(conteudo.includes(ch), false, `arquivo ${rel} contém caractere proibido`);
     }
   }
+});
+
+test('guia de pontos: conta o que já foi feito hoje e na edição, e some depois do encerramento', () => {
+  const janela = { ano: 2026, encerra_em: '2026-12-24T22:00:00-03:00' };
+  const agora = new Date('2026-11-17T15:00:00-03:00');
+  const lancamentos = [
+    { regra: 'post', ocorreu_em: '2026-11-17T09:00:00-03:00' },
+    { regra: 'post', ocorreu_em: '2026-11-16T23:30:00-03:00' },
+    { regra: 'presenca', ocorreu_em: '2026-11-09T12:00:00-03:00' },
+    { regra: 'receita', ocorreu_em: '2026-11-10T12:00:00-03:00' },
+    { regra: 'visita', ocorreu_em: '2026-11-17T08:00:00-03:00' },
+  ];
+  const lista = sugestoesDePontos(lancamentos, agora, janela);
+  const de = (regra) => lista.find((s) => s.regra === regra);
+  assert.deepEqual(de('post'), { regra: 'post', titulo: 'Mandar um recado ou uma foto no mural', href: '/mural', pontos: 5, feitos: 1, limite: 3, periodo: 'dia' });
+  assert.equal(de('presenca').feitos, 1);
+  assert.equal(de('presenca').periodo, 'edicao');
+  assert.equal(de('receita').feitos, 1);
+  assert.equal(de('receita').limite, 3);
+  assert.equal(de('foto_album').feitos, 0);
+  assert.equal(de('advento'), undefined, 'a janelinha do Advento só entra em dezembro');
+  assert.equal(de('visita'), undefined, 'abrir o aplicativo conta sozinho e não entra no guia');
+  assert.equal(lista[0].regra, 'presenca', 'o guia começa pelo mais fácil');
+
+  const dezembro = sugestoesDePontos(
+    [{ regra: 'advento', ref: 'advento:4', ocorreu_em: '2026-12-05T08:00:00-03:00' }, { regra: 'advento', ref: 'advento:5', ocorreu_em: '2026-12-05T08:01:00-03:00' }],
+    new Date('2026-12-05T10:00:00-03:00'), janela);
+  assert.equal(dezembro.find((s) => s.regra === 'advento').feitos, 1);
+  const semHoje = sugestoesDePontos([{ regra: 'advento', ref: 'advento:4', ocorreu_em: '2026-12-05T08:00:00-03:00' }], new Date('2026-12-05T10:00:00-03:00'), janela);
+  assert.equal(semHoje.find((s) => s.regra === 'advento').feitos, 0);
+
+  assert.deepEqual(sugestoesDePontos(lancamentos, new Date('2026-12-24T22:00:01-03:00'), janela), []);
+  assert.deepEqual(sugestoesDePontos([], new Date('2026-10-31T23:00:00-03:00'), janela), []);
+  for (const s of lista) assert.ok(s.pontos > 0 && s.limite > 0 && s.href.startsWith('/'));
 });

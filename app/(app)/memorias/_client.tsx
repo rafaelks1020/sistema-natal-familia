@@ -11,7 +11,7 @@ import { PhotoDialog } from '../album/_client';
 
 export function MemoryPhoto({ photo, onOpen }: { photo: AlbumItem; onOpen?: () => void }) {
   const [open, setOpen] = useState(false); const router = useRouter();
-  return <><button className="block min-h-11 w-full overflow-hidden rounded-xl text-left" aria-label={`Abrir foto de ${photo.author_name}`} onClick={() => { setOpen(true); onOpen?.(); }}><img src={thumb(photo.url, 640)} alt={photo.caption || 'Memória da família'} className="aspect-square w-full object-cover" loading="lazy" /><span className="block py-2 text-xs text-marfim-2">{photo.author_name} · {photo.ano}</span></button>
+  return <><button className="block min-h-12 w-full overflow-hidden rounded-xl text-left" aria-label={`Abrir foto de ${photo.author_name}`} onClick={() => { setOpen(true); onOpen?.(); }}><img src={thumb(photo.url, 640)} alt={photo.caption || 'Memória da família'} className="aspect-square w-full object-cover" loading="lazy" /><span className="block py-2 text-xs text-marfim-2">{photo.author_name} · {photo.ano}</span></button>
     {open && <PhotoDialog photo={{ ...photo, can_edit: false }} people={[]} onClose={() => setOpen(false)} onUpdate={() => router.refresh()} onDelete={() => { setOpen(false); router.refresh(); }} onNavigate={() => {}} />}</>;
 }
 export function EditionCard({ edition }: { edition: MemoryEdition }) {

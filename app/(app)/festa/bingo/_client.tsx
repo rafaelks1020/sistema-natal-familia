@@ -211,13 +211,13 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
       <PageHeader kicker="Jogos da Ceia" title="Bingo da Ceia" back="/festa" />
 
       <nav aria-label="Jogos da ceia" className="mb-5 flex gap-2 overflow-x-auto px-5 no-scrollbar">
-        <Link href="/festa/quiz" className="btn btn-ghost min-h-11 shrink-0 px-4 text-xs">
+        <Link href="/festa/quiz" className="btn btn-ghost min-h-12 shrink-0 px-4 text-xs">
           Quiz da Família
         </Link>
-        <Link href="/festa/bingo" className="btn btn-primary min-h-11 shrink-0 px-4 text-xs">
+        <Link href="/festa/bingo" className="btn btn-primary min-h-12 shrink-0 px-4 text-xs">
           Bingo da Ceia
         </Link>
-        <Link href="/festa/enquete" className="btn btn-ghost min-h-11 shrink-0 px-4 text-xs">
+        <Link href="/festa/enquete" className="btn btn-ghost min-h-12 shrink-0 px-4 text-xs">
           Enquete ao Vivo
         </Link>
       </nav>
@@ -268,7 +268,7 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
               type="button"
               disabled={busyAction}
               onClick={() => void sortearNovaCartela()}
-              className="btn btn-quiet px-2.5 text-xs"
+              className="btn btn-quiet min-h-12! px-2.5 text-xs"
               title="Sortear outra cartela"
             >
               <RefreshCw size={14} /> Nova
@@ -285,7 +285,7 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
           </div>
 
           {/* Grade 5x5 */}
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-5 gap-1">
             {data.cartela.casas.map((casa) => {
               const marcada = casa.livre || marcadasSet.has(casa.posicao);
               const emBingo = posicoesEmBingo.has(casa.posicao);
@@ -306,18 +306,18 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
                   onClick={() => void alternarCasa(casa)}
                   aria-pressed={marcada}
                   aria-label={`Casa ${casa.posicao + 1}: ${casa.texto}`}
-                  className={`relative flex min-h-[70px] flex-col items-center justify-center rounded-xl border p-1.5 text-center transition active:scale-95 ${cls}`}
+                  className={`relative flex min-h-20 flex-col items-center justify-center rounded-xl border p-1 text-center transition active:scale-95 ${cls}`}
                 >
                   {casa.livre ? (
                     <>
                       <Star size={16} className="mb-1 text-champagne" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-champagne">
+                      <span className="text-xs font-semibold uppercase text-champagne">
                         Livre
                       </span>
                     </>
                   ) : (
                     <>
-                      <span className="line-clamp-3 text-[10px] leading-tight">{casa.texto}</span>
+                      <span className="w-full break-words text-xs leading-tight hyphens-auto">{casa.texto}</span>
                       {marcada && (
                         <span className="mt-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-champagne/25 text-champagne">
                           <Check size={10} strokeWidth={2.4} />
@@ -343,7 +343,7 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
               <button
                 type="button"
                 onClick={() => setCasaSelecionada(null)}
-                className="btn btn-quiet px-2"
+                className="btn btn-quiet min-h-12! px-2"
                 aria-label="Fechar detalhe da casa"
               >
                 <X size={15} />
@@ -383,7 +383,7 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
                         <p className="text-xs text-champagne">{c.padrao}</p>
                       </div>
                     </div>
-                    <span className="rounded-full border border-linha-forte px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-marfim-2">
+                    <span className="rounded-full border border-linha-forte px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-marfim-2">
                       {c.status === 'confirmado'
                         ? 'Confirmado!'
                         : c.status === 'pendente'
@@ -529,14 +529,14 @@ export default function BingoClient({ initial }: { initial: BingoData }) {
                         <button
                           type="button"
                           onClick={() => setEditItem(item)}
-                          className="btn btn-quiet min-h-9 px-2 text-xs"
+                          className="btn btn-quiet min-h-12! px-2 text-xs"
                         >
                           Editar
                         </button>
                         <button
                           type="button"
                           onClick={() => void excluirItem(item.id)}
-                          className="btn btn-quiet min-h-9 px-2 text-marfim-3"
+                          className="btn btn-quiet min-h-12! px-2 text-marfim-3"
                           aria-label="Excluir situação"
                         >
                           <Trash2 size={14} />

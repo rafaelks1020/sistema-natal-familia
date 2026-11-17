@@ -34,10 +34,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="pt-BR" className={`${bodoni.variable} ${manrope.variable}`} suppressHydrationWarning>
       <head>
-        {/* Letra maior (opção do perfil), aplicada antes de pintar para não piscar. */}
+        {/* Tamanho da letra (aba Eu), aplicado antes de pintar para não piscar. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: "try{if(localStorage.getItem('nf_letra')==='grande')document.documentElement.classList.add('letra-grande')}catch(e){}",
+            __html: "try{var l=localStorage.getItem('nf_letra');if(l==='grande'||l==='maior')document.documentElement.classList.add('letra-'+l)}catch(e){}",
           }}
         />
       </head>

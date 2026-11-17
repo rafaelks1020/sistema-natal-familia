@@ -58,6 +58,36 @@ function readSessionToken(token: string | undefined): { uid: number; v: number }
   }
 }
 
+// Passagem do app nativo para o navegador do celular: um código que vale 45 segundos e só serve para ser trocado pelo
+// cookie de sessão em GET /api/auth/passagem. A assinatura leva outro prefixo, então o código não funciona como token de
+// sessão (nem um token de sessão funciona como código).
+const PASSAGEM_SEGUNDOS = 45;
+
+export function createHandoffCode(userId: number, sessionVersion: number): string {
+  const payload = Buffer.from(
+    JSON.stringify({ uid: userId, v: sessionVersion, exp: Math.floor(Date.now() / 1000) + PASSAGEM_SEGUNDOS }),
+  ).toString('base64url');
+  return `${payload}.${sign(`passagem:${payload}`)}`;
+}
+
+export function readHandoffCode(code: string | null | undefined): { uid: number; v: number } | null {
+  if (!code || code.length > 400) return null;
+  const [payload, sig] = code.split('.');
+  if (!payload || !sig) return null;
+  const expected = Buffer.from(sign(`passagem:${payload}`));
+  const given = Buffer.from(sig);
+  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
+  try {
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (!Number.isInteger(data.uid) || data.uid < 1 || typeof data.exp !== 'number') return null;
+    if (!Number.isInteger(data.v) || data.v < 1) return null;
+    if (data.exp < Math.floor(Date.now() / 1000)) return null;
+    return { uid: data.uid, v: data.v };
+  } catch {
+    return null;
+  }
+}
+
 export function setSessionCookie(res: NextResponse, userId: number, sessionVersion: number): void {
   res.cookies.set(SESSION_COOKIE, createSessionToken(userId, sessionVersion), {
     httpOnly: true,

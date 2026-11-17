@@ -328,12 +328,12 @@ export default function ToastConquista({ conquistas, ano, userId }: Props) {
             <div className="flex flex-wrap items-center gap-2">
               <span className="kicker">Conquista nova!</span>
               <span
-                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${estilo.selo}`}
+                className={`rounded-full border px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${estilo.selo}`}
               >
                 {ROTULOS_NIVEL[atual.nivel]}
               </span>
               {atual.pontos > 0 && (
-                <span className="text-xs font-semibold text-champagne">+{atual.pontos} pts</span>
+                <span className="text-xs font-semibold text-champagne">+{atual.pontos} pontos</span>
               )}
             </div>
             <p className="display mt-1 break-words text-xl leading-tight text-marfim">
@@ -346,15 +346,15 @@ export default function ToastConquista({ conquistas, ano, userId }: Props) {
               <Link
                 href="/conquistas"
                 onClick={() => setFila([])}
-                className="text-xs font-semibold text-champagne underline-offset-4 hover:underline"
+                className="inline-flex min-h-12 items-center text-xs font-semibold text-champagne underline-offset-4 hover:underline"
               >
-                Ver no álbum
+                Ver minhas conquistas
               </Link>
               {fila.length > 1 && (
                 <button
                   type="button"
                   onClick={() => setFila((f) => f.slice(1))}
-                  className="text-xs text-marfim-2 hover:text-marfim"
+                  className="inline-flex min-h-12 items-center text-xs text-marfim-2 hover:text-marfim"
                 >
                   Próxima (+{fila.length - 1})
                 </button>
@@ -365,7 +365,7 @@ export default function ToastConquista({ conquistas, ano, userId }: Props) {
             type="button"
             aria-label="Fechar aviso de conquista"
             onClick={() => setFila((f) => f.slice(1))}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-marfim-3 hover:text-marfim"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-marfim-3 hover:text-marfim"
           >
             <X size={18} strokeWidth={1.5} />
           </button>

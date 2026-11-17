@@ -170,8 +170,8 @@ export function VotacaoCeia({
                 ))}
               </div>
               <div className="flex flex-wrap gap-2">
-                {opcoes.length < 6 ? <button type="button" className="btn btn-quiet" onClick={() => setOpcoes((atual) => [...atual, vazio()])}>Mais uma opção</button> : null}
-                {opcoes.length > 2 ? <button type="button" className="btn btn-quiet" onClick={() => setOpcoes((atual) => atual.slice(0, -1))}>Tirar a última</button> : null}
+                {opcoes.length < 6 ? <button type="button" className="btn btn-quiet min-h-12!" onClick={() => setOpcoes((atual) => [...atual, vazio()])}>Mais uma opção</button> : null}
+                {opcoes.length > 2 ? <button type="button" className="btn btn-quiet min-h-12!" onClick={() => setOpcoes((atual) => atual.slice(0, -1))}>Tirar a última</button> : null}
               </div>
               <button className="btn btn-primary w-full" disabled={busy}>{busy ? 'Abrindo...' : 'Abrir votação'}</button>
               <button type="button" className="btn btn-ghost w-full" onClick={() => setAberta(false)}>Cancelar</button>
@@ -241,7 +241,7 @@ function Lista({
                 {(votacao.tipo === 'local' || votacao.tipo === 'data') && situacao === 'lider' ? (
                   <button type="button" className="btn btn-primary px-4" disabled={ocupado === votacao.id} onClick={() => onOrganizar(votacao, 'aplicar')}>{votacao.tipo === 'data' ? 'Usar como data' : 'Usar como local'}</button>
                 ) : null}
-                <button type="button" className="btn btn-quiet px-4" disabled={ocupado === votacao.id} onClick={() => onOrganizar(votacao, 'apagar')}>Apagar</button>
+                <button type="button" className="btn btn-quiet min-h-12! px-4" disabled={ocupado === votacao.id} onClick={() => onOrganizar(votacao, 'apagar')}>Apagar</button>
               </div>
             ) : null}
           </li>

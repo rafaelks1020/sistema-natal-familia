@@ -22,6 +22,9 @@ const {
   agruparConquistasPorCategoria,
   filtrarConquistasNovas,
   validarRespostaMissao,
+  situacaoSugestao,
+  proximasSugestoes,
+  textoPontos,
 } = mod.exports;
 
 test('filtrarExtratoPorOrigem filtra lançamentos, recalcula soma do dia e omite dias vazios', () => {
@@ -155,4 +158,26 @@ test('validarRespostaMissao respeita o tipo da missão (foto, texto, foto_texto)
   assert.equal(validarRespostaMissao('foto_texto', 'Texto válido', '').ok, false);
   assert.equal(validarRespostaMissao('foto_texto', '', 'https://img/1.jpg').ok, false);
   assert.equal(validarRespostaMissao('foto_texto', 'Texto válido', 'https://img/1.jpg').ok, true);
+});
+
+test('guia de pontos: frase de situação, próximas sugestões e plural de pontos', () => {
+  const base = { regra: 'post', titulo: 'Mandar um recado', pontos: 5, href: '/mural' };
+  assert.deepEqual(situacaoSugestao({ ...base, feitos: 0, limite: 3, periodo: 'dia' }), { completo: false, texto: 'Vale até 3 vezes por dia.' });
+  assert.deepEqual(situacaoSugestao({ ...base, feitos: 1, limite: 3, periodo: 'dia' }), { completo: false, texto: 'Já fez 1 vez hoje. Ainda vale mais 2 vezes.' });
+  assert.deepEqual(situacaoSugestao({ ...base, feitos: 3, limite: 3, periodo: 'dia' }), { completo: true, texto: 'Feito 3 vezes hoje. Amanhã vale de novo.' });
+  assert.deepEqual(situacaoSugestao({ ...base, feitos: 1, limite: 1, periodo: 'dia' }), { completo: true, texto: 'Feito hoje. Amanhã vale de novo.' });
+  assert.deepEqual(situacaoSugestao({ ...base, feitos: 0, limite: 1, periodo: 'edicao' }), { completo: false, texto: 'Vale uma vez.' });
+  assert.deepEqual(situacaoSugestao({ ...base, feitos: 1, limite: 1, periodo: 'edicao' }), { completo: true, texto: 'Feito.' });
+  assert.deepEqual(situacaoSugestao({ ...base, feitos: 2, limite: 3, periodo: 'edicao' }), { completo: false, texto: 'Já fez 2 vezes. Ainda vale mais 1 vez.' });
+  const lista = [
+    { ...base, regra: 'a', feitos: 1, limite: 1, periodo: 'edicao' },
+    { ...base, regra: 'b', feitos: 0, limite: 3, periodo: 'dia' },
+    { ...base, regra: 'c', feitos: 2, limite: 5, periodo: 'dia' },
+    { ...base, regra: 'd', feitos: 0, limite: 1, periodo: 'dia' },
+  ];
+  assert.deepEqual(proximasSugestoes(lista, 2).map((s) => s.regra), ['b', 'c']);
+  assert.deepEqual(proximasSugestoes(undefined, 3), []);
+  assert.equal(textoPontos(1), '1 ponto');
+  assert.equal(textoPontos(0), '0 pontos');
+  assert.match(textoPontos(1008), /^1\.008 pontos$/);
 });

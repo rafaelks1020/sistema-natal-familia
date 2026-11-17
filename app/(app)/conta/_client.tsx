@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, Flame, LogOut, Settings2, Shield, SlidersHorizontal, Sparkles, Trophy, Tv } from 'lucide-react';
+import { ArrowUpRight, LogOut, Settings2, Shield, SlidersHorizontal, Tv } from 'lucide-react';
 import AtivarNotificacoes from '@/app/components/AtivarNotificacoes';
 import CartaoGamificacao from '../_inicio/CartaoGamificacao';
 import Avatar from '@/app/ui/Avatar';
@@ -12,12 +12,6 @@ import PageHeader from '@/app/ui/PageHeader';
 import { useToast } from '@/app/ui/toast';
 import { useMe } from '@/app/ui/user';
 
-const ATALHOS = [
-  { href: '/pontos', titulo: 'Meus pontos e ranking', texto: 'Sua posição, o extrato e os brindes', icon: Trophy },
-  { href: '/conquistas', titulo: 'Minhas conquistas', texto: 'Os selos que você já ganhou', icon: Sparkles },
-  { href: '/missoes', titulo: 'Missões relâmpago', texto: 'Desafios surpresa valendo pontos', icon: Flame },
-] as const;
-
 const ORGANIZAR = [
   { href: '/organizar', titulo: 'Organizar o Natal', texto: 'Datas, lista e o que a noite precisa', icon: Settings2 },
   { href: '/telao', titulo: 'Telão na TV', texto: 'O que a televisão da festa mostra', icon: Tv },
@@ -25,7 +19,7 @@ const ORGANIZAR = [
   { href: '/admin', titulo: 'Painel de administração', texto: 'Pessoas, convites e ajustes', icon: Shield },
 ] as const;
 
-function ListaAtalhos({ itens }: { itens: readonly { href: string; titulo: string; texto: string; icon: typeof Trophy }[] }) {
+function ListaAtalhos({ itens }: { itens: readonly { href: string; titulo: string; texto: string; icon: typeof Tv }[] }) {
   return (
     <ul className="divide-y divide-linha border-y border-linha">
       {itens.map(({ href, titulo, texto, icon: Icone }) => (
@@ -74,18 +68,17 @@ export default function ContaClient() {
           <Link href={`/familia/${me.id}`} className="btn btn-ghost mt-4 w-full">Editar meu perfil e foto</Link>
         </section>
 
+        <section aria-labelledby="eu-leitura" className="surface space-y-3 p-5">
+          <h2 id="eu-leitura" className="display text-3xl">Tamanho da letra</h2>
+          <p className="text-sm text-marfim-2">Escolha o que fica melhor para ler. Vale para o site inteiro.</p>
+          <LetraMaior />
+        </section>
+
         <CartaoGamificacao />
-        <ListaAtalhos itens={ATALHOS} />
 
         <section aria-labelledby="eu-avisos" className="space-y-3">
           <h2 id="eu-avisos" className="display text-3xl">Avisos</h2>
           <AtivarNotificacoes modo="fixo" />
-        </section>
-
-        <section aria-labelledby="eu-leitura" className="surface space-y-3 p-5">
-          <h2 id="eu-leitura" className="display text-3xl">Leitura</h2>
-          <p className="text-sm text-marfim-2">Deixa as letras do site maiores</p>
-          <LetraMaior />
         </section>
 
         {me.is_admin && (

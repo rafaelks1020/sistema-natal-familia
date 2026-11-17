@@ -199,7 +199,7 @@ export default function ConvitesClient({ initial, participants, pedidos }: { ini
                   {c.joined.length > 0 && <p className="mt-1 text-xs text-champagne">Entraram: {c.joined.join(', ')}</p>}
                 </div>
                 {c.status === 'ativo' && (
-                  <button onClick={() => cancelar(c)} aria-label={`Cancelar convite ${c.label}`} className="btn btn-quiet -mr-2 px-2">
+                  <button onClick={() => cancelar(c)} aria-label={`Cancelar convite ${c.label}`} className="btn btn-quiet min-h-12! -mr-2 px-2">
                     <X size={17} strokeWidth={1.5} />
                   </button>
                 )}

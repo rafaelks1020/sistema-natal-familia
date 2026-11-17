@@ -72,10 +72,10 @@ async function compartilhar(url: string, nome: string, mime: string, titulo: str
 
 function Botoes({ url, nome, mime, titulo, fallback = 'copiar', compacto = false }: { url: string; nome: string; mime: string; titulo: string; fallback?: 'copiar' | 'baixar'; compacto?: boolean }) {
   const toast = useToast();
-  // .btn-quiet trava a altura em 40px. No cartão estreito o rótulo vai embaixo do ícone, sem essa classe, para o toque passar de 48px.
+  // .btn-quiet min-h-12! trava a altura em 40px. No cartão estreito o rótulo vai embaixo do ícone, sem essa classe, para o toque passar de 48px.
   const cls = compacto
     ? 'inline-flex min-h-12 w-full flex-col items-center justify-center gap-0.5 rounded-full px-1 text-sm font-semibold text-marfim-2'
-    : 'btn btn-quiet gap-1';
+    : 'btn btn-quiet min-h-12! gap-1';
   return <div className={compacto ? 'flex flex-col gap-2' : 'flex flex-wrap gap-2'}>
     <button type="button" className={cls} style={compacto ? undefined : { minHeight: 48 }} onClick={() => void baixar(url, nome)}><Download size={18} strokeWidth={1.6} aria-hidden="true" />Baixar</button>
     <button type="button" className={cls} style={compacto ? undefined : { minHeight: 48 }} onClick={() => void compartilhar(url, nome, mime, titulo, fallback).then((aviso) => { if (aviso) toast(aviso); })}><Share2 size={18} strokeWidth={1.6} aria-hidden="true" />Compartilhar</button>
@@ -203,7 +203,7 @@ export default function MelhoresMomentos() {
   return <section className="space-y-4" aria-label="Melhores momentos">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="display text-2xl">Melhores momentos</h2>
-      <button type="button" className={`btn ${soMeus ? 'btn-primary' : 'btn-quiet'}`} style={{ minHeight: 48 }} aria-pressed={soMeus} onClick={() => setSoMeus((v) => !v)}>Só os meus</button>
+      <button type="button" className={`btn ${soMeus ? 'btn-primary' : 'btn-quiet min-h-12!'}`} style={{ minHeight: 48 }} aria-pressed={soMeus} onClick={() => setSoMeus((v) => !v)}>Só os meus</button>
     </div>
     {!pronto ? <p className="text-sm text-marfim-2">Carregando os vídeos...</p> : null}
     {falhou ? <p className="text-sm text-marfim-2" role="status">Não consegui carregar os vídeos agora. Vamos tentar de novo em instantes.</p> : null}

@@ -247,7 +247,7 @@ export default function CartaoClient() {
                   setPropria(false);
                 }}
                 aria-pressed={!propria && frase === f}
-                className={`block min-h-11 w-full rounded-[14px] border px-4 py-2 text-left text-sm ${!propria && frase === f ? 'border-champagne text-marfim' : 'border-linha text-marfim-2'}`}
+                className={`block min-h-12 w-full rounded-[14px] border px-4 py-2 text-left text-sm ${!propria && frase === f ? 'border-champagne text-marfim' : 'border-linha text-marfim-2'}`}
               >
                 {f}
               </button>

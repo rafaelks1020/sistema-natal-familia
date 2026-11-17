@@ -28,7 +28,7 @@ export default function ArvoreClient({ initial }: { initial: ArvoreDados }) {
     if (Number.isInteger(id) && data.pessoas.some((item) => item.id === id)) setEscolhida(id);
   }, [data.pessoas]);
 
-  async function protegido(trabalho: () => Promise<void>) {
+  async function protegido(trabalho: () => Promise<void>, bonus = '') {
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
@@ -36,7 +36,7 @@ export default function ArvoreClient({ initial }: { initial: ArvoreDados }) {
       await trabalho();
       try {
         setData(await api<ArvoreDados>('/api/arvore'));
-        toast('Pronto, atualizado.');
+        toast(`Pronto, atualizado.${bonus}`);
       } catch {
         toast('Salvo. Recarregue a página para atualizar a árvore.', 'erro');
       }
@@ -53,17 +53,17 @@ export default function ArvoreClient({ initial }: { initial: ArvoreDados }) {
     <div className="space-y-7 px-5 pb-12">
       <p className="text-sm leading-relaxed text-marfim-2">Quem veio antes, os casais e os filhos. Toque numa pessoa para ver o cartão.</p>
       <details className="surface p-5">
-        <summary className="min-h-11 cursor-pointer py-3 text-champagne">Adicionar pessoa</summary>
-        <FormPessoa familia={data.familia} busy={busy} onSubmit={(form) => protegido(async () => { await api('/api/arvore', { method: 'POST', json: await jsonPessoa(form) }); form.reset(); })} />
+        <summary className="min-h-12 cursor-pointer py-3 text-champagne">Adicionar pessoa</summary>
+        <FormPessoa familia={data.familia} busy={busy} onSubmit={(form) => protegido(async () => { await api('/api/arvore', { method: 'POST', json: await jsonPessoa(form) }); form.reset(); }, ' Cada pessoa na árvore vale 3 pontos (até 20).')} />
       </details>
       {data.pessoas.length > 1 ? <details className="surface p-5">
-        <summary className="min-h-11 cursor-pointer py-3 text-champagne">Ligar parentes</summary>
+        <summary className="min-h-12 cursor-pointer py-3 text-champagne">Ligar parentes</summary>
         <FormVinculo pessoas={data.pessoas} busy={busy} onSubmit={(json) => protegido(() => api('/api/arvore/vinculos', { method: 'POST', json }))} />
       </details> : null}
       {!data.pessoas.length ? <p className="py-6 text-sm text-marfim-3">A árvore ainda não tem ninguém. Comece por quem veio antes.</p> : <>
         <div className="flex gap-2">
-          <button type="button" className="btn btn-ghost min-h-11 flex-1" onClick={() => setEscala((valor) => Math.max(1, Math.round((valor - 0.2) * 100) / 100))}> <Minus size={16} strokeWidth={1.5} /> Diminuir</button>
-          <button type="button" className="btn btn-ghost min-h-11 flex-1" onClick={() => setEscala((valor) => Math.min(1.6, Math.round((valor + 0.2) * 100) / 100))}> <Plus size={16} strokeWidth={1.5} /> Aumentar</button>
+          <button type="button" className="btn btn-ghost min-h-12 flex-1" onClick={() => setEscala((valor) => Math.max(1, Math.round((valor - 0.2) * 100) / 100))}> <Minus size={16} strokeWidth={1.5} /> Diminuir</button>
+          <button type="button" className="btn btn-ghost min-h-12 flex-1" onClick={() => setEscala((valor) => Math.min(1.6, Math.round((valor + 0.2) * 100) / 100))}> <Plus size={16} strokeWidth={1.5} /> Aumentar</button>
         </div>
         <div className="overflow-x-auto pb-2">
           <div style={{ width: desenho.largura * escala, height: desenho.altura * escala }}>
@@ -97,21 +97,21 @@ function Cartao({ pessoa, vinculos, pessoas, familia, busy, editando, setEditand
   busy: boolean;
   editando: boolean;
   setEditando: (valor: boolean) => void;
-  protegido: (trabalho: () => Promise<void>) => Promise<void>;
+  protegido: (trabalho: () => Promise<void>, bonus?: string) => Promise<void>;
 }) {
   const nomeDe = (id: number) => pessoas.find((item) => item.id === id)?.nome ?? 'alguém';
   return <section className="surface space-y-4 p-5" aria-live="polite">
     <div className="flex items-center gap-4"><Avatar name={pessoa.nome} src={pessoa.foto_url} size={72} ring /><div className="min-w-0"><p className="kicker">Cartão</p><h2 className="display break-words text-3xl">{pessoa.nome}</h2>{pessoa.apelido ? <p className="text-sm text-marfim-2">{pessoa.apelido}</p> : null}</div></div>
     {rotuloAnos(pessoa.nascimento_ano, pessoa.falecimento_ano) ? <p className="text-sm text-champagne">{rotuloAnos(pessoa.nascimento_ano, pessoa.falecimento_ano)}</p> : null}
-    {pessoa.user_id ? <Link href={`/familia/${pessoa.user_id}`} className="btn btn-ghost min-h-11 w-full">Ver perfil</Link> : <p className="text-sm text-marfim-3">Sem conta no aplicativo.</p>}
+    {pessoa.user_id ? <Link href={`/familia/${pessoa.user_id}`} className="btn btn-ghost min-h-12 w-full">Ver perfil</Link> : <p className="text-sm text-marfim-3">Sem conta no aplicativo.</p>}
     {vinculos.length ? <ul className="space-y-2">{vinculos.map((v) => {
       const outro = v.pessoa_id === pessoa.id ? v.parente_id : v.pessoa_id;
       const texto = v.tipo === 'conjuge' ? `Casal com ${nomeDe(outro)}` : v.pessoa_id === pessoa.id ? `Filho ou filha de ${nomeDe(outro)}` : `Pai ou mãe de ${nomeDe(outro)}`;
-      return <li key={`${v.tipo}-${v.pessoa_id}-${v.parente_id}`} className="flex items-center justify-between gap-3 text-sm"><span className="min-w-0 break-words">{texto}</span>{v.pode_apagar ? <button type="button" className="btn btn-quiet min-h-11 shrink-0" disabled={busy} onClick={() => { if (window.confirm('Desfazer esta ligação?')) void protegido(() => api('/api/arvore/vinculos', { method: 'DELETE', json: { pessoa_id: v.pessoa_id, parente_id: v.parente_id, tipo: v.tipo } })); }}>Desfazer</button> : null}</li>;
+      return <li key={`${v.tipo}-${v.pessoa_id}-${v.parente_id}`} className="flex items-center justify-between gap-3 text-sm"><span className="min-w-0 break-words">{texto}</span>{v.pode_apagar ? <button type="button" className="btn btn-quiet min-h-12! shrink-0" disabled={busy} onClick={() => { if (window.confirm('Desfazer esta ligação?')) void protegido(() => api('/api/arvore/vinculos', { method: 'DELETE', json: { pessoa_id: v.pessoa_id, parente_id: v.parente_id, tipo: v.tipo } })); }}>Desfazer</button> : null}</li>;
     })}</ul> : null}
-    {pessoa.pode_editar && !editando ? <button type="button" className="btn btn-ghost min-h-11 w-full" disabled={busy} onClick={() => setEditando(true)}>Editar</button> : null}
+    {pessoa.pode_editar && !editando ? <button type="button" className="btn btn-ghost min-h-12 w-full" disabled={busy} onClick={() => setEditando(true)}>Editar</button> : null}
     {pessoa.pode_editar && editando ? <FormPessoa familia={familia} busy={busy} pessoa={pessoa} onSubmit={(form) => protegido(async () => { await api(`/api/arvore/${pessoa.id}`, { method: 'PATCH', json: await jsonPessoa(form) }); setEditando(false); })} cancelar={() => setEditando(false)} /> : null}
-    {pessoa.pode_editar ? <button type="button" className="btn btn-quiet min-h-11 w-full" disabled={busy} onClick={() => { if (window.confirm(`Tirar ${pessoa.nome} da árvore? As ligações também saem.`)) void protegido(() => api(`/api/arvore/${pessoa.id}`, { method: 'DELETE' })); }}>Tirar da árvore</button> : null}
+    {pessoa.pode_editar ? <button type="button" className="btn btn-quiet min-h-12! w-full" disabled={busy} onClick={() => { if (window.confirm(`Tirar ${pessoa.nome} da árvore? As ligações também saem.`)) void protegido(() => api(`/api/arvore/${pessoa.id}`, { method: 'DELETE' })); }}>Tirar da árvore</button> : null}
   </section>;
 }
 
@@ -148,9 +148,9 @@ function FormPessoa({ familia, busy, pessoa, onSubmit, cancelar }: {
       </select>
     </label>
     <label className="block text-sm text-marfim-2">Foto (opcional)<input className="field mt-2" type="file" accept="image/*" /></label>
-    {pessoa?.foto_url ? <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" name="tirar" value="sim" /> Tirar a foto</label> : null}
-    <button className="btn btn-primary min-h-11 w-full" disabled={busy} type="submit">{pessoa ? 'Salvar' : 'Adicionar'}</button>
-    {cancelar ? <button className="btn btn-quiet min-h-11 w-full" type="button" onClick={cancelar}>Cancelar</button> : null}
+    {pessoa?.foto_url ? <label className="flex min-h-12 items-center gap-3 text-sm"><input type="checkbox" className="h-6 w-6 shrink-0 accent-cereja" name="tirar" value="sim" /> Tirar a foto</label> : null}
+    <button className="btn btn-primary min-h-12 w-full" disabled={busy} type="submit">{pessoa ? 'Salvar' : 'Adicionar'}</button>
+    {cancelar ? <button className="btn btn-quiet min-h-12! w-full" type="button" onClick={cancelar}>Cancelar</button> : null}
   </form>;
 }
 
@@ -173,6 +173,6 @@ function FormVinculo({ pessoas, busy, onSubmit }: { pessoas: PessoaArvore[]; bus
     <label className="block text-sm text-marfim-2">{tipo === 'pai_mae' ? 'Pai ou mãe' : 'A outra pessoa'}
       <select className="field mt-2" name="parente" required defaultValue=""><option value="">Escolha</option>{pessoas.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select>
     </label>
-    <button className="btn btn-primary min-h-11 w-full" disabled={busy} type="submit">Ligar</button>
+    <button className="btn btn-primary min-h-12 w-full" disabled={busy} type="submit">Ligar</button>
   </form>;
 }

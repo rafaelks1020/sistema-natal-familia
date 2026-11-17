@@ -39,7 +39,7 @@ function CampoFoto({ url, busy, onEscolheu, onTirou, rotulo }: {
         <img src={thumb(url, 640)} alt="" className="mb-3 max-h-56 w-full rounded-[14px] object-cover" />
       )}
       <div className="flex flex-wrap gap-2">
-        <label className="btn btn-ghost min-h-11 cursor-pointer">
+        <label className="btn btn-ghost min-h-12 cursor-pointer">
           {url ? 'Trocar foto' : rotulo}
           <input
             type="file"
@@ -54,7 +54,7 @@ function CampoFoto({ url, busy, onEscolheu, onTirou, rotulo }: {
           />
         </label>
         {url && (
-          <button type="button" className="btn btn-quiet min-h-11" disabled={busy} onClick={onTirou}>Tirar foto</button>
+          <button type="button" className="btn btn-quiet min-h-12!" disabled={busy} onClick={onTirou}>Tirar foto</button>
         )}
       </div>
     </div>
@@ -137,7 +137,7 @@ export default function PainelDia({ resumo, onVoltar, onMudou }: {
       setTexto('');
       setFoto(null);
       onMudou(dados);
-      toast('Resposta guardada.');
+      toast('Resposta guardada. A janelinha do dia vale 15 pontos.');
     } catch (error) {
       toast((error as Error).message, 'erro');
     } finally {
@@ -247,7 +247,7 @@ export default function PainelDia({ resumo, onVoltar, onMudou }: {
 
   return (
     <div>
-      <button type="button" onClick={onVoltar} className="mb-4 inline-flex min-h-11 items-center gap-1 text-sm text-marfim-2">
+      <button type="button" onClick={onVoltar} className="mb-4 inline-flex min-h-12 items-center gap-1 text-sm text-marfim-2">
         <ChevronLeft size={18} strokeWidth={1.5} /> Voltar ao calendário
       </button>
       <p className="kicker">{ROTULO[detalhe.tipo]} · dia {detalhe.dia}</p>
@@ -275,7 +275,7 @@ export default function PainelDia({ resumo, onVoltar, onMudou }: {
                 aria-checked={minha}
                 disabled={busy}
                 onClick={() => { void votar(item.opcao); }}
-                className={`min-h-11 w-full rounded-[14px] border px-3 py-2 text-left ${minha ? 'border-champagne bg-champagne/10' : 'border-linha'}`}
+                className={`min-h-12 w-full rounded-[14px] border px-3 py-2 text-left ${minha ? 'border-champagne bg-champagne/10' : 'border-linha'}`}
               >
                 <span className="flex items-center justify-between gap-3 text-sm">
                   <span className="min-w-0 break-words">{item.opcao}</span>
@@ -330,12 +330,12 @@ export default function PainelDia({ resumo, onVoltar, onMudou }: {
                 <div className="mt-2 pl-[52px]">
                   {!item.minha && (
                     <details>
-                      <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm text-marfim-3">Opções</summary>
+                      <summary className="flex min-h-12 cursor-pointer list-none items-center text-sm text-marfim-3">Opções</summary>
                       <ModerationActions userId={item.user_id} name={item.user_name} alvoTipo="advento" alvoId={item.id} />
                     </details>
                   )}
                   {(item.minha || detalhe.organizador) && (
-                    <button type="button" className="btn btn-quiet min-h-11 px-0 text-sm" disabled={busy} onClick={() => { void apagar(item.id, item.user_name); }}>
+                    <button type="button" className="btn btn-quiet min-h-12! px-0 text-sm" disabled={busy} onClick={() => { void apagar(item.id, item.user_name); }}>
                       <Trash2 size={15} strokeWidth={1.5} /> Apagar
                     </button>
                   )}
@@ -365,7 +365,7 @@ export default function PainelDia({ resumo, onVoltar, onMudou }: {
                     type="button"
                     role="radio"
                     aria-checked={tipo === item}
-                    className={`min-h-11 rounded-full border px-3 text-sm ${tipo === item ? 'border-champagne text-champagne' : 'border-linha text-marfim-2'}`}
+                    className={`min-h-12 rounded-full border px-3 text-sm ${tipo === item ? 'border-champagne text-champagne' : 'border-linha text-marfim-2'}`}
                     onClick={() => setTipo(item)}
                   >
                     {ROTULO[item]}
@@ -395,7 +395,7 @@ export default function PainelDia({ resumo, onVoltar, onMudou }: {
               />
               <button className="btn btn-primary w-full" disabled={busy}>{busy ? 'Guardando...' : 'Guardar janela'}</button>
               {detalhe.personalizada && (
-                <button type="button" className="btn btn-quiet min-h-11 w-full" disabled={busy} onClick={() => { void restaurar(); }}>Voltar ao texto sugerido</button>
+                <button type="button" className="btn btn-quiet min-h-12! w-full" disabled={busy} onClick={() => { void restaurar(); }}>Voltar ao texto sugerido</button>
               )}
               <button type="button" className="btn btn-ghost w-full" disabled={busy} onClick={() => setEditando(false)}>Cancelar</button>
             </form>

@@ -10,7 +10,7 @@ export function AudioPlayer({ url, onDuration }: { url: string; onDuration?: (se
   return <div className="space-y-2 rounded-2xl bg-carvao-3 p-4">
     <audio ref={audio} src={url} controls preload="metadata" className="w-full min-w-0" aria-label="Ouvir áudio da família"
       onLoadedMetadata={() => { const duration = audio.current?.duration; if (duration && Number.isFinite(duration)) onDuration?.(Math.round(duration)); }} />
-    <button type="button" className="btn btn-quiet min-h-11" onClick={() => {
+    <button type="button" className="btn btn-quiet min-h-12!" onClick={() => {
       const next = speed === 1 ? 1.5 : 1; setSpeed(next); if (audio.current) audio.current.playbackRate = next;
     }} aria-label={`Velocidade ${speed}x. Toque para mudar`}>Velocidade {speed}x</button>
   </div>;
@@ -100,7 +100,7 @@ export function AudioField({ value, onChange, onBusy }: { value: string; onChang
     <p className="text-sm text-marfim-2">Grave com calma. Ouça antes de usar. Até uns 15 minutos por áudio.</p>
     {state === 'idle' ? <>
       <button type="button" className="btn btn-ghost w-full" disabled={busy || starting} onClick={() => void start()}>{starting ? 'Abrindo microfone...' : 'Gravar com o microfone'}</button>
-      <label className="block text-sm">Escolher arquivo de áudio<input type="file" accept="audio/mp4,audio/m4a,audio/x-m4a,audio/aac,audio/mpeg,audio/webm,audio/ogg" className="field mt-2 min-h-11 w-full min-w-0" disabled={busy || starting} onChange={e => { choose(e.target.files?.[0] ?? null); e.target.value = ''; }} /></label>
+      <label className="block text-sm">Escolher arquivo de áudio<input type="file" accept="audio/mp4,audio/m4a,audio/x-m4a,audio/aac,audio/mpeg,audio/webm,audio/ogg" className="field mt-2 min-h-12 w-full min-w-0" disabled={busy || starting} onChange={e => { choose(e.target.files?.[0] ?? null); e.target.value = ''; }} /></label>
     </> : <>
       <p role="status">{state === 'paused' ? 'Pausado' : 'Gravando'}: {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</p>
       <button type="button" className="btn btn-ghost w-full" onClick={() => {
@@ -112,8 +112,8 @@ export function AudioField({ value, onChange, onBusy }: { value: string; onChang
     </>}
     {clip && preview && state === 'idle' && !starting ? <><p className="text-sm break-all">Pré-escuta: {clip.name}</p><AudioPlayer key={preview} url={preview} onDuration={setSeconds} />
       <button type="button" className="btn btn-primary w-full" disabled={busy || starting || state !== 'idle'} onClick={() => void send()}>{busy ? 'Enviando áudio...' : 'Usar este áudio'}</button>
-      <button type="button" className="btn btn-quiet w-full" disabled={busy} onClick={() => { setClip(null); onBusy(false); }}>Descartar gravação ou arquivo</button></> : value && state === 'idle' && !starting ? <><AudioPlayer key={value} url={value} />
-      <button type="button" className="btn btn-quiet w-full" disabled={busy || starting || state !== 'idle'} onClick={() => onChange('', 0)}>Remover áudio</button></> : null}
+      <button type="button" className="btn btn-quiet min-h-12! w-full" disabled={busy} onClick={() => { setClip(null); onBusy(false); }}>Descartar gravação ou arquivo</button></> : value && state === 'idle' && !starting ? <><AudioPlayer key={value} url={value} />
+      <button type="button" className="btn btn-quiet min-h-12! w-full" disabled={busy || starting || state !== 'idle'} onClick={() => onChange('', 0)}>Remover áudio</button></> : null}
     {clip ? <p className="text-sm text-champagne">Toque em Usar este áudio antes de salvar.</p> : null}
   </section>;
 }

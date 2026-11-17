@@ -30,7 +30,7 @@ export default function GoalCard({ data, isAdmin, onSaved }: { data: Meta; isAdm
     {data.meta_centavos > 0 ? <p>{progress >= 100 ? 'Meta alcançada. Obrigado, família!' : `Faltam ${brl(Math.max(0, data.meta_centavos - data.arrecadado_centavos) / 100)}`}</p> : null}
     <p className="text-sm text-marfim-2">{data.contribuintes} {data.contribuintes === 1 ? 'pessoa já contribuiu' : 'pessoas já contribuíram'} com pagamento confirmado.</p>
     {data.destino ? <p className="whitespace-pre-line break-words text-sm"><strong>Destino do dinheiro:</strong> {data.destino}</p> : null}
-    {isAdmin ? <button className="btn btn-quiet min-h-11" onClick={() => setEditing(!editing)}>{editing ? 'Cancelar' : 'Definir meta e destino'}</button> : null}
+    {isAdmin ? <button className="btn btn-quiet min-h-12!" onClick={() => setEditing(!editing)}>{editing ? 'Cancelar' : 'Definir meta e destino'}</button> : null}
     {editing ? <form onSubmit={save} className="space-y-3"><label className="block text-sm">Meta em reais<input className="field mt-2" inputMode="decimal" value={value} onChange={e => setValue(e.target.value)} maxLength={13} required /></label><label className="block text-sm">Para que vamos usar o dinheiro?<textarea className="field mt-2" value={destino} onChange={e => setDestino(e.target.value)} maxLength={500} required /></label><button className="btn btn-primary w-full" disabled={busy}>{busy ? 'Salvando...' : 'Salvar meta'}</button></form> : null}
   </section>;
 }

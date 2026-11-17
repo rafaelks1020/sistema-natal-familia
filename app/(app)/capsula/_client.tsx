@@ -21,7 +21,7 @@ export default function CapsulaClient({ initial }: { initial: CapsulaDados }) {
     return uploadImage(arquivo);
   }
 
-  async function protegido(trabalho: () => Promise<void>) {
+  async function protegido(trabalho: () => Promise<void>, bonus = '') {
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
@@ -29,7 +29,7 @@ export default function CapsulaClient({ initial }: { initial: CapsulaDados }) {
       await trabalho();
       try {
         setData(await api<CapsulaDados>('/api/capsula'));
-        toast('Pronto, atualizado.');
+        toast(`Pronto, atualizado.${bonus}`);
       } catch {
         toast('Salvo. Recarregue a página para atualizar a lista.', 'erro');
       }
@@ -58,7 +58,7 @@ export default function CapsulaClient({ initial }: { initial: CapsulaDados }) {
         <p className="display mt-2 text-3xl leading-tight">{data.frase}</p>
       </section>
       <details className="surface p-5">
-        <summary className="min-h-11 cursor-pointer py-3 text-champagne">Guardar uma mensagem</summary>
+        <summary className="min-h-12 cursor-pointer py-3 text-champagne">Guardar uma mensagem</summary>
         <form className="mt-3 space-y-4" onSubmit={(event) => {
           event.preventDefault();
           const form = event.currentTarget;
@@ -68,7 +68,7 @@ export default function CapsulaClient({ initial }: { initial: CapsulaDados }) {
             const para = String(f.get('para') ?? '');
             await api('/api/capsula', { method: 'POST', json: { texto: f.get('texto'), para_user_id: para ? Number(para) : null, image_url: image_url ?? null } });
             form.reset();
-          });
+          }, ' Cada cápsula vale 20 pontos (até 3).');
         }}>
           <Destino familia={data.familia} eu={data.eu.id} />
           <label className="block text-sm text-marfim-2">Mensagem
@@ -77,7 +77,7 @@ export default function CapsulaClient({ initial }: { initial: CapsulaDados }) {
           <label className="block text-sm text-marfim-2">Foto (opcional)
             <input className="field mt-2" name="foto" type="file" accept="image/*" />
           </label>
-          <button className="btn btn-primary min-h-11 w-full" disabled={busy} type="submit">Guardar mensagem</button>
+          <button className="btn btn-primary min-h-12 w-full" disabled={busy} type="submit">Guardar mensagem</button>
         </form>
       </details>
       {data.minhas.map((item) => <article key={item.id} className="surface space-y-3 p-5">
@@ -106,12 +106,12 @@ export default function CapsulaClient({ initial }: { initial: CapsulaDados }) {
           <label className="block text-sm text-marfim-2">Nova foto (opcional)
             <input className="field mt-2" type="file" accept="image/*" />
           </label>
-          {item.tem_foto ? <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" name="tirar" value="sim" /> Tirar a foto antiga</label> : null}
-          <button className="btn btn-primary min-h-11 w-full" disabled={busy} type="submit">Substituir mensagem</button>
-          <button className="btn btn-quiet min-h-11 w-full" type="button" onClick={() => setEditando(null)}>Cancelar</button>
+          {item.tem_foto ? <label className="flex min-h-12 items-center gap-3 text-sm"><input type="checkbox" className="h-6 w-6 shrink-0 accent-cereja" name="tirar" value="sim" /> Tirar a foto antiga</label> : null}
+          <button className="btn btn-primary min-h-12 w-full" disabled={busy} type="submit">Substituir mensagem</button>
+          <button className="btn btn-quiet min-h-12! w-full" type="button" onClick={() => setEditando(null)}>Cancelar</button>
         </form> : null}
-        {item.pode_editar && editando !== item.id ? <button className="btn btn-ghost min-h-11 w-full" disabled={busy} type="button" onClick={() => setEditando(item.id)}>Trocar mensagem</button> : null}
-        {item.pode_editar || data.eu.admin ? <button className="btn btn-quiet min-h-11 w-full" disabled={busy} type="button" onClick={() => { if (window.confirm('Apagar esta mensagem lacrada?')) void protegido(() => api(`/api/capsula/${item.id}`, { method: 'DELETE' })); }}>Apagar</button> : null}
+        {item.pode_editar && editando !== item.id ? <button className="btn btn-ghost min-h-12 w-full" disabled={busy} type="button" onClick={() => setEditando(item.id)}>Trocar mensagem</button> : null}
+        {item.pode_editar || data.eu.admin ? <button className="btn btn-quiet min-h-12! w-full" disabled={busy} type="button" onClick={() => { if (window.confirm('Apagar esta mensagem lacrada?')) void protegido(() => api(`/api/capsula/${item.id}`, { method: 'DELETE' })); }}>Apagar</button> : null}
       </article>)}
       {data.aguardando ? <p className="text-sm text-marfim-2">{data.aguardando.total === 1 ? '1 mensagem abre' : `${data.aguardando.total} mensagens abrem`} em {data.aguardando.abre_em_texto}. Até lá, o texto fica guardado.</p> : null}
       {data.abertas.length ? <section className="space-y-4">
@@ -129,7 +129,7 @@ export default function CapsulaClient({ initial }: { initial: CapsulaDados }) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={thumb(item.image_url, 828)} alt="Foto da mensagem" className="max-h-80 w-full rounded-[14px] object-cover" />
             </> : null}
-            {item.pode_apagar ? <button className="btn btn-quiet min-h-11 w-full" disabled={busy} type="button" onClick={() => { if (window.confirm('Apagar esta mensagem?')) void protegido(() => api(`/api/capsula/${item.id}`, { method: 'DELETE' })); }}>Apagar</button> : null}
+            {item.pode_apagar ? <button className="btn btn-quiet min-h-12! w-full" disabled={busy} type="button" onClick={() => { if (window.confirm('Apagar esta mensagem?')) void protegido(() => api(`/api/capsula/${item.id}`, { method: 'DELETE' })); }}>Apagar</button> : null}
             {item.user_id !== data.eu.id ? <ModerationActions userId={item.user_id} name={item.author_name} alvoTipo="capsula" alvoId={item.id} /> : null}
           </article>)}
         </div>

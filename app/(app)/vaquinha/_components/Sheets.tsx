@@ -101,7 +101,7 @@ export function PurchaseDetailSheet({
             type="button"
             onClick={onClose}
             aria-label="Fechar detalhe"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-linha text-marfim-2"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-linha text-marfim-2"
           >
             <X size={18} strokeWidth={1.5} />
           </button>
@@ -146,26 +146,26 @@ export function PurchaseDetailSheet({
 
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-[14px] border border-linha bg-carvao/60 px-3.5 py-2.5">
-            <span className="block text-[11px] uppercase tracking-wider text-marfim-3">Quantidade</span>
+            <span className="block text-xs uppercase tracking-wider text-marfim-2">Quantidade</span>
             <span className="mt-0.5 block font-medium text-marfim">{purchase.quantity || 1}</span>
           </div>
           <div className="rounded-[14px] border border-linha bg-carvao/60 px-3.5 py-2.5">
-            <span className="block text-[11px] uppercase tracking-wider text-marfim-3">Marca</span>
+            <span className="block text-xs uppercase tracking-wider text-marfim-2">Marca</span>
             <span className="mt-0.5 block font-medium text-marfim">{purchase.brand || 'Não informada'}</span>
           </div>
           <div className="rounded-[14px] border border-linha bg-carvao/60 px-3.5 py-2.5">
-            <span className="block text-[11px] uppercase tracking-wider text-marfim-3">Cor</span>
+            <span className="block text-xs uppercase tracking-wider text-marfim-2">Cor</span>
             <span className="mt-0.5 block font-medium text-marfim">{purchase.color || 'Não informada'}</span>
           </div>
           <div className="rounded-[14px] border border-linha bg-carvao/60 px-3.5 py-2.5">
-            <span className="block text-[11px] uppercase tracking-wider text-marfim-3">Tamanho</span>
+            <span className="block text-xs uppercase tracking-wider text-marfim-2">Tamanho</span>
             <span className="mt-0.5 block font-medium text-marfim">{purchase.size || 'Não informado'}</span>
           </div>
         </div>
 
         {purchase.notes && (
           <div className="mt-3 rounded-[14px] border border-linha bg-carvao/60 p-3.5">
-            <span className="block text-[11px] uppercase tracking-wider text-champagne">Observações</span>
+            <span className="block text-xs uppercase tracking-wider text-champagne">Observações</span>
             <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-marfim-2">
               {purchase.notes}
             </p>
@@ -292,7 +292,7 @@ export function ParticipantActionSheet({
               <p className="kicker">Cota {brl(contributionValue)}</p>
               <h2 className="display truncate text-2xl text-marfim">{participant.name}</h2>
               {participant.pix && (
-                <span className="mt-1 inline-flex rounded-full border border-champagne/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-champagne">
+                <span className="mt-1 inline-flex rounded-full border border-champagne/50 px-2 py-0.5 text-xs font-medium uppercase tracking-[0.14em] text-champagne">
                   Pix
                 </span>
               )}
@@ -302,7 +302,7 @@ export function ParticipantActionSheet({
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-linha text-marfim-2"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-linha text-marfim-2"
           >
             <X size={18} strokeWidth={1.5} />
           </button>
@@ -348,7 +348,7 @@ export function ParticipantActionSheet({
                 type="button"
                 onClick={() => setConfirmRemove(true)}
                 disabled={busy}
-                className="btn btn-quiet w-full text-xs text-[#ff8a8d]"
+                className="btn btn-quiet min-h-12! w-full text-xs text-[#ff8a8d]"
               >
                 <Trash2 size={15} strokeWidth={1.5} />
                 Remover participante da lista
@@ -551,7 +551,7 @@ export function AdminCreateSheet({
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-linha text-marfim-2"
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-linha text-marfim-2"
           >
             <X size={18} strokeWidth={1.5} />
           </button>
@@ -668,7 +668,7 @@ export function AdminCreateSheet({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs uppercase tracking-wider text-marfim-3">
+                <label className="mb-1 block text-xs uppercase tracking-wider text-marfim-2">
                   Marca (opcional)
                 </label>
                 <input
@@ -681,7 +681,7 @@ export function AdminCreateSheet({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs uppercase tracking-wider text-marfim-3">
+                <label className="mb-1 block text-xs uppercase tracking-wider text-marfim-2">
                   Quantidade
                 </label>
                 <input
@@ -698,7 +698,7 @@ export function AdminCreateSheet({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs uppercase tracking-wider text-marfim-3">
+                <label className="mb-1 block text-xs uppercase tracking-wider text-marfim-2">
                   Cor (opcional)
                 </label>
                 <input
@@ -711,7 +711,7 @@ export function AdminCreateSheet({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs uppercase tracking-wider text-marfim-3">
+                <label className="mb-1 block text-xs uppercase tracking-wider text-marfim-2">
                   Tamanho (opcional)
                 </label>
                 <input
@@ -726,7 +726,7 @@ export function AdminCreateSheet({
             </div>
 
             <div>
-              <label className="mb-1 block text-xs uppercase tracking-wider text-marfim-3">
+              <label className="mb-1 block text-xs uppercase tracking-wider text-marfim-2">
                 Observações (opcional)
               </label>
               <textarea
@@ -800,7 +800,7 @@ export function AdminCreateSheet({
               )}
             </div>
 
-  <label className="block text-sm text-marfim-2">Comprovante (foto)<input type="file" accept="image/*" className="field mt-2 min-h-11" disabled={uploading || submitting} onChange={async event => { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; setUploading(true); try { setReceipt(await uploadImage(file)); } catch (error) { toast((error as Error).message, 'erro'); } finally { setUploading(false); } }} /></label>{receipt ? <div className="space-y-2"><p className="text-xs text-champagne">Comprovante anexado</p><button type="button" className="btn btn-quiet min-h-11" disabled={submitting || uploading} onClick={() => setReceipt('')}>Remover comprovante</button></div> : null}
+  <label className="block text-sm text-marfim-2">Comprovante (foto)<input type="file" accept="image/*" className="field mt-2 min-h-12" disabled={uploading || submitting} onChange={async event => { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; setUploading(true); try { setReceipt(await uploadImage(file)); } catch (error) { toast((error as Error).message, 'erro'); } finally { setUploading(false); } }} /></label>{receipt ? <div className="space-y-2"><p className="text-xs text-champagne">Comprovante anexado</p><button type="button" className="btn btn-quiet min-h-12!" disabled={submitting || uploading} onClick={() => setReceipt('')}>Remover comprovante</button></div> : null}
           <button
               type="submit"
               disabled={submitting || uploading}

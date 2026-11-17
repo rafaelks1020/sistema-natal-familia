@@ -73,7 +73,7 @@ function Contagem({ abreEm, onAcabou }: { abreEm: string; onAcabou: () => void }
         {partes.map(([nome, valor]) => (
           <div key={nome} className="rounded-[14px] border border-linha bg-carvao-3 px-1 py-3 text-center">
             <span className="numeral block text-[1.7rem] leading-none text-marfim">{valor}</span>
-            <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-marfim-3">{nome}</span>
+            <span className="mt-1 block text-xs uppercase tracking-[0.16em] text-marfim-2">{nome}</span>
           </div>
         ))}
       </div>
@@ -165,7 +165,7 @@ export default function AdventoClient({ initial }: { initial: CalendarioAdvento 
           100% { transform: perspective(720px) rotateY(-90deg); }
         }
       `}</style>
-      <PageHeader kicker={`Edição ${cal.ano}`} title="Advento" back="/ceia" />
+      <PageHeader kicker={`Natal de ${cal.ano}`} title="Advento" back="/ceia" />
       <div className="px-5 pb-8">
         {escolhido == null || !resumo ? (
           <>
@@ -186,14 +186,14 @@ export default function AdventoClient({ initial }: { initial: CalendarioAdvento 
                       if (event.target === event.currentTarget && abrindo === janela.dia) seguir(janela.dia);
                     }}
                     aria-label={frasePorta(janela, cal.dia_de_hoje, cal.fase === 'antes', cal.organizador)}
-                    className={`advento-porta relative flex aspect-[3/4] min-h-11 w-full flex-col items-center justify-center border ${classePorta(janela, cal.dia_de_hoje)} ${abrindo === janela.dia ? 'advento-abrindo' : ''}`}
+                    className={`advento-porta relative flex aspect-[3/4] min-h-12 w-full flex-col items-center justify-center border ${classePorta(janela, cal.dia_de_hoje)} ${abrindo === janela.dia ? 'advento-abrindo' : ''}`}
                   >
                     <span className="display text-[1.65rem] leading-none">{janela.dia}</span>
                     {janela.dia === cal.dia_de_hoje && !janela.respondida && (
-                      <span className="kicker mt-1 text-[8px] tracking-[0.14em]">Hoje</span>
+                      <span className="kicker mt-1 text-xs tracking-[0.14em]">Hoje</span>
                     )}
                     {janela.abriu && janela.tipo && (
-                      <span className="mt-1 max-w-full truncate px-1 text-[9px] uppercase tracking-[0.12em] text-marfim-3">{ROTULO[janela.tipo]}</span>
+                      <span className="mt-1 max-w-full truncate px-1 text-xs uppercase tracking-[0.12em] text-marfim-3">{ROTULO[janela.tipo]}</span>
                     )}
                     {janela.personalizada && <span className="absolute left-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-champagne" aria-hidden />}
                     {janela.respondida && (

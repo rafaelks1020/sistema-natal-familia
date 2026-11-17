@@ -19,42 +19,42 @@ export default function PollCard({ poll, canDelete, onVote, onDelete }: Props) {
   return (
     <article className="py-5">
       <div className="flex items-center justify-between gap-3 px-5">
-        <div className="flex min-w-0 items-center gap-3">
-          {authorHref ? (
-            <Link href={authorHref} className="shrink-0">
-              <Avatar name={poll.created_by_name} src={poll.created_by_avatar} size={40} />
-            </Link>
-          ) : (
+        {authorHref ? (
+          <Link href={authorHref} className="flex min-h-12 min-w-0 flex-1 items-center gap-3">
             <Avatar name={poll.created_by_name} src={poll.created_by_avatar} size={40} />
-          )}
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              {authorHref ? (
-                <Link
-                  href={authorHref}
-                  className="truncate text-[0.95rem] font-semibold text-marfim hover:underline"
-                >
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="truncate text-[0.95rem] font-semibold text-marfim">
                   {poll.created_by_name}
-                </Link>
-              ) : (
+                </span>
+                <span className="shrink-0 text-xs font-semibold uppercase tracking-widest text-champagne">Enquete</span>
+              </div>
+              <p className="text-xs text-marfim-2">{timeAgo(poll.created_at)}</p>
+            </div>
+          </Link>
+        ) : (
+          <div className="flex min-h-12 min-w-0 flex-1 items-center gap-3">
+            <Avatar name={poll.created_by_name} src={poll.created_by_avatar} size={40} />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
                 <p className="truncate text-[0.95rem] font-semibold text-marfim">
                   {poll.created_by_name}
                 </p>
-              )}
-              <span className="kicker text-[0.6rem]">Enquete</span>
+                <span className="shrink-0 text-xs font-semibold uppercase tracking-widest text-champagne">Enquete</span>
+              </div>
+              <p className="text-xs text-marfim-2">{timeAgo(poll.created_at)}</p>
             </div>
-            <p className="text-xs text-marfim-3">{timeAgo(poll.created_at)}</p>
           </div>
-        </div>
+        )}
 
         {canDelete && (
           <button
             type="button"
             onClick={() => { if (window.confirm('Apagar esta enquete e os votos?')) onDelete(poll.id); }}
             aria-label="Apagar enquete"
-            className="flex h-11 w-11 items-center justify-center rounded-full text-marfim-3 transition-colors hover:text-cereja"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-marfim-2 transition-colors hover:text-cereja"
           >
-            <Trash2 size={17} strokeWidth={1.5} />
+            <Trash2 size={18} strokeWidth={1.5} />
           </button>
         )}
       </div>
@@ -73,7 +73,7 @@ export default function PollCard({ poll, canDelete, onVote, onDelete }: Props) {
                 key={idx}
                 type="button"
                 onClick={() => onVote(poll.id, idx)}
-                className={`relative flex min-h-[44px] w-full items-center gap-3 overflow-hidden rounded-[14px] border px-3.5 py-2.5 text-left transition-colors ${
+                className={`relative flex min-h-12 w-full items-center gap-3 overflow-hidden rounded-[14px] border px-3.5 py-2.5 text-left transition-colors ${
                   selected
                     ? 'border-champagne/70 bg-carvao-2'
                     : 'border-linha bg-carvao-2/60 hover:border-linha-forte'
@@ -107,7 +107,7 @@ export default function PollCard({ poll, canDelete, onVote, onDelete }: Props) {
           })}
         </div>
 
-        <p className="mt-2.5 text-xs text-marfim-3">
+        <p className="mt-2.5 text-xs text-marfim-2">
           {poll.total === 0
             ? 'Toque em uma opção para abrir a votação'
             : poll.total === 1

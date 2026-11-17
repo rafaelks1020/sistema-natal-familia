@@ -449,7 +449,7 @@ export default function MuralClient({ initial }: { initial: PostItem[] }) {
               setComposerMode('post');
               setComposerOpen(true);
             }}
-            className="flex min-h-[44px] flex-1 items-center rounded-full border border-linha bg-carvao-3/70 px-4 text-left text-sm text-marfim-2 transition-colors hover:border-champagne/60 hover:text-marfim"
+            className="flex min-h-12 flex-1 items-center rounded-full border border-linha bg-carvao-3/70 px-4 text-left text-sm text-marfim-2 transition-colors hover:border-champagne/60 hover:text-marfim"
           >
             Conte algo para a família
           </button>
@@ -461,9 +461,10 @@ export default function MuralClient({ initial }: { initial: PostItem[] }) {
               setComposerOpen(true);
             }}
             aria-label="Publicar foto"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-linha text-champagne hover:border-champagne/60"
+            className="flex min-h-12 min-w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-linha px-1.5 py-1 text-champagne hover:border-champagne/60"
           >
             <Camera size={18} strokeWidth={1.5} />
+            <span className="whitespace-nowrap text-xs leading-none">Foto</span>
           </button>
           <button
             type="button"
@@ -473,9 +474,10 @@ export default function MuralClient({ initial }: { initial: PostItem[] }) {
               setComposerOpen(true);
             }}
             aria-label="Criar enquete"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-linha text-marfim-2 hover:border-champagne/60 hover:text-champagne"
+            className="flex min-h-12 min-w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-linha px-1.5 py-1 text-marfim-2 hover:border-champagne/60 hover:text-champagne"
           >
             <BarChart3 size={18} strokeWidth={1.5} />
+            <span className="whitespace-nowrap text-xs leading-none">Enquete</span>
           </button>
         </div>
       </section>
@@ -502,7 +504,7 @@ export default function MuralClient({ initial }: { initial: PostItem[] }) {
               fallback={<EmptyTreeFallback />}
             />
           </div>
-          <p className="kicker mb-2">Noite silenciosa</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-champagne">Noite silenciosa</p>
           <h2 className="display text-2xl text-marfim">O mural está esperando a primeira lembrança</h2>
           <p className="mx-auto mt-2 max-w-xs text-sm text-marfim-2">
             Publique uma foto dos preparativos, uma receita de família ou abra uma enquete para a ceia.

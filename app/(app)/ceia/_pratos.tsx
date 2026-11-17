@@ -147,12 +147,12 @@ export function PratosCeia({ pratos, onPratos }: { pratos: CeiaPrato[]; onPratos
                         <button type="button" className="btn btn-ghost px-4" disabled={ocupado === prato.id} onClick={() => { void acao(prato, 'desistir'); }}>Desistir</button>
                       ) : null}
                       {prato.user_id === me.id || me.is_admin ? (
-                        <button type="button" className="btn btn-quiet px-4" disabled={ocupado === prato.id} onClick={() => { void acao(prato, 'apagar'); }}>Apagar</button>
+                        <button type="button" className="btn btn-quiet min-h-12! px-4" disabled={ocupado === prato.id} onClick={() => { void acao(prato, 'apagar'); }}>Apagar</button>
                       ) : null}
                     </div>
                     {prato.user_id !== me.id ? (
                       <details className="mt-2">
-                        <summary className="min-h-11 cursor-pointer py-2 text-sm text-marfim-3">Denunciar ou bloquear</summary>
+                        <summary className="min-h-12 cursor-pointer py-2 text-sm text-marfim-3">Denunciar ou bloquear</summary>
                         <ModerationActions userId={prato.user_id} name={prato.autor_nome} alvoTipo="prato" alvoId={prato.id} />
                       </details>
                     ) : null}

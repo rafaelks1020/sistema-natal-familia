@@ -80,7 +80,7 @@ export default function Result({
         <button
           type="button"
           onClick={toggleHide}
-          className="inline-flex min-h-11 items-center gap-2 px-2 text-sm text-marfim-2"
+          className="inline-flex min-h-12 items-center gap-2 px-2 text-sm text-marfim-2"
           aria-pressed={hidden}
         >
           {hidden ? <Eye size={18} strokeWidth={1.5} /> : <EyeOff size={18} strokeWidth={1.5} />}
@@ -151,7 +151,7 @@ export default function Result({
                       href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-1 inline-flex min-h-11 max-w-full break-all items-center gap-1.5 text-sm text-marfim underline decoration-cereja underline-offset-4"
+                      className="mt-1 inline-flex min-h-12 max-w-full break-all items-center gap-1.5 text-sm text-marfim underline decoration-cereja underline-offset-4"
                     >
                       <ExternalLink size={15} strokeWidth={1.5} /> {link.domain}
                     </a>
@@ -163,7 +163,7 @@ export default function Result({
                     onClick={() => void mark(item)}
                     disabled={busyId === item.id}
                     aria-pressed={bought}
-                    className="inline-flex min-h-11 shrink-0 items-center gap-1.5 px-1 text-sm text-marfim-2"
+                    className="inline-flex min-h-12 shrink-0 items-center gap-1.5 px-1 text-sm text-marfim-2"
                   >
                     {bought && <Check size={15} strokeWidth={1.5} className="text-salvia" />}
                     {bought ? 'Comprado' : 'Já comprei'}

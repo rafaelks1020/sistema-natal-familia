@@ -114,7 +114,7 @@ export default function JogosNovosClient({ initial }: { initial: JogosNovosPaine
           <p className="mb-3 text-sm text-marfim-2">{d.bebe.total_votos} {d.bebe.total_votos === 1 ? 'palpite' : 'palpites'}. Toque em um nome para votar (dá para mudar).</p>
           <div className="grid grid-cols-2 gap-2">{d.pessoas.map((p) => <button key={p.id} disabled={busy}
             onClick={() => void acao('bebe_votar', { bebe_id: d.bebe!.id, palpite_user_id: p.id })}
-            className={`min-h-11 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${d.bebe!.meu_palpite === p.id ? 'border-champagne bg-champagne/15 text-marfim' : 'border-linha text-marfim-2 hover:border-champagne/50'}`}>{p.nome}</button>)}</div>
+            className={`min-h-12 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${d.bebe!.meu_palpite === p.id ? 'border-champagne bg-champagne/15 text-marfim' : 'border-linha text-marfim-2 hover:border-champagne/50'}`}>{p.nome}</button>)}</div>
           {adm && <button className="btn btn-primary mt-4 w-full" disabled={busy} onClick={() => void acao('bebe_revelar', { bebe_id: d.bebe!.id })}>Revelar resposta</button>}
         </> : <>
           <p className="display text-3xl">Era {d.bebe.resposta_nome}!</p>
@@ -135,7 +135,7 @@ export default function JogosNovosClient({ initial }: { initial: JogosNovosPaine
         <div className="grid gap-3">{d.times.map((t) => <div key={t.id} className="rounded-xl border border-linha p-4" style={{ borderLeft: `6px solid ${t.cor}` }}>
           <div className="flex items-baseline justify-between gap-3"><h3 className="display text-xl">{t.nome}</h3><span className="display text-3xl tabular-nums">{t.pontos}</span></div>
           <p className="mt-1 text-xs text-marfim-2">{t.membros.map((p) => p.nome).join(', ') || 'Sem ninguém ainda'}</p>
-          {adm && <div className="mt-3 flex flex-wrap gap-2">{[-1, 1, 5, 10].map((v) => <button key={v} className="btn btn-ghost min-h-11 px-4 text-sm" disabled={busy}
+          {adm && <div className="mt-3 flex flex-wrap gap-2">{[-1, 1, 5, 10].map((v) => <button key={v} className="btn btn-ghost min-h-12 px-4 text-sm" disabled={busy}
             onClick={() => void acao('pontos', { team_id: t.id, pontos: v })}>{v > 0 ? `+${v}` : v}</button>)}</div>}
         </div>)}</div>
       </section>}
@@ -157,10 +157,10 @@ export default function JogosNovosClient({ initial }: { initial: JogosNovosPaine
         <div className="space-y-3">
           <h3 className="display flex items-center gap-2 text-xl"><Drama size={18} strokeWidth={1.5} /> Mímica e desenho</h3>
           <div className="grid grid-cols-2 gap-3">
-            <select value={modo} onChange={(e) => setModo(e.target.value === 'desenho' ? 'desenho' : 'mimica')} className="min-h-11 rounded-xl border border-linha bg-carvao px-3 text-sm">
+            <select value={modo} onChange={(e) => setModo(e.target.value === 'desenho' ? 'desenho' : 'mimica')} className="min-h-12 rounded-xl border border-linha bg-carvao px-3 text-sm">
               <option value="mimica">Mímica</option><option value="desenho">Desenho</option>
             </select>
-            <select value={duracao} onChange={(e) => setDuracao(Number(e.target.value))} className="min-h-11 rounded-xl border border-linha bg-carvao px-3 text-sm">
+            <select value={duracao} onChange={(e) => setDuracao(Number(e.target.value))} className="min-h-12 rounded-xl border border-linha bg-carvao px-3 text-sm">
               {[30, 45, 60, 90, 120].map((s) => <option key={s} value={s}>{s} segundos</option>)}
             </select>
           </div>
@@ -170,7 +170,7 @@ export default function JogosNovosClient({ initial }: { initial: JogosNovosPaine
 
         <div className="space-y-3">
           <h3 className="display flex items-center gap-2 text-xl"><Baby size={18} strokeWidth={1.5} /> Quem é o bebê?</h3>
-          <select value={respostaId} onChange={(e) => setRespostaId(e.target.value)} className="min-h-11 w-full rounded-xl border border-linha bg-carvao px-3 text-sm">
+          <select value={respostaId} onChange={(e) => setRespostaId(e.target.value)} className="min-h-12 w-full rounded-xl border border-linha bg-carvao px-3 text-sm">
             <option value="">Quem é o bebê da foto?</option>
             {d.pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
           </select>
@@ -185,7 +185,7 @@ export default function JogosNovosClient({ initial }: { initial: JogosNovosPaine
             <button className="btn btn-primary" disabled={busy} onClick={() => void acao('roleta_girar')}><RotateCw size={18} /> Girar</button>
           </div>
           <details className="rounded-xl border border-linha p-3">
-            <summary className="min-h-11 cursor-pointer py-2 text-sm text-marfim-2">Editar prendas ({d.admin.prendas.length})</summary>
+            <summary className="min-h-12 cursor-pointer py-2 text-sm text-marfim-2">Editar prendas ({d.admin.prendas.length})</summary>
             <textarea rows={10} value={prendasTexto ?? d.admin.prendas.join('\n')} onChange={(e) => setPrendasTexto(e.target.value)}
               className="mt-2 w-full rounded-xl border border-linha bg-carvao p-3 text-sm" aria-label="Uma prenda por linha" />
             <p className="mt-1 text-xs text-marfim-2">Uma prenda por linha (mínimo 3, até 80 letras cada).</p>

@@ -169,7 +169,7 @@ export function WishItemRow({
             href={link.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-1 inline-flex min-h-11 max-w-full items-center gap-1.5 break-all text-sm text-marfim underline decoration-cereja underline-offset-4"
+            className="mt-1 inline-flex min-h-12 max-w-full items-center gap-1.5 break-all text-sm text-marfim underline decoration-cereja underline-offset-4"
           >
             <ExternalLink size={14} strokeWidth={1.5} className="shrink-0" />
             <span>{link.domain}</span>
@@ -180,10 +180,10 @@ export function WishItemRow({
       {owner ? (
         confirmDelete ? (
           <div className="flex shrink-0 items-center">
-            <button type="button" className="btn btn-quiet" disabled={busy} onClick={onCancelDelete}>
+            <button type="button" className="btn btn-quiet min-h-12!" disabled={busy} onClick={onCancelDelete}>
               Não
             </button>
-            <button type="button" className="btn btn-quiet text-cereja" disabled={busy} onClick={onConfirmDelete}>
+            <button type="button" className="btn btn-quiet min-h-12! text-cereja" disabled={busy} onClick={onConfirmDelete}>
               Apagar
             </button>
           </div>
@@ -192,7 +192,7 @@ export function WishItemRow({
             <button
               type="button"
               aria-label={`Editar ${item.item_name}`}
-              className="flex h-11 w-11 items-center justify-center text-marfim-2"
+              className="flex h-12 w-12 items-center justify-center text-marfim-2"
               onClick={onEdit}
             >
               <Pencil size={18} strokeWidth={1.5} />
@@ -200,7 +200,7 @@ export function WishItemRow({
             <button
               type="button"
               aria-label={`Apagar ${item.item_name}`}
-              className="flex h-11 w-11 items-center justify-center text-marfim-3"
+              className="flex h-12 w-12 items-center justify-center text-marfim-3"
               onClick={onAskDelete}
             >
               <Trash2 size={18} strokeWidth={1.5} />
@@ -214,7 +214,7 @@ export function WishItemRow({
             onClick={onTogglePurchased}
             disabled={busy || boughtByOther}
             aria-pressed={bought}
-            className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-[12px] border px-3 text-xs ${
+            className={`inline-flex min-h-12 shrink-0 items-center gap-1.5 rounded-[12px] border px-3 text-xs ${
               bought
                 ? 'border-salvia/50 bg-salvia/10 text-salvia'
                 : 'border-linha text-marfim-2 hover:border-champagne/60'

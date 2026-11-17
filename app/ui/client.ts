@@ -135,9 +135,9 @@ export function timeAgo(date: string | Date): string {
   const s = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
   if (s < 60) return 'agora';
   const m = Math.floor(s / 60);
-  if (m < 60) return `há ${m} min`;
+  if (m < 60) return m === 1 ? 'há 1 minuto' : `há ${m} minutos`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `há ${h} h`;
+  if (h < 24) return h === 1 ? 'há 1 hora' : `há ${h} horas`;
   const dias = Math.floor(h / 24);
   if (dias < 7) return dias === 1 ? 'ontem' : `há ${dias} dias`;
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });

@@ -185,7 +185,7 @@ export default function Organize({ onChanged }: { onChanged: () => void }) {
     <section className="border-t border-linha pt-4">
       <button
         type="button"
-        className="flex min-h-11 w-full items-center justify-between gap-3 text-left"
+        className="flex min-h-12 w-full items-center justify-between gap-3 text-left"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
@@ -247,7 +247,7 @@ export default function Organize({ onChanged }: { onChanged: () => void }) {
                         type="button"
                         aria-pressed={on}
                         onClick={() => togglePerson(p.id)}
-                        className={`min-h-11 max-w-full rounded-2xl border px-3 py-2 text-left text-sm leading-tight ${
+                        className={`min-h-12 max-w-full rounded-2xl border px-3 py-2 text-left text-sm leading-tight ${
                           on ? 'border-champagne text-marfim' : 'border-linha text-marfim-3'
                         }`}
                       >
@@ -292,7 +292,7 @@ export default function Organize({ onChanged }: { onChanged: () => void }) {
                         <button
                           type="button"
                           aria-label="Tirar esta regra"
-                          className="flex h-11 w-11 items-center justify-center text-marfim-3"
+                          className="flex h-12 w-12 items-center justify-center text-marfim-3"
                           onClick={() => setRules((rs) => rs.filter((r) => r !== rule))}
                         >
                           <X size={16} strokeWidth={1.5} />

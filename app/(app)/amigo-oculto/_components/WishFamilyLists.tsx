@@ -106,7 +106,7 @@ export default function WishFamilyLists({
                 type="button"
                 aria-pressed={active}
                 onClick={() => setSelectedId(active ? null : p.id)}
-                className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors ${
+                className={`inline-flex min-h-12 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors ${
                   active
                     ? 'border-champagne bg-carvao-2 text-marfim'
                     : 'border-linha bg-carvao text-marfim-2'
@@ -115,7 +115,7 @@ export default function WishFamilyLists({
                 <Avatar name={p.name} src={p.avatar_url} size={22} />
                 <span>{p.name}</span>
                 {p.wish_count > 0 && (
-                  <span className="numeral text-[11px] text-champagne">({p.wish_count})</span>
+                  <span className="numeral text-xs text-champagne">({p.wish_count})</span>
                 )}
               </button>
             );

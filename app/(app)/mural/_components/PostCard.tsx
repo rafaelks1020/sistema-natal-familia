@@ -25,7 +25,7 @@ const REACTIONS: {
   label: string;
   icon: typeof Heart;
 }[] = [
-  { type: 'coracao', label: 'Coração', icon: Heart },
+  { type: 'coracao', label: 'Amei', icon: Heart },
   { type: 'estrela', label: 'Estrela', icon: Star },
   { type: 'risada', label: 'Risada', icon: Laugh },
   { type: 'brinde', label: 'Brinde', icon: Wine },
@@ -168,7 +168,7 @@ export default function PostCard({
     <article id={`post-${post.id}`} className="py-5">
       {/* Cabeçalho do autor */}
       <div className="flex items-center justify-between gap-3 px-5">
-        <Link href={`/familia/${post.user_id}`} className="flex min-w-0 items-center gap-3">
+        <Link href={`/familia/${post.user_id}`} className="flex min-h-12 min-w-0 items-center gap-3">
           <Avatar name={post.user_name} src={post.avatar_url} size={42} ring={post.pinned} />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -176,12 +176,12 @@ export default function PostCard({
                 {post.user_name}
               </span>
               {post.pinned && (
-                <span className="inline-flex items-center gap-1 text-[0.65rem] font-semibold uppercase tracking-widest text-champagne">
-                  <Pin size={11} strokeWidth={1.6} /> Fixado
+                <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold uppercase tracking-widest text-champagne">
+                  <Pin size={14} strokeWidth={1.6} /> Fixado
                 </span>
               )}
             </div>
-            <p className="text-xs text-marfim-3">{timeAgo(post.created_at)}</p>
+            <p className="text-xs text-marfim-2">{timeAgo(post.created_at)}</p>
           </div>
         </Link>
 
@@ -190,7 +190,7 @@ export default function PostCard({
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="Opções da publicação"
-              className="flex h-11 w-11 items-center justify-center rounded-full text-marfim-2 hover:text-marfim"
+              className="flex h-12 w-12 items-center justify-center rounded-full text-marfim-2 hover:text-marfim"
             >
               <MoreHorizontal size={20} strokeWidth={1.5} />
             </button>
@@ -198,7 +198,7 @@ export default function PostCard({
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
-                <div className="surface absolute right-0 top-11 z-40 min-w-[175px] overflow-hidden py-1.5 shadow-2xl">
+                <div className="surface absolute right-0 top-12 z-40 min-w-[175px] overflow-hidden py-1.5 shadow-2xl">
                   {isAdmin && (
                     <button
                       type="button"
@@ -206,7 +206,7 @@ export default function PostCard({
                         setMenuOpen(false);
                         onTogglePin(post.id);
                       }}
-                      className="flex min-h-[44px] w-full items-center gap-2.5 px-4 text-left text-sm text-marfim hover:bg-carvao-3"
+                      className="flex min-h-12 w-full items-center gap-2.5 px-4 text-left text-sm text-marfim hover:bg-carvao-3"
                     >
                       <Pin size={16} strokeWidth={1.5} className="text-champagne" />
                       {post.pinned ? 'Desafixar do topo' : 'Fixar no topo'}
@@ -219,7 +219,7 @@ export default function PostCard({
                         setMenuOpen(false);
                         onEditPost(post);
                       }}
-                      className="flex min-h-[44px] w-full items-center gap-2.5 px-4 text-left text-sm text-marfim hover:bg-carvao-3"
+                      className="flex min-h-12 w-full items-center gap-2.5 px-4 text-left text-sm text-marfim hover:bg-carvao-3"
                     >
                       <Pencil size={16} strokeWidth={1.5} className="text-marfim-2" />
                       Editar publicação
@@ -231,7 +231,7 @@ export default function PostCard({
                       setMenuOpen(false);
                       if (window.confirm('Apagar esta publicação? Não dá para desfazer.')) onDeletePost(post.id);
                     }}
-                    className="flex min-h-[44px] w-full items-center gap-2.5 px-4 text-left text-sm text-[#ff8a8d] hover:bg-carvao-3"
+                    className="flex min-h-12 w-full items-center gap-2.5 px-4 text-left text-sm text-[#ff8a8d] hover:bg-carvao-3"
                   >
                     <Trash2 size={16} strokeWidth={1.5} />
                     Apagar
@@ -343,28 +343,28 @@ export default function PostCard({
       )}
 
       {/* Barra de reações */}
-      <div className="mt-2 flex items-center justify-between px-3">
-        <div className="flex items-center gap-1">
-          {REACTIONS.map(({ type, label, icon: Icon }) => {
-            const active = post.my_reactions.includes(type);
-            const count = Number(post.reactions[type] ?? 0);
-            const isHeart = type === 'coracao';
+      <div className="mt-2 flex items-stretch px-1">
+        {REACTIONS.map(({ type, label, icon: Icon }) => {
+          const active = post.my_reactions.includes(type);
+          const count = Number(post.reactions[type] ?? 0);
+          const isHeart = type === 'coracao';
 
-            return (
-              <button
-                key={type}
-                type="button"
-                onClick={() => (isHeart ? handleHeartReaction() : onReact(post.id, type))}
-                aria-label={`${label}${count > 0 ? ` (${count})` : ''}`}
-                aria-pressed={active}
-                className={`relative flex min-h-[44px] items-center gap-1.5 rounded-full px-2.5 text-sm transition-colors ${
-                  active
-                    ? isHeart
-                      ? 'text-cereja'
-                      : 'text-champagne'
-                    : 'text-marfim-2 hover:text-marfim'
-                }`}
-              >
+          return (
+            <button
+              key={type}
+              type="button"
+              onClick={() => (isHeart ? handleHeartReaction() : onReact(post.id, type))}
+              aria-label={`${label}${count > 0 ? ` (${count})` : ''}`}
+              aria-pressed={active}
+              className={`relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl text-xs transition-colors ${
+                active
+                  ? isHeart
+                    ? 'text-cereja'
+                    : 'text-champagne'
+                  : 'text-marfim-2 hover:text-marfim'
+              }`}
+            >
+              <span className="flex items-center gap-1">
                 <span className="relative flex items-center justify-center">
                   <Icon
                     size={20}
@@ -387,19 +387,23 @@ export default function PostCard({
                   )}
                 </span>
                 {count > 0 && <span className="numeral text-xs font-medium">{count}</span>}
-              </button>
-            );
-          })}
-        </div>
+              </span>
+              <span className="whitespace-nowrap text-xs leading-none">{label}</span>
+            </button>
+          );
+        })}
 
         <button
           type="button"
           onClick={() => commentInputRef.current?.focus()}
           aria-label="Comentar"
-          className="flex min-h-[44px] items-center gap-1.5 px-2.5 text-xs text-marfim-2 hover:text-marfim"
+          className="flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl text-xs text-marfim-2 hover:text-marfim"
         >
-          <MessageCircle size={18} strokeWidth={1.5} />
-          {totalComments > 0 && <span className="numeral">{totalComments}</span>}
+          <span className="flex items-center gap-1">
+            <MessageCircle size={18} strokeWidth={1.5} />
+            {totalComments > 0 && <span className="numeral">{totalComments}</span>}
+          </span>
+          <span className="whitespace-nowrap text-xs leading-none">Comentar</span>
         </button>
       </div>
 
@@ -410,7 +414,7 @@ export default function PostCard({
             type="button"
             onClick={() => void toggleComments()}
             disabled={loadingComments}
-            className="mb-2 text-xs font-medium text-marfim-3 hover:text-marfim-2"
+            className="mb-1 flex min-h-12 w-full items-center text-left text-xs font-medium text-marfim-2 hover:text-marfim"
           >
             {loadingComments ? 'Carregando comentários...' : showAllComments
               ? 'Mostrar menos comentários'
@@ -423,58 +427,68 @@ export default function PostCard({
             {visibleComments.map((c) => {
               const canDeleteComment = c.user_id === meId || isAdmin;
               return (
-                <div key={c.id} className="flex items-start gap-2.5">
-                  <Link href={`/familia/${c.user_id}`} className="mt-0.5 shrink-0">
-                    <Avatar name={c.user_name} src={c.avatar_url} size={28} />
-                  </Link>
+                <div key={c.id} className="flex items-start gap-1">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm leading-snug text-marfim">
+                    <div className="flex items-start gap-1">
                       <Link
                         href={`/familia/${c.user_id}`}
-                        className="font-semibold hover:underline"
+                        className="flex min-h-12 min-w-0 flex-1 items-center gap-2"
                       >
-                        {c.user_name}
-                      </Link>{' '}
-                      <span className="text-marfim-2">{c.content}</span>
-                    </p>
-                    <div className="mt-0.5 flex items-center gap-3 text-[0.7rem] text-marfim-3">
-                      <span>{timeAgo(c.created_at)}</span>
-                      {c.user_id !== meId && c.id > 0 && <details className="relative"><summary aria-label="Opções do comentário" className="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center"><MoreHorizontal size={18} strokeWidth={1.5} /></summary><div className="surface absolute right-0 z-20 min-w-48 py-1"><ModerationActions userId={c.user_id} name={c.user_name} commentId={c.id} /></div></details>}
-                      {canDeleteComment && (
-                        <button
-                          type="button"
-                          onClick={() => { if (window.confirm('Excluir este comentário?')) onDeleteComment(post.id, c.id); }}
-                          className="text-marfim-3 hover:text-[#ff8a8d]"
-                        >
-                          Excluir
-                        </button>
-                      )}
-                    </div>
+                        <Avatar name={c.user_name} src={c.avatar_url} size={28} />
+                        <span className="truncate text-sm font-semibold text-marfim">{c.user_name}</span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => toggleCommentLike(c.id, c.liked_by_me)}
+                        disabled={c.id < 0}
+                        aria-pressed={c.liked_by_me}
+                        aria-label="Curtir comentário"
+                        className={`flex h-12 min-w-12 shrink-0 items-center justify-center gap-0.5 px-1 text-xs ${
+                          c.liked_by_me ? 'text-cereja' : 'text-marfim-2 hover:text-marfim'
+                        }`}
+                      >
+                      <span className="relative inline-flex items-center justify-center">
+                        <Heart size={18} strokeWidth={1.5}
+                          className={c.liked_by_me ? 'fill-cereja text-cereja' : ''} />
+                        {commentBursts.has(c.id) && (
+                          <span className="pointer-events-none absolute flex items-center justify-center" aria-hidden>
+                            <LoopMedia name="mn-curtida-comentario" once
+                              className="h-8 w-8 mix-blend-screen"
+                              fallback={<Heart size={18} strokeWidth={1.5} className="pop fill-cereja text-cereja" />} />
+                          </span>
+                        )}
+                      </span>
+                      {c.likes > 0 && <span className="numeral">{c.likes}</span>}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleCommentLike(c.id, c.liked_by_me)}
-                    disabled={c.id < 0}
-                    aria-pressed={c.liked_by_me}
-                    aria-label="Curtir comentário"
-                    className={`flex h-9 min-w-[36px] shrink-0 items-center justify-end gap-1 text-xs ${
-                      c.liked_by_me ? 'text-cereja' : 'text-marfim-3 hover:text-marfim-2'
-                    }`}
-                  >
-                    <span className="relative inline-flex items-center justify-center">
-                      <Heart size={14} strokeWidth={1.5}
-                        className={c.liked_by_me ? 'fill-cereja text-cereja' : ''} />
-                      {commentBursts.has(c.id) && (
-                        <span className="pointer-events-none absolute flex items-center justify-center" aria-hidden>
-                          <LoopMedia name="mn-curtida-comentario" once
-                            className="h-8 w-8 mix-blend-screen"
-                            fallback={<Heart size={14} strokeWidth={1.5} className="pop fill-cereja text-cereja" />} />
-                        </span>
-                      )}
-                    </span>
-                    {c.likes > 0 && <span className="numeral">{c.likes}</span>}
-                  </button>
+                  <p className="text-sm leading-snug text-marfim-2">{c.content}</p>
+                  <div className="flex flex-wrap items-center text-xs text-marfim-2">
+                    <span className="pr-1">{timeAgo(c.created_at)}</span>
+                    {c.user_id !== meId && c.id > 0 && (
+                      <details className="relative">
+                        <summary
+                          aria-label="Opções do comentário"
+                          className="flex h-12 w-12 cursor-pointer list-none items-center justify-center"
+                        >
+                          <MoreHorizontal size={18} strokeWidth={1.5} />
+                        </summary>
+                        <div className="surface absolute left-0 z-20 min-w-48 py-1">
+                          <ModerationActions userId={c.user_id} name={c.user_name} commentId={c.id} />
+                        </div>
+                      </details>
+                    )}
+                    {canDeleteComment && (
+                      <button
+                        type="button"
+                        onClick={() => { if (window.confirm('Excluir este comentário?')) onDeleteComment(post.id, c.id); }}
+                        className="inline-flex min-h-12 items-center px-2 text-xs text-marfim-2 hover:text-[#ff8a8d]"
+                      >
+                        Excluir
+                      </button>
+                    )}
+                  </div>
                 </div>
+              </div>
               );
             })}
           </div>
@@ -489,15 +503,15 @@ export default function PostCard({
             placeholder="Escreva um comentário..."
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
-            className="h-11 flex-1 rounded-full border border-linha bg-carvao-2 px-4 text-sm text-marfim placeholder:text-marfim-3 focus:border-champagne focus:outline-none"
+            className="h-12 min-h-12 flex-1 rounded-full border border-linha bg-carvao-2 px-4 text-sm text-marfim placeholder:text-marfim-3 focus:border-champagne focus:outline-none"
           />
           <button
             type="submit"
             disabled={!commentText.trim() || sendingComment}
             aria-label="Enviar comentário"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-linha bg-carvao-2 text-champagne transition-opacity disabled:opacity-40"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-linha bg-carvao-2 text-champagne transition-opacity disabled:opacity-40"
           >
-            <Send size={16} strokeWidth={1.5} />
+            <Send size={18} strokeWidth={1.5} />
           </button>
         </form>
       </div>

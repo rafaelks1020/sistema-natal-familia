@@ -27,7 +27,7 @@ export default function ExcluirContaPage() {
 
   return (
     <>
-      <PageHeader kicker="Sua conta" title="Excluir conta" back="/familia" />
+      <PageHeader kicker="Sua conta" title="Excluir conta" back="/conta" />
       <section className="rise space-y-5 px-5">
         <div className="surface space-y-3 p-5 text-sm leading-relaxed text-marfim-2">
           <p>Ao excluir, apagamos para sempre:</p>

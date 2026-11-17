@@ -50,7 +50,7 @@ export function PresencaCeia({ presenca, onPresenca }: { presenca: CeiaPresenca;
       await api('/api/attendance', { method: 'POST', json: corpo });
       const novo = await api<{ presenca: CeiaPresenca }>('/api/ceia');
       onPresenca(novo.presenca);
-      toast(proximo === 'yes' ? 'Seu lugar à mesa está confirmado!' : proximo === 'maybe' ? 'Guardamos o seu talvez.' : 'Avisamos que você não vai.');
+      toast(proximo === 'yes' ? 'Seu lugar à mesa está confirmado! Confirmar presença vale 30 pontos.' : proximo === 'maybe' ? 'Guardamos o seu talvez.' : 'Avisamos que você não vai.');
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Não foi possível salvar.', 'erro');
     } finally {

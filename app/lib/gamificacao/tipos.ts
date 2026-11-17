@@ -52,6 +52,17 @@ export interface RegraVista {
   teto: string | null; // "1 por dia"
 }
 
+/** Uma coisa simples que a pessoa pode fazer para ganhar pontos, com quanto vale e quanto ainda cabe no limite. */
+export interface SugestaoPontos {
+  regra: string;
+  titulo: string;   // "Mandar um recado ou uma foto no mural"
+  pontos: number;   // quanto vale cada vez
+  href: string;     // tela onde se faz (mesmo caminho no site e no app)
+  feitos: number;   // quantas vezes já contou no período
+  limite: number;   // quantas vezes contam no período
+  periodo: 'dia' | 'edicao';
+}
+
 export interface PainelPontos {
   ano: number;
   agora: string;
@@ -69,6 +80,7 @@ export interface PainelPontos {
   conquistas_ganhas: number;
   conquistas_total: number;
   regras: RegraVista[];
+  sugestoes: SugestaoPontos[];     // o que ainda dá para fazer hoje, do mais fácil ao mais trabalhoso
   atualizado_em: string;           // último recálculo
 }
 

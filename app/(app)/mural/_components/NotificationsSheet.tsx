@@ -16,8 +16,8 @@ export function NotificationBellButton({ unread, onClick }: BellButtonProps) {
     <button
       type="button"
       onClick={onClick}
-      aria-label={unread > 0 ? `Notificações (${unread} novas)` : 'Notificações'}
-      className="relative flex h-11 w-11 items-center justify-center rounded-full border border-linha bg-carvao-2 text-marfim transition-colors hover:border-champagne/60"
+      aria-label={unread > 0 ? `Avisos (${unread} novas)` : 'Avisos'}
+      className="relative flex h-12 w-12 items-center justify-center rounded-full border border-linha bg-carvao-2 text-marfim transition-colors hover:border-champagne/60"
     >
       <LoopMedia
         name="mn-sino"
@@ -111,14 +111,14 @@ export default function NotificationsSheet({
         <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-linha-forte" />
         <div className="flex items-center justify-between border-b border-linha px-5 py-4">
           <div>
-            <p className="kicker">Mural</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-champagne">Mural</p>
             <h2 className="display mt-0.5 text-2xl text-marfim">Notificações</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Fechar notificações"
-            className="flex h-11 w-11 items-center justify-center rounded-full text-marfim-2 hover:text-marfim"
+            className="flex h-12 w-12 items-center justify-center rounded-full text-marfim-2 hover:text-marfim"
           >
             <X size={20} strokeWidth={1.5} />
           </button>
@@ -129,7 +129,7 @@ export default function NotificationsSheet({
             <div className="py-12 text-center">
               <Bell size={28} strokeWidth={1.3} className="mx-auto mb-3 text-champagne/70" />
               <p className="text-sm text-marfim-2">Tudo tranquilo por aqui.</p>
-              <p className="mt-1 text-xs text-marfim-3">
+              <p className="mt-1 text-xs text-marfim-2">
                 Quando alguém comentar ou reagir aos seus posts, aparece aqui.
               </p>
             </div>
@@ -148,7 +148,7 @@ export default function NotificationsSheet({
                   }
                   onClose();
                 }}
-                className="flex w-full items-start gap-3.5 py-3.5 text-left transition-colors hover:bg-carvao-3/40"
+                className="flex min-h-12 w-full items-start gap-3.5 py-3.5 text-left transition-colors hover:bg-carvao-3/40"
               >
                 <div className="relative shrink-0">
                   <Avatar name={item.actor_name} src={item.actor_avatar} size={40} />
@@ -167,7 +167,7 @@ export default function NotificationsSheet({
                       </>
                     )}
                   </p>
-                  <p className="mt-1 text-xs text-marfim-3">
+                  <p className="mt-1 text-xs text-marfim-2">
                     {timeAgo(item.created_at)}
                     {item.type === 'conquista' ? ' · Ver conquistas' : ''}
                   </p>

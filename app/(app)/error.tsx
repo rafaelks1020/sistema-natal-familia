@@ -10,7 +10,7 @@ export default function ErroDaTela({ reset }: { error: Error & { digest?: string
       <p className="mt-3 max-w-xs text-sm text-marfim-2">
         Não conseguimos abrir esta tela agora. Confira a internet e tente de novo.
       </p>
-      <button type="button" onClick={() => reset()} className="btn btn-primary mt-7 min-h-11">
+      <button type="button" onClick={() => reset()} className="btn btn-primary mt-7 min-h-12">
         <RotateCcw size={18} strokeWidth={1.5} />
         Tentar de novo
       </button>

@@ -9,6 +9,7 @@ import type {
   NivelConquista,
   Origem,
   RegraVista,
+  SugestaoPontos,
 } from './tipos';
 
 export const FUSO_SP = 'America/Sao_Paulo';
@@ -186,6 +187,64 @@ const TETOS_POR_REGRA: Readonly<Record<string, TetoRegra>> = {
   desejo: { total: 5 },
   arvore: { total: 20 },
 };
+
+/**
+ * O guia "como ganhar pontos": só o que a pessoa faz sozinha, em qualquer dia, em ordem do mais fácil para o mais
+ * trabalhoso. Os valores e os limites vêm das mesmas tabelas que o motor usa (REGRAS_VISTAS e TETOS_POR_REGRA).
+ */
+const GUIA_DE_PONTOS: readonly { regra: string; titulo: string; href: string }[] = [
+  { regra: 'presenca', titulo: 'Dizer que vai à ceia', href: '/ceia' },
+  { regra: 'advento', titulo: 'Abrir a janelinha de hoje do Advento', href: '/advento' },
+  { regra: 'post', titulo: 'Mandar um recado ou uma foto no mural', href: '/mural' },
+  { regra: 'foto_album', titulo: 'Guardar uma foto no álbum da família', href: '/album' },
+  { regra: 'comentario', titulo: 'Comentar o recado de um parente', href: '/mural' },
+  { regra: 'reacao', titulo: 'Curtir o recado de um parente', href: '/mural' },
+  { regra: 'receita', titulo: 'Contar uma receita da família', href: '/receitas' },
+  { regra: 'historia', titulo: 'Gravar uma história da família', href: '/historias' },
+  { regra: 'capsula', titulo: 'Escrever uma mensagem para o próximo Natal', href: '/capsula' },
+  { regra: 'homenagem', titulo: 'Fazer uma homenagem a quem partiu', href: '/homenagem' },
+  { regra: 'desejo', titulo: 'Pôr um presente na sua lista de desejos', href: '/amigo-oculto' },
+  { regra: 'arvore', titulo: 'Pôr um parente na árvore da família', href: '/arvore' },
+];
+
+/**
+ * Monta a lista do que ainda vale pontos para a pessoa, a partir do extrato dela. Depois do encerramento a lista vem
+ * vazia. A janelinha do Advento só entra de 1 a 24 de dezembro e vale uma vez por dia.
+ */
+export function sugestoesDePontos(
+  lancamentos: readonly { regra: string; ref?: string; ocorreu_em: string }[],
+  agora: Date,
+  janela: { ano: number; encerra_em: string },
+): SugestaoPontos[] {
+  const encerraMs = Date.parse(janela.encerra_em);
+  if (Number.isFinite(encerraMs) && agora.getTime() > encerraMs) return [];
+  if (agora.getTime() < Date.parse(inicioEdicaoISO(janela.ano))) return [];
+
+  const hoje = diaSPDeISO(agora);
+  const [anoHoje, mesHoje, diaHoje] = hoje.split('-').map(Number);
+  const adventoAberto = anoHoje === janela.ano && mesHoje === 12 && diaHoje >= 1 && diaHoje <= 24;
+
+  const lista: SugestaoPontos[] = [];
+  for (const item of GUIA_DE_PONTOS) {
+    const pontos = Number(REGRAS_VISTAS.find((r) => r.regra === item.regra)?.pontos);
+    if (!Number.isFinite(pontos) || pontos <= 0) continue;
+    const meus = lancamentos.filter((l) => l.regra === item.regra);
+    if (item.regra === 'advento') {
+      if (!adventoAberto) continue;
+      const feitos = meus.some((l) => l.ref === `advento:${diaHoje}`) ? 1 : 0;
+      lista.push({ ...item, pontos, feitos, limite: 1, periodo: 'dia' });
+      continue;
+    }
+    const teto = TETOS_POR_REGRA[item.regra];
+    if (teto?.porDia) {
+      const feitos = meus.filter((l) => diaSPDeISO(l.ocorreu_em) === hoje).length;
+      lista.push({ ...item, pontos, feitos: Math.min(feitos, teto.porDia), limite: teto.porDia, periodo: 'dia' });
+    } else if (teto?.total) {
+      lista.push({ ...item, pontos, feitos: Math.min(meus.length, teto.total), limite: teto.total, periodo: 'edicao' });
+    }
+  }
+  return lista;
+}
 
 function foiAnulado(
   anulados: ReadonlyMap<number, ReadonlySet<string>> | undefined,

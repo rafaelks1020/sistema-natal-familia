@@ -37,6 +37,7 @@ import {
   montarRanking,
   rankingEstaOculto,
   REGRAS_VISTAS,
+  sugestoesDePontos,
   somarPorOrigem,
 } from './regras';
 import type {
@@ -253,6 +254,7 @@ export async function montarPainelPontos(
     conquistas_ganhas: conquistasGanhas,
     conquistas_total: CATALOGO_CONQUISTAS.length,
     regras: REGRAS_VISTAS,
+    sugestoes: sugestoesDePontos(meusLancamentosComRef, agora, { ano, encerra_em: base.cfg.encerra_em }),
     atualizado_em: base.cfg.recalculado_em ?? agora.toISOString(),
   };
 }

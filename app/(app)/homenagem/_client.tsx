@@ -17,7 +17,7 @@ export default function HomenagemClient({ initial }: { initial: HomenagemDados }
   const lock = useRef(false);
   const toast = useToast();
 
-  async function protegido(trabalho: () => Promise<void>) {
+  async function protegido(trabalho: () => Promise<void>, bonus = '') {
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
@@ -25,7 +25,7 @@ export default function HomenagemClient({ initial }: { initial: HomenagemDados }
       await trabalho();
       try {
         setData(await api<HomenagemDados>('/api/homenagem'));
-        toast('Pronto, atualizado.');
+        toast(`Pronto, atualizado.${bonus}`);
       } catch {
         toast('Salvo. Recarregue a página para atualizar.', 'erro');
       }
@@ -42,19 +42,19 @@ export default function HomenagemClient({ initial }: { initial: HomenagemDados }
     <div className="space-y-7 px-5 pb-12">
       <p className="text-sm leading-relaxed text-marfim-2">Um lugar quieto para lembrar de quem a gente ama.</p>
       <details className="surface p-5">
-        <summary className="min-h-11 cursor-pointer py-3 text-champagne">Criar uma homenagem</summary>
-        <FormMemorial pessoas={data.pessoas} busy={busy} onSubmit={(form) => protegido(async () => { await api('/api/homenagem', { method: 'POST', json: await jsonMemorial(form) }); form.reset(); })} />
+        <summary className="min-h-12 cursor-pointer py-3 text-champagne">Criar uma homenagem</summary>
+        <FormMemorial pessoas={data.pessoas} busy={busy} onSubmit={(form) => protegido(async () => { await api('/api/homenagem', { method: 'POST', json: await jsonMemorial(form) }); form.reset(); }, ' Cada homenagem vale 15 pontos (até 3).')} />
       </details>
       {!data.memoriais.length ? <p className="py-6 text-sm text-marfim-3">Ainda não há homenagens. Quando a família quiser lembrar de alguém, o espaço está aqui.</p> : null}
       {data.memoriais.map((item) => <article key={item.id} className="surface min-w-0 space-y-4 break-words p-5">
         <MemorialCorpo item={item} />
         <p className="text-sm text-champagne">{item.velas === 1 ? '1 vela acesa' : `${item.velas} velas acesas`}</p>
-        <button type="button" className="btn btn-ghost min-h-11 w-full" disabled={busy || item.acendi} onClick={() => { void protegido(() => api(`/api/homenagem/${item.id}/vela`, { method: 'POST' })); }}>
+        <button type="button" className="btn btn-ghost min-h-12 w-full" disabled={busy || item.acendi} onClick={() => { void protegido(() => api(`/api/homenagem/${item.id}/vela`, { method: 'POST' })); }}>
           <Flame size={16} strokeWidth={1.5} /> {item.acendi ? 'Você acendeu uma vela nesta edição' : 'Acender uma vela'}
         </button>
         {item.pode_editar && editando === item.id ? <FormMemorial pessoas={data.pessoas} busy={busy} memorial={item} cancelar={() => setEditando(null)} onSubmit={(form) => protegido(async () => { await api(`/api/homenagem/${item.id}`, { method: 'PATCH', json: await jsonMemorial(form) }); setEditando(null); })} /> : null}
-        {item.pode_editar && editando !== item.id ? <button type="button" className="btn btn-ghost min-h-11 w-full" disabled={busy} onClick={() => setEditando(item.id)}>Editar homenagem</button> : null}
-        {item.pode_editar ? <button type="button" className="btn btn-quiet min-h-11 w-full" disabled={busy} onClick={() => { if (window.confirm('Apagar esta homenagem e as lembranças?')) void protegido(() => api(`/api/homenagem/${item.id}`, { method: 'DELETE' })); }}>Apagar homenagem</button> : null}
+        {item.pode_editar && editando !== item.id ? <button type="button" className="btn btn-ghost min-h-12 w-full" disabled={busy} onClick={() => setEditando(item.id)}>Editar homenagem</button> : null}
+        {item.pode_editar ? <button type="button" className="btn btn-quiet min-h-12! w-full" disabled={busy} onClick={() => { if (window.confirm('Apagar esta homenagem e as lembranças?')) void protegido(() => api(`/api/homenagem/${item.id}`, { method: 'DELETE' })); }}>Apagar homenagem</button> : null}
         <div className="rule" />
         <p className="kicker">Lembranças</p>
         {!item.lembrancas.length ? <p className="text-sm text-marfim-3">As lembranças da família aparecem aqui.</p> : null}
@@ -65,7 +65,7 @@ export default function HomenagemClient({ initial }: { initial: HomenagemDados }
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={thumb(lembranca.image_url, 828)} alt="Foto da lembrança" className="max-h-72 w-full rounded-[14px] object-cover" />
           </> : null}
-          {lembranca.pode_apagar ? <button type="button" className="btn btn-quiet min-h-11" disabled={busy} onClick={() => { if (window.confirm('Apagar esta lembrança?')) void protegido(() => api(`/api/homenagem/${item.id}/lembrancas/${lembranca.id}`, { method: 'DELETE' })); }}>Apagar lembrança</button> : null}
+          {lembranca.pode_apagar ? <button type="button" className="btn btn-quiet min-h-12!" disabled={busy} onClick={() => { if (window.confirm('Apagar esta lembrança?')) void protegido(() => api(`/api/homenagem/${item.id}/lembrancas/${lembranca.id}`, { method: 'DELETE' })); }}>Apagar lembrança</button> : null}
           {lembranca.user_id !== data.eu.id ? <ModerationActions userId={lembranca.user_id} name={lembranca.name} alvoTipo="homenagem" alvoId={lembranca.id} /> : null}
         </div>)}
         <FormLembranca busy={busy} onSubmit={(form) => protegido(async () => { await api(`/api/homenagem/${item.id}/lembrancas`, { method: 'POST', json: await jsonLembranca(form) }); form.reset(); })} />
@@ -125,9 +125,9 @@ function FormMemorial({ pessoas, busy, memorial, onSubmit, cancelar }: {
       </select>
     </label>
     <label className="block text-sm text-marfim-2">Foto (opcional)<input className="field mt-2" type="file" accept="image/*" /></label>
-    {memorial?.foto_url ? <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" name="tirar" value="sim" /> Tirar a foto</label> : null}
-    <button className="btn btn-primary min-h-11 w-full" disabled={busy} type="submit">{memorial ? 'Salvar' : 'Criar homenagem'}</button>
-    {cancelar ? <button className="btn btn-quiet min-h-11 w-full" type="button" onClick={cancelar}>Cancelar</button> : null}
+    {memorial?.foto_url ? <label className="flex min-h-12 items-center gap-3 text-sm"><input type="checkbox" className="h-6 w-6 shrink-0 accent-cereja" name="tirar" value="sim" /> Tirar a foto</label> : null}
+    <button className="btn btn-primary min-h-12 w-full" disabled={busy} type="submit">{memorial ? 'Salvar' : 'Criar homenagem'}</button>
+    {cancelar ? <button className="btn btn-quiet min-h-12! w-full" type="button" onClick={cancelar}>Cancelar</button> : null}
   </form>;
 }
 
@@ -137,6 +137,6 @@ function FormLembranca({ busy, onSubmit }: { busy: boolean; onSubmit: (form: HTM
       <textarea className="field mt-2 min-h-24 resize-none" name="texto" required maxLength={2000} />
     </label>
     <label className="block text-sm text-marfim-2">Foto (opcional)<input className="field mt-2" type="file" accept="image/*" /></label>
-    <button className="btn btn-primary min-h-11 w-full" disabled={busy} type="submit">Publicar lembrança</button>
+    <button className="btn btn-primary min-h-12 w-full" disabled={busy} type="submit">Publicar lembrança</button>
   </form>;
 }

@@ -233,7 +233,7 @@ function PixAberto({ p, onConferir, onTrocar }: { p: Payment; onConferir: () => 
         </span>
         <p className="flex-1 text-sm text-marfim-2">Aguardando o pagamento. Esta tela confirma sozinha.</p>
         <button
-          className="btn-quiet btn text-sm"
+          className="btn-quiet min-h-12! btn text-sm"
           disabled={conferindo}
           onClick={async () => { setConferindo(true); await onConferir(); setConferindo(false); }}
         >

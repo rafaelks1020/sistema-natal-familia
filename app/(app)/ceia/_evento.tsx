@@ -82,7 +82,7 @@ export function EventoCeia({ evento, onEvento }: { evento: CeiaEvento; onEvento:
     <section aria-labelledby="ceia-quando">
       <p className="kicker mb-2">01 / Quando e onde</p>
       <h2 id="ceia-quando" className="display text-3xl">A nossa noite</h2>
-      <p className="mt-4 text-lg capitalize text-marfim">{quando.data}</p>
+      <p className="mt-4 text-lg text-marfim first-letter:uppercase">{quando.data}</p>
       {quando.hora ? <p className="mt-1 text-marfim-2">{quando.hora}, horário de Brasília</p> : null}
       <p className="mt-3 flex items-start gap-2 text-sm text-marfim-2">
         <MapPin className="mt-0.5 shrink-0 text-champagne" size={16} strokeWidth={1.5} aria-hidden />

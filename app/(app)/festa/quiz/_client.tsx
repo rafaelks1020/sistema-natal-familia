@@ -213,13 +213,13 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
 
       {/* Atalhos entre os 3 jogos da ceia */}
       <nav aria-label="Jogos da ceia" className="mb-5 flex gap-2 overflow-x-auto px-5 no-scrollbar">
-        <Link href="/festa/quiz" className="btn btn-primary min-h-11 shrink-0 px-4 text-xs">
+        <Link href="/festa/quiz" className="btn btn-primary min-h-12 shrink-0 px-4 text-xs">
           Quiz da Família
         </Link>
-        <Link href="/festa/bingo" className="btn btn-ghost min-h-11 shrink-0 px-4 text-xs">
+        <Link href="/festa/bingo" className="btn btn-ghost min-h-12 shrink-0 px-4 text-xs">
           Bingo da Ceia
         </Link>
-        <Link href="/festa/enquete" className="btn btn-ghost min-h-11 shrink-0 px-4 text-xs">
+        <Link href="/festa/enquete" className="btn btn-ghost min-h-12 shrink-0 px-4 text-xs">
           Enquete ao Vivo
         </Link>
       </nav>
@@ -316,7 +316,7 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
             {/* Status da resposta do participante */}
             {data.state.status === 'aberta' && qAtual.minha_resposta && (
               <p className="rounded-xl bg-carvao-3 px-4 py-3 text-center text-xs text-marfim-2">
-                Resposta registrada! A alternativa certa e os pontos aparecem assim que a pergunta encerrar.
+                Resposta registrada! A alternativa certa e a sua pontuação do quiz aparecem assim que a pergunta encerrar.
               </p>
             )}
 
@@ -326,7 +326,7 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
                   <p className="text-sm font-medium text-marfim">
                     {qAtual.minha_resposta.acertou ? (
                       <span className="text-champagne">
-                        Você acertou e somou +{qAtual.minha_resposta.pontos ?? 0} pontos!
+                        Você acertou e somou +{qAtual.minha_resposta.pontos ?? 0} no placar do quiz!
                       </span>
                     ) : (
                       <span className="text-marfim-2">
@@ -356,7 +356,7 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
                               r.acertou ? 'font-semibold text-champagne' : 'text-marfim-3'
                             }
                           >
-                            {r.acertou ? `+${r.pontos} pts` : 'Errou'}
+                            {r.acertou ? `+${r.pontos} no placar do quiz` : 'Errou'}
                           </span>
                         </li>
                       ))}
@@ -463,7 +463,7 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
                         {p.name}
                       </p>
                       <p className="numeral mt-1 text-lg text-champagne">{p.pontos}</p>
-                      <p className="text-[11px] text-marfim-3">{p.acertos} acerto(s)</p>
+                      <p className="text-xs text-marfim-3">{p.acertos} acerto(s)</p>
                     </div>
                   );
                 })}
@@ -488,7 +488,7 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
                       void executarAcao({ acao: 'reiniciar_quiz' }, 'Quiz reiniciado!');
                     }
                   }}
-                  className="btn btn-quiet text-xs"
+                  className="btn btn-quiet min-h-12! text-xs"
                 >
                   <RotateCcw size={15} /> Reiniciar placar
                 </button>
@@ -509,7 +509,7 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
             </div>
             <p className="text-sm text-marfim-2">
               Quando quem organiza abrir a pergunta, ela aparece aqui automaticamente. Você terá{' '}
-              <strong className="text-marfim">20 segundos</strong> para responder e ganhar pontos por acerto e rapidez!
+              <strong className="text-marfim">20 segundos</strong> para responder e subir no placar do quiz por acerto e rapidez. Cada acerto também vale 5 pontos do Natal.
             </p>
             <div className="flex items-center justify-between rounded-2xl bg-carvao-3 px-4 py-3 text-xs text-marfim-2">
               <span>Perguntas prontas para hoje</span>
@@ -576,7 +576,7 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
                   </div>
                   <div className="text-right">
                     <p className="numeral text-lg text-champagne">{item.pontos}</p>
-                    <p className="text-[11px] text-marfim-3">pontos</p>
+                    <p className="text-xs text-marfim-3">pontos</p>
                   </div>
                 </li>
               ))}
@@ -619,7 +619,7 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
                           key={m}
                           type="button"
                           onClick={() => escolherModelo(val)}
-                          className={`btn min-h-10 px-3 text-xs ${
+                          className={`btn min-h-12 px-3 text-xs ${
                             ativo ? 'btn-primary' : 'btn-ghost'
                           }`}
                         >
@@ -655,7 +655,7 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
                       <button
                         type="button"
                         onClick={() => setImageUrl(null)}
-                        className="btn btn-quiet absolute right-2 top-2 rounded-full bg-carvao/80 p-2"
+                        className="btn btn-quiet min-h-12! absolute right-2 top-2 rounded-full bg-carvao/80 p-2"
                         aria-label="Remover foto"
                       >
                         <X size={16} />
@@ -698,7 +698,7 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
                         type="button"
                         onClick={() => setCorreta(idx)}
                         aria-label={`Marcar alternativa ${LETRAS[idx]} como correta`}
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-xs font-bold transition ${
+                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border text-xs font-bold transition ${
                           correta === idx
                             ? 'border-champagne bg-cereja text-marfim'
                             : 'border-linha bg-carvao-3 text-marfim-3'
@@ -723,7 +723,7 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
                             setOpcoes((xs) => xs.filter((_, i) => i !== idx));
                             if (correta >= idx && correta > 0) setCorreta((c) => c - 1);
                           }}
-                          className="btn btn-quiet px-2"
+                          className="btn btn-quiet min-h-12! px-2"
                           aria-label="Remover alternativa"
                         >
                           <X size={16} />
@@ -775,14 +775,14 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
                               `Pergunta #${idx + 1} aberta ao vivo!`,
                             )
                           }
-                          className="btn btn-ghost min-h-10 px-3 text-xs"
+                          className="btn btn-ghost min-h-12 px-3 text-xs"
                         >
                           <Play size={14} /> Abrir
                         </button>
                         <button
                           type="button"
                           onClick={() => iniciarEdicao(q)}
-                          className="btn btn-quiet min-h-10 px-2.5 text-xs"
+                          className="btn btn-quiet min-h-12! px-2.5 text-xs"
                         >
                           Editar
                         </button>
@@ -796,7 +796,7 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
                               );
                             }
                           }}
-                          className="btn btn-quiet min-h-10 px-2 text-marfim-3"
+                          className="btn btn-quiet min-h-12! px-2 text-marfim-3"
                           aria-label="Excluir pergunta"
                         >
                           <Trash2 size={15} />
@@ -821,7 +821,7 @@ export default function QuizClient({ initial }: { initial: QuizData }) {
                     void executarAcao({ acao: 'reiniciar_quiz' }, 'Rodada reiniciada!');
                   }
                 }}
-                className="btn btn-quiet w-full text-xs"
+                className="btn btn-quiet min-h-12! w-full text-xs"
               >
                 <RotateCcw size={15} /> Reiniciar todas as perguntas e placar
               </button>
