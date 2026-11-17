@@ -13,8 +13,14 @@ workflows:
       - name: Assinatura
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "br.com.natalemfamilia.app" --type IOS_APP_STORE --create
-          app-store-connect fetch-signing-files "br.com.natalemfamilia.app.widget" --type IOS_APP_STORE --create
+          # A API da Apple às vezes responde 500 por alguns minutos: insiste antes de desistir.
+          for PACOTE in br.com.natalemfamilia.app br.com.natalemfamilia.app.widget; do
+            for TENTATIVA in 1 2 3 4 5 6 7 8 9 10; do
+              app-store-connect fetch-signing-files "$PACOTE" --type IOS_APP_STORE --create && break
+              echo "A Apple respondeu com erro para $PACOTE (tentativa $TENTATIVA). Esperando 45 s."
+              sleep 45
+            done
+          done
           keychain add-certificates
       - name: Dependências
         script: |
