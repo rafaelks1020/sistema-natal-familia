@@ -12,6 +12,9 @@ appId: br.com.natalemfamilia.app
 - tapOn:
     id: "campo-usuario"
 - inputText: ${USUARIO}
+# Enter no usuário só fecha o teclado, que cobria o campo da senha.
+- pressKey: Enter
+- waitForAnimationToEnd
 - tapOn:
     id: "campo-senha"
 - inputText: ${SENHA}

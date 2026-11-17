@@ -79,9 +79,17 @@ workflows:
           curl -fsSL "https://get.maestro.mobile.dev" | bash
           export PATH="$PATH:$HOME/.maestro/bin"
           mkdir -p "$CM_BUILD_DIR/app-nativo/teste/saida" && cd "$CM_BUILD_DIR/app-nativo/teste/saida"
-          maestro --device "$SIM" test -e USUARIO="$TESTE_USUARIO" -e SENHA="$TESTE_SENHA" ../fumaca.yaml > roteiro.log 2>&1 && echo "ROTEIRO OK" || echo "ROTEIRO FALHOU"
-          grep -v -i "senha\|input text" roteiro.log | tail -60
-          xcrun simctl io "$SIM" screenshot final.png || true
+          maestro --device "$SIM" test --test-output-dir "$PWD" -e USUARIO="$TESTE_USUARIO" -e SENHA="$TESTE_SENHA" ../fumaca.yaml > roteiro.log 2>&1 && echo "ROTEIRO OK" > resultado.txt || echo "ROTEIRO FALHOU" > resultado.txt
+          cat resultado.txt
+          # As fotos do roteiro podem cair na pasta do roteiro ou na pasta de testes do Maestro: junta tudo aqui.
+          find "$HOME/.maestro/tests" "$CM_BUILD_DIR/app-nativo/teste" -name "*.png" -not -path "*/saida/*" -exec cp {} . \; 2>/dev/null || true
+          find . -mindepth 2 -name "*.png" -exec cp {} . \; 2>/dev/null || true
+          # A senha da conta de revisão não vai para o registro.
+          sed "s/$TESTE_SENHA/(senha)/g" roteiro.log | tail -80 >> resultado.txt
+          rm -f roteiro.log
+          tail -40 resultado.txt
+          xcrun simctl io "$SIM" screenshot zz-final.png || true
     artifacts:
       - app-nativo/teste/saida/*.png
+      - app-nativo/teste/saida/resultado.txt
 

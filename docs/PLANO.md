@@ -202,3 +202,21 @@ Lista completa, com o que foi corrigido e o que ficou aberto: `docs/REVISAO-2026
 - [x] Limite de conexões do site no banco: de 10 para 30 (16/11)
 - [x] Disco do servidor do banco: 3 imagens Docker sem uso apagadas, de 92% para 86% (16/11)
 
+## I. Fácil para o idoso e pontos claros (17/11/2026)
+Pedido do Rafael: revisar UX, UI, usabilidade e navegação, deixar a gamificação MUITO clara e ter um app que até os avós usem sem ajuda. Medição antes e depois em `docs/REVISAO-2026-11-12.md` (seção de 17/11, tarde).
+- [x] Medição das 38 telas do site em celular (390x844), em letra normal e maior: `scripts/medir-telas.cjs` (letras pequenas, alvos de toque, conteúdo cortado, botão Voltar)
+- [x] Pontos do Natal claros: o servidor diz o que ainda vale pontos hoje para cada pessoa (`sugestoes` em `/api/pontos`); cartão do início e tela Meus pontos respondem "quanto eu tenho, para que serve, como ganho mais"
+- [x] Conquistas: de 24 telas de altura para 3 (Falta pouco, Já conquistadas, botão para ver todas)
+- [x] Tamanho da letra em três níveis (Normal, Grande, Muito grande), perguntado no primeiro acesso e no topo da aba Eu
+- [x] Nenhuma letra abaixo de 12 px e nenhum botão abaixo de 44 px no site; Voltar com 48 px; reações do mural com nome; avisos dizem quantos pontos a ação vale
+- [x] Entrar: rótulo visível nos campos e a frase "Esqueceu a senha? Peça uma senha nova para quem organiza o Natal."
+- [x] Vocabulário único: pontos (não pts), conquistas (não selos nem álbum), Natal de 2026 (não edição); o placar do quiz não se chama mais pontos
+- [x] Passagem de sessão do app para o navegador (`/api/auth/passagem`, código de 45 s): telas do site abertas pelo app já entram logadas
+- [x] Publicado no site em 17/11 (commits 70fb1cd e a502fd2), conferido em produção
+- [x] App 1.3.0 (versionCode 6): as mesmas cinco abas do site (Hoje, Ceia, Festa, Família, Eu), pontos na tela inicial, telas nativas de Meus pontos, Conquistas e Missões, tamanho da letra, letras e alvos maiores, confirmação ao sair
+- [x] Teste automático do app no simulador (workflow `ios-teste` do `codemagic.yaml`, roteiro em `app-nativo/teste/fumaca.yaml`)
+- [ ] Play 1.3.0 pública
+- [ ] Apple 1.3.0 aprovada
+- [ ] (R) Abrir a 1.3.0 num celular de verdade e passar pelas cinco abas (a VPS não tem emulador; o teste automático roda só no simulador do iPhone)
+- [ ] Prints das lojas com as abas novas (os atuais mostram as abas antigas)
+- [ ] Ideia: avisar na hora "+5 pontos" com o total atualizado (hoje o total leva até 5 minutos, por causa do recálculo)
