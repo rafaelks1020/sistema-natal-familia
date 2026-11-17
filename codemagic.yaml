@@ -43,7 +43,14 @@ workflows:
           xcode-project build-ipa --workspace "app-nativo/ios/$NOME.xcworkspace" --scheme "$NOME" \
             || xcode-project build-ipa --workspace "app-nativo/ios/$NOME.xcworkspace" --scheme "$NOME"
       - name: Enviar ao App Store Connect
-        script: app-store-connect publish --path build/ios/ipa/*.ipa
+        script: |
+          # A API da Apple às vezes responde 500 por alguns minutos: insiste antes de desistir.
+          for TENTATIVA in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            app-store-connect publish --path build/ios/ipa/*.ipa && exit 0
+            echo "Envio falhou (tentativa $TENTATIVA). Esperando 60 s."
+            sleep 60
+          done
+          exit 1
     artifacts:
       - build/ios/ipa/*.ipa
 
@@ -78,7 +85,7 @@ workflows:
           PROJ=$(ls -d *.xcodeproj | head -1); NOME=${PROJ%.xcodeproj}
           construir() {
             xcodebuild -workspace "$NOME.xcworkspace" -scheme "$NOME" -configuration Release -sdk iphonesimulator \
-              -destination "id=$SIM" -derivedDataPath "$CM_BUILD_DIR/dd" CODE_SIGNING_ALLOWED=NO build > "$CM_BUILD_DIR/xcodebuild.log" 2>&1
+              -destination "id=$SIM" -derivedDataPath "$CM_BUILD_DIR/dd" CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= build > "$CM_BUILD_DIR/xcodebuild.log" 2>&1
           }
           # A fase "[Expo] Configure project" às vezes falha na primeira vez (varredura de módulos): tenta de novo.
           construir || { echo "primeira tentativa falhou, tentando de novo"; construir; } || { tail -120 "$CM_BUILD_DIR/xcodebuild.log"; exit 1; }
