@@ -178,7 +178,9 @@ Cada fase sai no site na hora e no app numa versão nova das lojas (Android vers
 - [x] Play 1.2.0 (versionCode 4, com os atalhos novos e o endereço novo de arquivos) enviada à produção em 09/11
 - [x] assetlinks.json com a chave de assinatura da Play
 - [x] Apple 1.1: rejeitada em 09/11 por 4.3 Spam / 4.2.6 (conta com muitos apps); respondidas as 9 perguntas na Central em 09/11 18h56, sem reenviar
-- [ ] Apple 1.1 aprovada e 1.2.0 (build iOS de 09/11, commit 5f1aeb2) enviada à revisão
+- [x] Apple 1.1 aprovada: na App Store desde 17/11 08h30 (a disputa do 4.3 foi resolvida)
+- [x] Apple 1.2.1 (build 2611171310, commit e63c7b5) enviada à revisão em 17/11, com novidades e notas do revisor atualizadas
+- [ ] Apple 1.2.1 aprovada
 - [ ] (R) Reconectar o Spotify uma vez para o "tocando agora" do telão
 - [x] Telão super top no ar (/telao e /telao/controle): cenas, tocando agora, jogos ao vivo, QR, voz "Natal"
 - [ ] Telão: testar a voz numa TV/Chrome de verdade e o "tocando agora" com música tocando
@@ -189,10 +191,12 @@ Lista completa, com o que foi corrigido e o que ficou aberto: `docs/REVISAO-2026
 - [x] Datas com fuso (migration 050 aplicada), tela de Pontos leve, jogos com menos consultas, banco criptografado
 - [x] Quiz, bingo, telão, karaokê, vaquinha, Pix a cada 5 minutos, bloqueio, exclusão de conta, telas de erro, Next 16.4.6
 - [x] Publicado no site em 13/11 (commit ced0ba6), conferido em produção
-- [ ] (R) Regra de bypass no Firewall da Vercel para o IP da casa da ceia e para o desta VPS, 169.58.196.17 (a proteção bloqueia o IP sob carga; em 16/11 barrou o cron por 15 minutos sem carga nenhuma)
+- [x] Regra de bypass no Firewall da Vercel para o IP desta VPS, 169.58.196.17 (17/11, pela API: a CLI da Vercel daqui tem acesso ao projeto). A proteção barrou o cron 7 vezes em 16 e 17/11, sem carga nenhuma
+- [ ] (R) Liberar o IP do Wi-Fi da casa da ceia perto do dia 24: `~/bin/natal-liberar-ip <ip> 72` (o IP residencial muda, por isso com prazo)
 - [ ] (R) Ensaio com uns 10 celulares no mesmo Wi-Fi antes do dia 24
-- [x] Play 1.2.1 (versionCode 5) com as correções (trocar senha, tela de erro, biometria, avisos, atalhos de Pontos e Missões) enviada à produção em 16/11; pacote guardado em `/mnt/storage/backups/natal-familia/app/`
-- [ ] iPhone: build 1.2.1 (buildNumber 5) com as mesmas correções, só depois que a Apple responder à disputa da 1.1
+- [x] Play 1.2.1 (versionCode 5) com as correções (trocar senha, tela de erro, biometria, avisos, atalhos de Pontos e Missões) enviada à produção em 16/11 e pública na loja em 17/11; pacote guardado em `/mnt/storage/backups/natal-familia/app/`
+- [x] Logs de produção da Vercel conferidos (17/11): nenhum erro 5xx em 4 dias
+- [x] Publicador do estúdio do karaokê (`~/karaoke-estudio/publicar.py`) só fala com o site quando há música pendente (antes sondava sem login a cada 10 minutos: 144 respostas 401 por dia)
 - [x] Disco da VPS de arquivos baixou para 79% (16/11)
 - [ ] Monitorar `arquivos.natalemfamilia.com.br` no painel
 - [x] Limite de conexões do site no banco: de 10 para 30 (16/11)
