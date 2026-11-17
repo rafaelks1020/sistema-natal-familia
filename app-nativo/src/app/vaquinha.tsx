@@ -1,1 +1,1 @@
-export { default } from '../../screens/vaquinha/Vaquinha';
+export { default } from '../screens/vaquinha/Vaquinha';

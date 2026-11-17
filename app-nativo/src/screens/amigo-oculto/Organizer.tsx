@@ -194,8 +194,8 @@ const styles = StyleSheet.create({
   section: { gap: 15, paddingTop: 30, borderTopWidth: 1, borderColor: theme.colors.line }, heading: { flexDirection: 'row', alignItems: 'center', gap: 10 }, title: { fontSize: 30, lineHeight: 38 },
   gap: { gap: 16 }, flex: { flex: 1 }, statusRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap', paddingVertical: 10, borderBottomWidth: 1, borderColor: theme.colors.line },
   form: { gap: 18, paddingBottom: 16 }, chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { minHeight: 44, minWidth: 44, borderRadius: theme.radius.field, borderWidth: 1, borderColor: theme.colors.line, paddingVertical: 11, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%' },
-  chipSelected: { backgroundColor: theme.colors.field, borderColor: theme.colors.champagne }, chipText: { fontSize: 12, flexShrink: 1 }, dim: { opacity: 0.45 },
-  amounts: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, amount: { flex: 1, minWidth: 125 }, note: { fontSize: 11 }, error: { fontSize: 12, color: theme.colors.error },
+  chip: { minHeight: 48, minWidth: 48, borderRadius: theme.radius.field, borderWidth: 1, borderColor: theme.colors.line, paddingVertical: 11, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%' },
+  chipSelected: { backgroundColor: theme.colors.field, borderColor: theme.colors.champagne }, chipText: { fontSize: 14, flexShrink: 1 }, dim: { opacity: 0.45 },
+  amounts: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, amount: { flex: 1, minWidth: 125 }, note: { fontSize: 14 }, error: { fontSize: 14, color: theme.colors.error },
   divider: { height: 1, backgroundColor: theme.colors.line, marginVertical: 6 }, subtitle: { fontSize: 24, lineHeight: 32 }, rule: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.colors.field, borderRadius: theme.radius.field, paddingLeft: 14 },
 });

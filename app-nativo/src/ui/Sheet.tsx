@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindow
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import X from 'lucide-react-native/icons/x';
 import { theme } from '../theme';
 import { useReduceMotion } from './motion';
 import { Text } from './Text';
@@ -24,7 +25,13 @@ export function Sheet({ visible, onClose, title, children }: PropsWithChildren<{
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboard} pointerEvents="box-none">
         <Animated.View accessibilityViewIsModal onAccessibilityEscape={onClose} style={[styles.sheet, { maxHeight: height * 0.86, paddingBottom: Math.max(inset.bottom, 24) }, style]}>
           <GestureDetector gesture={pan}><View style={styles.handleArea}><View style={styles.handle} /></View></GestureDetector>
-          <Text variant="display" accessibilityRole="header" style={styles.title}>{title}</Text>
+          <View style={styles.topo}>
+            <Text variant="display" accessibilityRole="header" style={styles.title}>{title}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Fechar" onPress={onClose} style={styles.fechar}>
+              <Text style={styles.fecharTexto}>Fechar</Text>
+              <X size={22} color={theme.colors.ivory} strokeWidth={1.6} />
+            </Pressable>
+          </View>
           {children}
         </Animated.View>
       </KeyboardAvoidingView>
@@ -34,5 +41,9 @@ export function Sheet({ visible, onClose, title, children }: PropsWithChildren<{
 const styles = StyleSheet.create({
   root: { flex: 1 }, backdrop: { backgroundColor: theme.colors.scrim }, keyboard: { flex: 1, justifyContent: 'flex-end' },
   sheet: { backgroundColor: theme.colors.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, borderWidth: 1, borderColor: theme.colors.lineStrong, paddingHorizontal: 24, gap: 16 },
-  handleArea: { height: 30, alignItems: 'center', justifyContent: 'center' }, handle: { width: 36, height: 3, backgroundColor: theme.colors.muted, borderRadius: 2 }, title: { fontSize: 29, lineHeight: 38 },
+  handleArea: { height: 30, alignItems: 'center', justifyContent: 'center' }, handle: { width: 36, height: 3, backgroundColor: theme.colors.muted, borderRadius: 2 },
+  topo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  title: { flex: 1, fontSize: 29, lineHeight: 38 },
+  fechar: { minWidth: 48, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 8 },
+  fecharTexto: { fontSize: 16, lineHeight: 22, fontFamily: theme.fonts.medium },
 });

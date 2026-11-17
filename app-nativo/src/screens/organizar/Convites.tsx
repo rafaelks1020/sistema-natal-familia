@@ -148,8 +148,8 @@ function Formulario({ semAcesso, avisoVaquinha = false, toast }: { semAcesso: Pa
     <Button loading={criar.isPending} onPress={enviar}>Criar convite</Button>
     <Sheet visible={escolher} title="Já está na vaquinha" onClose={() => setEscolher(false)}>
       <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: height * 0.5 }}>
-        <Pressable accessibilityRole="button" onPress={() => { setParticipanteId(null); setEscolher(false); }} style={styles.opcao}><Text>Pessoa nova (não está na vaquinha)</Text></Pressable>
-        {semAcesso.map((item) => <Pressable key={item.id} accessibilityRole="button" onPress={() => { setParticipanteId(item.id); if (!rotulo.trim()) setRotulo(item.name); setEscolher(false); }} style={styles.opcao}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Pessoa nova, não está na vaquinha" onPress={() => { setParticipanteId(null); setEscolher(false); }} style={styles.opcao}><Text>Pessoa nova (não está na vaquinha)</Text></Pressable>
+        {semAcesso.map((item) => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Usar ${item.name}, já na vaquinha`} onPress={() => { setParticipanteId(item.id); if (!rotulo.trim()) setRotulo(item.name); setEscolher(false); }} style={styles.opcao}>
           <Text>{item.name}</Text>
           <Text variant="muted">Já na vaquinha</Text>
         </Pressable>)}
@@ -183,7 +183,7 @@ function Item({ convite, toast, onCancelar }: { convite: Convite; toast: (mensag
         <Text variant="muted" style={styles.resumo}>{resumo(convite)}</Text>
         {entrou.length ? <Text style={styles.entraram}>Entraram: {entrou.join(', ')}</Text> : null}
       </View>
-      {ativo ? <Pressable accessibilityRole="button" accessibilityLabel={`Cancelar convite ${convite.label}`} onPress={onCancelar} style={styles.cancelar}><X size={18} color={theme.colors.ivory} strokeWidth={1.5} /></Pressable> : null}
+      {ativo ? <Pressable accessibilityRole="button" accessibilityLabel={`Cancelar convite ${convite.label}`} onPress={onCancelar} style={styles.cancelar}><X size={18} color={theme.colors.ivory} strokeWidth={1.5} /><Text style={styles.cancelarTexto}>Cancelar</Text></Pressable> : null}
     </View>
     {ativo ? <View style={styles.itemAcoes}>
       <View style={styles.flex}><Button variant="ghost" onPress={() => { void compartilhar(); }} icon={<ShareIcon size={16} color={theme.colors.ivory} strokeWidth={1.5} />}>Compartilhar</Button></View>
@@ -245,8 +245,9 @@ const styles = StyleSheet.create({
   inativo: { opacity: 0.55 },
   itemTopo: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   itemNome: { fontFamily: theme.fonts.medium, fontSize: 15 },
-  resumo: { marginTop: 4, fontSize: 12, lineHeight: 18 },
-  entraram: { marginTop: 6, color: theme.colors.champagne, fontSize: 12, lineHeight: 18 },
-  cancelar: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  resumo: { marginTop: 4, fontSize: 14, lineHeight: 20 },
+  entraram: { marginTop: 6, color: theme.colors.champagne, fontSize: 14, lineHeight: 20 },
+  cancelar: { minWidth: 48, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 6 },
+  cancelarTexto: { fontSize: 14, lineHeight: 18 },
   itemAcoes: { flexDirection: 'row', gap: 8 },
 });

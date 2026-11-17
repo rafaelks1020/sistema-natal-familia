@@ -68,13 +68,13 @@ export default function Advento() {
   const partes = falta ? [
     ['dias', String(falta.dias)],
     ['horas', dois(falta.horas)],
-    ['min', dois(falta.minutos)],
+    ['minutos', dois(falta.minutos)],
     ['seg', dois(falta.segundos)],
   ] as const : [];
 
   return (
     <View style={styles.pagina}>
-      <Cabecalho kicker={`Edição ${cal.ano}`} titulo="Advento" aoVoltar={voltar} />
+      <Cabecalho kicker={`Natal de ${cal.ano}`} titulo="Advento" aoVoltar={voltar} />
       <ScrollView
         contentContainerStyle={styles.lista}
         refreshControl={<RefreshControl refreshing={consulta.isRefetching} onRefresh={() => { void consulta.refetch(); }} tintColor={theme.colors.champagne} colors={[theme.colors.cherry]} progressBackgroundColor={theme.colors.surface} />}
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   relogio: { flexDirection: 'row', gap: 8 },
   celula: { flex: 1, minHeight: 64, borderRadius: 14, borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.field, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
   digito: { fontSize: 26, lineHeight: 32 },
-  unidade: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 },
+  unidade: { fontSize: 14, lineHeight: 18, textAlign: 'center' },
   aviso: { color: theme.colors.champagne },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });

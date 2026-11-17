@@ -452,7 +452,7 @@ export default function FestaQuizScreen() {
                               color: r.acertou ? theme.colors.champagne : theme.colors.muted,
                             }}
                           >
-                            {r.acertou ? `+${r.pontos} pts` : 'Errou'}
+                            {r.acertou ? `+${r.pontos} pontos` : 'Errou'}
                           </Text>
                         </View>
                       ))}
@@ -652,7 +652,7 @@ export default function FestaQuizScreen() {
                     {data.placar.map((item, idx) => (
                       <View key={item.user_id} style={styles.linhaPlacar}>
                         <View style={styles.linhaPessoa}>
-                          <Text variant="kicker" style={{ width: 24 }}>
+                          <Text variant="kicker" style={{ minWidth: 32 }}>
                             {idx + 1}º
                           </Text>
                           <Avatar name={item.name} src={item.avatar_url} size={36} />
@@ -929,9 +929,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(197,41,45,0.22)',
   },
   letraCirculo: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    minWidth: 36,
+    minHeight: 36,
+    borderRadius: 18,
     backgroundColor: theme.colors.background,
     alignItems: 'center',
     justifyContent: 'center',
@@ -973,7 +973,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.lineStrong,
     backgroundColor: theme.colors.field,
   },
-  podioNome: { fontFamily: theme.fonts.semibold, fontSize: 13 },
+  podioNome: { fontFamily: theme.fonts.semibold, fontSize: 14 },
   podioPontos: { fontSize: 22, lineHeight: 28, color: theme.colors.champagne },
   listaPlacar: { gap: 12 },
   linhaPlacar: {
@@ -994,7 +994,7 @@ const styles = StyleSheet.create({
   linhaAlternativaForm: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   seletorCorreta: {
     width: 48,
-    height: 54,
+    minHeight: 54,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: theme.colors.lineStrong,

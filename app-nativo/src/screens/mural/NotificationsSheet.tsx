@@ -77,6 +77,6 @@ const styles = StyleSheet.create({
   copy: { fontSize: 14, lineHeight: 20 },
   name: { fontFamily: theme.fonts.semibold, fontSize: 14, lineHeight: 20 },
   action: { color: theme.colors.secondary, fontSize: 14, lineHeight: 20 },
-  time: { fontSize: 12 },
+  time: { fontSize: 14 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.cherry },
 });

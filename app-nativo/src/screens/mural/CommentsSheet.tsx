@@ -81,7 +81,7 @@ export function CommentsSheet({ postId, onClose, onSubmit, onLike, onDelete, onA
         onChangeText={setDraft}
         maxLength={MURAL_COMMENT_LIMIT}
         placeholder="Escreva um comentário"
-        placeholderTextColor={theme.colors.muted}
+        placeholderTextColor={theme.colors.secondary}
         selectionColor={theme.colors.champagne}
         editable={!sending && !comments.isPending}
         returnKeyType="send"
@@ -90,7 +90,7 @@ export function CommentsSheet({ postId, onClose, onSubmit, onLike, onDelete, onA
         style={styles.input}
       />
       <Pressable accessibilityRole="button" accessibilityLabel="Enviar comentário" accessibilityState={{ disabled: !canSend, busy: sending }} disabled={!canSend} onPress={() => { void send(); }} style={[styles.send, !canSend && styles.sendOff]}>
-        {sending ? <ActivityIndicator color={theme.colors.champagne} /> : <Send size={16} color={theme.colors.champagne} strokeWidth={1.7} />}
+        {sending ? <ActivityIndicator color={theme.colors.champagne} /> : <><Text style={styles.enviar}>Enviar</Text><Send size={16} color={theme.colors.champagne} strokeWidth={1.7} /></>}
       </Pressable>
     </View>
   </Sheet>;
@@ -103,6 +103,7 @@ const styles = StyleSheet.create({
   center: { textAlign: 'center', paddingVertical: 12 },
   composer: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: theme.colors.line, paddingTop: 12 },
   input: { flex: 1, minWidth: 0, minHeight: 48, maxHeight: 96, borderWidth: 1, borderColor: theme.colors.line, borderRadius: 24, paddingHorizontal: 16, paddingVertical: 12, color: theme.colors.ivory, fontFamily: theme.fonts.body, fontSize: 16 },
-  send: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.field },
+  send: { minWidth: 48, minHeight: 48, paddingHorizontal: 12, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.field },
+  enviar: { fontSize: 16, lineHeight: 22, color: theme.colors.champagne, fontFamily: theme.fonts.medium },
   sendOff: { opacity: 0.4 },
 });

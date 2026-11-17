@@ -1,1 +1,1 @@
-export { default } from '../../screens/album/AlbumScreen';
+export { default } from '../screens/album/AlbumScreen';

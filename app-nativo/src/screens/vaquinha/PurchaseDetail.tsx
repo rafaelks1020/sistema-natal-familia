@@ -30,4 +30,4 @@ export function PurchaseDetail({ purchase, onClose, onDelete, onEdit, busy }: { 
     </ScrollView>
   </Sheet>;
 }
-const styles = StyleSheet.create({ content: { gap: 16, paddingBottom: 20 }, title: { fontSize: 30 }, gallery: { overflow: 'hidden', borderRadius: 14 }, counter: { textAlign: 'center', paddingTop: 8, fontSize: 11 }, details: { gap: 12 }, row: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 }, value: { flex: 1, textAlign: 'right', fontSize: 14 } });
+const styles = StyleSheet.create({ content: { gap: 16, paddingBottom: 20 }, title: { fontSize: 30 }, gallery: { overflow: 'hidden', borderRadius: 14 }, counter: { textAlign: 'center', paddingTop: 8, fontSize: 14 }, details: { gap: 12 }, row: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 }, value: { flex: 1, textAlign: 'right', fontSize: 14 } });

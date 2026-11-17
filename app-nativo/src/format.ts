@@ -15,7 +15,7 @@ export function timeAgo(value: string): string {
   const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
   if (!Number.isFinite(minutes)) return '';
   if (minutes < 1) return 'agora';
-  if (minutes < 60) return `há ${minutes} min`;
-  if (minutes < 1440) return `há ${Math.floor(minutes / 60)} h`;
+  if (minutes < 60) return minutes === 1 ? 'há 1 minuto' : `há ${minutes} minutos`;
+  if (minutes < 1440) return minutes < 120 ? 'há 1 hora' : `há ${Math.floor(minutes / 60)} horas`;
   return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', timeZone: 'America/Sao_Paulo' });
 }

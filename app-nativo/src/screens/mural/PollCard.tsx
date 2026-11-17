@@ -31,6 +31,7 @@ function PollCardComponent({ poll, canDelete, onAuthor, onVote, onDelete }: {
       </Pressable>
       {canDelete ? <Pressable accessibilityRole="button" accessibilityLabel="Apagar enquete" onPress={() => onDelete(poll.id)} style={styles.iconHit}>
         <Trash size={18} color={theme.colors.muted} strokeWidth={1.6} />
+        <Text style={styles.apagar}>Apagar</Text>
       </Pressable> : null}
     </View>
     <Text style={styles.question}>{poll.question}</Text>
@@ -64,9 +65,10 @@ const styles = StyleSheet.create({
   authorText: { flex: 1, minWidth: 0 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   name: { flexShrink: 1, fontFamily: theme.fonts.semibold, fontSize: 15, lineHeight: 20 },
-  kicker: { fontSize: 9, letterSpacing: 1.4 },
-  time: { fontSize: 12, lineHeight: 16 },
-  iconHit: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  kicker: { fontSize: 14, letterSpacing: 1.4 },
+  time: { fontSize: 14, lineHeight: 20 },
+  iconHit: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  apagar: { fontSize: 14, lineHeight: 18, color: theme.colors.secondary },
   question: { fontFamily: theme.fonts.medium, fontSize: 17, lineHeight: 24, paddingHorizontal: 4 },
   options: { gap: 8 },
   option: { minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.field, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 },
@@ -76,6 +78,6 @@ const styles = StyleSheet.create({
   mark: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(143,136,124,0.7)', alignItems: 'center', justifyContent: 'center' },
   markOn: { backgroundColor: theme.colors.cherry, borderColor: theme.colors.cherry },
   optionLabel: { flex: 1, minWidth: 0, fontFamily: theme.fonts.medium, fontSize: 14, lineHeight: 20 },
-  percent: { fontVariant: ['tabular-nums'], color: theme.colors.secondary, fontSize: 13, fontFamily: theme.fonts.medium },
-  total: { fontSize: 12, paddingHorizontal: 4 },
+  percent: { fontVariant: ['tabular-nums'], color: theme.colors.secondary, fontSize: 14, fontFamily: theme.fonts.medium },
+  total: { fontSize: 14, paddingHorizontal: 4 },
 });

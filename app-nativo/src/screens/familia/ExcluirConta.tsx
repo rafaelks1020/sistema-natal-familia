@@ -49,7 +49,7 @@ export default function ExcluirConta() {
         <Text style={styles.corpo}>Ao excluir, apagamos para sempre:</Text>
         {APAGA.map((item) => <Text key={item} style={styles.item}>{item}</Text>)}
         <Text style={styles.corpo}>O registro de que você contribuiu continua na vaquinha da família, sem seus dados pessoais.</Text>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/privacidade')} style={styles.link}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Política de privacidade" onPress={() => router.push('/privacidade')} style={styles.link}>
           <Text style={styles.linkTexto}>Política de privacidade</Text>
         </Pressable>
       </View>
@@ -72,11 +72,11 @@ const styles = StyleSheet.create({
   aviso: { marginHorizontal: 24, marginTop: 12, padding: 22, gap: 12, borderRadius: theme.radius.card, borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.surface },
   corpo: { color: theme.colors.secondary, fontSize: 15, lineHeight: 23 },
   item: { fontSize: 15, lineHeight: 23 },
-  link: { minHeight: 44, justifyContent: 'center' },
+  link: { minHeight: 48, justifyContent: 'center' },
   linkTexto: { color: theme.colors.champagne, textDecorationLine: 'underline', fontSize: 14 },
   form: { paddingHorizontal: 24, paddingTop: 22, gap: 16 },
-  certeza: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  caixa: { width: 24, height: 24, borderRadius: 6, borderWidth: 1, borderColor: theme.colors.lineStrong, alignItems: 'center', justifyContent: 'center' },
+  certeza: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  caixa: { minWidth: 28, minHeight: 28, borderRadius: 6, borderWidth: 1, borderColor: theme.colors.lineStrong, alignItems: 'center', justifyContent: 'center' },
   caixaOn: { backgroundColor: theme.colors.cherry, borderColor: theme.colors.cherry },
   flex: { flex: 1 },
 });

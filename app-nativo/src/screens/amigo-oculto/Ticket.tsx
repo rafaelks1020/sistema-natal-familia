@@ -59,7 +59,7 @@ export function Ticket({ canReveal, opensAt, busy, onReveal }: {
 
   return <Surface style={styles.ticket}>
     <ThemeBanner compact />
-    <View style={styles.top}><Text variant="kicker">Edição em família</Text><Text variant="kicker" style={styles.vip}>VIP</Text></View>
+    <View style={styles.top}><Text variant="kicker">Natal em família</Text><Text variant="kicker" style={styles.vip}>VIP</Text></View>
     <Text variant="muted" style={styles.reserved}>Convite reservado para você</Text>
     <Text variant="display" style={styles.title}>Um segredo.{ '\n' }Só seu.</Text>
     <View style={styles.rule} />
@@ -91,14 +91,14 @@ const styles = StyleSheet.create({
   ticket: { padding: 24, borderColor: theme.colors.champagne, gap: 14 },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   vip: { borderWidth: 1, borderColor: theme.colors.champagne, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 4 },
-  reserved: { fontSize: 11, marginTop: 16, color: theme.colors.muted },
+  reserved: { fontSize: 14, marginTop: 16, color: theme.colors.muted },
   title: { fontSize: 49, lineHeight: 57 }, rule: { width: 44, height: 1, backgroundColor: theme.colors.cherry, marginVertical: 4 },
   subtitle: { maxWidth: 260 }, perforation: { borderTopWidth: 1, borderStyle: 'dashed', borderColor: theme.colors.lineStrong, marginVertical: 14, marginHorizontal: -24 },
   notch: { position: 'absolute', top: -12, width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.champagne, backgroundColor: theme.colors.background },
-  left: { left: -12 }, right: { right: -12 }, track: { height: 82, backgroundColor: theme.colors.background, borderRadius: 44, borderWidth: 1, borderColor: theme.colors.line, justifyContent: 'center' },
+  left: { left: -12 }, right: { right: -12 }, track: { minHeight: 82, backgroundColor: theme.colors.background, borderRadius: 44, borderWidth: 1, borderColor: theme.colors.line, justifyContent: 'center' },
   seal: { width: 74, height: 74, marginLeft: 3, borderRadius: 37, backgroundColor: theme.colors.champagne, alignItems: 'center', justifyContent: 'center' },
   sealInset: { width: 62, height: 62, borderRadius: 31, borderWidth: 1, borderColor: theme.colors.background, alignItems: 'center', justifyContent: 'center' },
   dragHint: { position: 'absolute', left: 83, right: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 },
-  dragText: { fontSize: 11, color: theme.colors.champagne }, footnote: { textAlign: 'center', fontSize: 11, color: theme.colors.muted },
+  dragText: { fontSize: 14, color: theme.colors.champagne }, footnote: { textAlign: 'center', fontSize: 14, color: theme.colors.muted },
   locked: { gap: 18, alignItems: 'center', paddingBottom: 10 }, opening: { fontSize: 28, lineHeight: 36, textAlign: 'center', color: theme.colors.champagne }, center: { textAlign: 'center' },
 });

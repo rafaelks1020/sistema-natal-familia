@@ -176,7 +176,7 @@ export default function Cartao() {
       <View style={styles.frases}>
         {FRASES.map((f) => {
           const ativa = !propria && frase === f;
-          return <Pressable key={f} accessibilityRole="button" accessibilityState={{ selected: ativa }} onPress={() => { setFrase(f); setPropria(false); }} style={[styles.frase, ativa && styles.fraseAtiva]}>
+          return <Pressable key={f} accessibilityRole="button" accessibilityLabel={f} accessibilityState={{ selected: ativa }} onPress={() => { setFrase(f); setPropria(false); }} style={[styles.frase, ativa && styles.fraseAtiva]}>
             <Text variant="muted" style={ativa ? styles.fraseTextoAtiva : undefined}>{f}</Text>
           </Pressable>;
         })}
@@ -200,20 +200,20 @@ const styles = StyleSheet.create({
   centro: { textAlign: 'center' },
   veu: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(23,27,24,0.45)' },
   veuSkeleton: { flex: 1, opacity: 0.3 },
-  erro: { color: theme.colors.error, fontSize: 13, textAlign: 'center' },
+  erro: { color: theme.colors.error, fontSize: 14, textAlign: 'center' },
   acoes: { gap: 10 },
   fotos: { gap: 8, paddingVertical: 2 },
-  miniatura: { width: 76, height: 76, borderRadius: theme.radius.field, overflow: 'hidden', borderWidth: 2, borderColor: 'transparent', backgroundColor: theme.colors.field },
+  miniatura: { width: 76, minHeight: 76, borderRadius: theme.radius.field, overflow: 'hidden', borderWidth: 2, borderColor: 'transparent', backgroundColor: theme.colors.field },
   miniaturaAtiva: { borderColor: theme.colors.champagne },
   nova: { alignItems: 'center', justifyContent: 'center', gap: 2, borderStyle: 'dashed', borderColor: theme.colors.lineStrong },
-  novaTexto: { fontSize: 11, lineHeight: 16 },
-  imagemMini: { width: '100%', height: '100%' },
+  novaTexto: { fontSize: 13, lineHeight: 16 },
+  imagemMini: { width: 72, height: 72 },
   linha: { flexDirection: 'row', gap: 8 },
   flex: { flex: 1 },
   frases: { gap: 8 },
-  frase: { minHeight: 44, borderRadius: theme.radius.field, borderWidth: 1, borderColor: theme.colors.line, paddingHorizontal: 14, paddingVertical: 10, justifyContent: 'center' },
+  frase: { minHeight: 48, borderRadius: theme.radius.field, borderWidth: 1, borderColor: theme.colors.line, paddingHorizontal: 14, paddingVertical: 10, justifyContent: 'center' },
   fraseAtiva: { borderColor: theme.colors.champagne },
   fraseTextoAtiva: { color: theme.colors.ivory },
   multilinha: { minHeight: 84, textAlignVertical: 'top' },
-  contagem: { textAlign: 'right', fontSize: 12 },
+  contagem: { textAlign: 'right', fontSize: 14 },
 });

@@ -74,5 +74,5 @@ const styles = StyleSheet.create({
   failure: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.colors.surface },
   retry: { textAlign: 'center' },
   source: { position: 'absolute', bottom: 10, left: 10, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: theme.colors.scrim },
-  sourceLabel: { fontSize: 10, lineHeight: 16, color: theme.colors.ivory },
+  sourceLabel: { fontSize: 13, lineHeight: 16, color: theme.colors.ivory },
 });

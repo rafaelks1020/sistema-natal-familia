@@ -34,14 +34,14 @@ export default function MemoriesScreen() {
       {!timeline && <Surface><Text variant="kicker">Neste dia</Text><Text variant="display" style={{ fontSize: 28 }}>Lembra deste momento?</Text>
         {memories.data.today.length ? masonryBands(memories.data.today, 145).map(band => <Masonry key={band.key} band={band} reduced={reduced} onOpen={key => open(memories.data.today, key)} />) : <Text variant="muted">Ainda não temos fotos de outros Natais tiradas neste mesmo dia e mês.</Text>}
       </Surface>}
-      {memories.data.editions.length === 0 && <EmptyState title="Vamos guardar a nossa história" message="Adicione as fotos do Natal de 2025 ao álbum." action="Abrir álbum" onAction={() => router.navigate('/(tabs)/album')} />}
+      {memories.data.editions.length === 0 && <EmptyState title="Vamos guardar a nossa história" message="Adicione as fotos do Natal de 2025 ao álbum." action="Abrir álbum" onAction={() => router.navigate('/album')} />}
       {memories.data.editions.map(edition => <Surface key={edition.ano} style={styles.card}>
         {edition.cover && <Image source={{ uri: edition.cover }} contentFit="cover" style={styles.cover} accessibilityLabel={`Capa do Natal de ${edition.ano}`} />}
         <Text variant="kicker">Natal em família</Text><Text variant="display">{edition.ano}</Text>
         <Text variant="muted">{edition.photos} fotos · {edition.comments} comentários · {edition.people} pessoas</Text>
         {edition.topPoster && <Text variant="muted">Quem mais compartilhou: {edition.topPoster.name}</Text>}
         {masonryBands(edition.highlights, 135).map(band => <Masonry key={band.key} band={band} reduced={reduced} onOpen={key => open(edition.highlights, key)} />)}
-        <Button variant="ghost" onPress={() => router.navigate({ pathname: '/(tabs)/album', params: { ano: String(edition.ano) } })}>Ver álbum de {edition.ano}</Button>
+        <Button variant="ghost" onPress={() => router.navigate({ pathname: '/album', params: { ano: String(edition.ano) } })}>Ver álbum de {edition.ano}</Button>
         {edition.available ? <Button onPress={() => router.push({ pathname: '/retrospectiva', params: { ano: String(edition.ano) } })}>Reviver este Natal</Button> : <Text variant="muted">Retrospectiva em 25/12/{edition.ano}</Text>}
         <Button variant="ghost" onPress={() => { void book(edition.ano); }}>Abrir livro de fotos no navegador</Button>
       </Surface>)}

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Alert, FlatList, Linking, RefreshControl, StyleSheet, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
 import { Heart } from 'lucide-react-native';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -15,6 +15,7 @@ import { Surface } from '../../ui/Surface';
 import { EmptyState } from '../../ui/EmptyState';
 import { Skeleton } from '../../ui/Skeleton';
 import { useToast } from '../../ui/Toast';
+import { Cabecalho } from '../familia/Cabecalho';
 
 type Song = { track_uri: string; nome: string; artista: string; capa_url: string | null };
 type Momento = 'jantar' | 'festa' | 'amigo_oculto';
@@ -92,14 +93,14 @@ export default function Playlist() {
   function removerPedido(item: Track) {
     Alert.alert('Remover pedido?', item.nome, [{ text: 'Cancelar', style: 'cancel' }, { text: 'Remover', style: 'destructive', onPress: () => apagar.mutate({ id: item.id, generation: sessionStore.getGeneration() }) }]);
   }
+  function voltar() { if (router.canGoBack()) router.back(); else router.replace('/'); }
   if (!user) return null;
-  if (fund.isPending) return <View style={[styles.page, { paddingTop: insets.top + 24 }]}><Skeleton style={{ height: 100 }} /><Skeleton style={{ height: 200 }} /></View>;
-  if (!fund.data) return <View style={[styles.page, { paddingTop: insets.top + 24 }]}><EmptyState title="A playlist já volta" message={fund.error?.message || 'Não conseguimos carregar as músicas.'} action="Tentar novamente" onAction={() => { void fund.refetch(); }} />{user.is_admin ? <Button variant="ghost" onPress={() => { void open('https://natalemfamilia.com.br/playlist'); }}>Conectar Spotify pelo site</Button> : null}</View>;
+  if (fund.isPending) return <View style={styles.background}><Cabecalho titulo="Playlist da família" kicker="O som da nossa festa" aoVoltar={voltar} /><View style={styles.page}><Skeleton style={{ height: 100 }} /><Skeleton style={{ height: 200 }} /></View></View>;
+  if (!fund.data) return <View style={styles.background}><Cabecalho titulo="Playlist da família" kicker="O som da nossa festa" aoVoltar={voltar} /><View style={styles.page}><EmptyState title="A playlist já volta" message={fund.error?.message || 'Não conseguimos carregar as músicas.'} action="Tentar novamente" onAction={() => { void fund.refetch(); }} />{user.is_admin ? <Button variant="ghost" onPress={() => { void open('https://natalemfamilia.com.br/playlist'); }}>Conectar Spotify pelo site</Button> : null}</View></View>;
   const data = fund.data;
-  return <FlatList style={styles.background} data={data.tracks} keyExtractor={song => String(song.id)} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.page, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 32 }]}
+  return <View style={styles.background}><Cabecalho titulo="Playlist da família" kicker="O som da nossa festa" aoVoltar={voltar} /><FlatList style={styles.background} data={data.tracks} keyExtractor={song => String(song.id)} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.page, { paddingTop: 8, paddingBottom: insets.bottom + 32 }]}
     refreshControl={<RefreshControl refreshing={fund.isRefetching} onRefresh={() => { void fund.refetch(); }} tintColor={theme.colors.champagne} />}
     ListHeaderComponent={<View style={styles.gap}>
-      <Text variant="kicker">O som da nossa festa</Text><Text variant="display" accessibilityRole="header">Playlist da família</Text>
       {retro.data?.destaque ? <RetroSecao r={retro.data} /> : null}
       <View style={styles.abas} accessibilityRole="tablist">{(data.momentos?.length ? data.momentos : MOMENTOS_PADRAO).map(m => <Button key={m.id} style={styles.aba} variant={momento === m.id ? 'primary' : 'ghost'} selected={momento === m.id} onPress={() => { setMomento(m.id); setText(''); setSearchText(''); setPedido(''); }}>{m.nome}</Button>)}</View>
       <Text variant="muted">{data.momentos.find(m => m.id === momento)?.descricao}</Text>
@@ -127,13 +128,13 @@ export default function Playlist() {
       </>}
     </View>}
     renderItem={({ item }) => <Surface style={styles.song}><SongInfo song={item} onOpen={() => { void open(`https://open.spotify.com/track/${item.track_uri.split(':')[2]}`); }} /><Text variant="muted">Adicionada por {item.autor}</Text><Button variant="quiet" selected={item.votei} accessibilityLabel={`${item.votei ? 'Tirar o voto de' : 'Votar em'} ${item.nome}`} disabled={votar.isPending} onPress={() => votar.mutate({ song: item, generation: sessionStore.getGeneration() })} icon={<Heart size={18} color={item.votei ? theme.colors.cherry : theme.colors.ivory} fill={item.votei ? theme.colors.cherry : 'none'} strokeWidth={1.6} />}>{item.votos} {item.votos === 1 ? 'voto' : 'votos'}</Button>{item.user_id === user.id || user.is_admin ? <Button variant="quiet" disabled={mutation.isPending} onPress={() => remove(item)}>Remover música</Button> : null}</Surface>}
-    ListFooterComponent={retro.data && !retro.data.destaque ? <RetroSecao r={retro.data} /> : undefined} />;
+    ListFooterComponent={retro.data && !retro.data.destaque ? <RetroSecao r={retro.data} /> : undefined} /></View>;
 }
 
 function RetroSecao({ r }: { r: Retro }) {
   if (!r.total) return null;
   return <Surface style={[styles.gap, r.destaque && styles.destaque]}>
-    <Text variant="kicker">{r.destaque ? `O som do Natal de ${r.ano}` : `Edição ${r.ano}`}</Text>
+    <Text variant="kicker">{r.destaque ? `O som do Natal de ${r.ano}` : `Natal de ${r.ano}`}</Text>
     <Text variant="display" accessibilityRole="header" style={styles.title}>Retrospectiva musical</Text>
     <Text variant="muted">Músicas mais votadas</Text>
     {r.mais_votadas.length ? r.mais_votadas.map((m, i) => <View key={m.track_uri} style={styles.row}><Text variant="display" style={styles.posicao}>{i + 1}</Text><View style={styles.flex}><Text>{m.nome}</Text><Text variant="muted">{m.artista}</Text></View><Text variant="muted">{m.votos} {m.votos === 1 ? 'voto' : 'votos'}</Text></View>) : <Text variant="muted">Ainda não há músicas votadas.</Text>}

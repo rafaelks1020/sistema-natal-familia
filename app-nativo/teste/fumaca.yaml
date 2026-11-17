@@ -1,0 +1,66 @@
+# Teste de fumaça do app (Maestro): entra com a conta de revisão e passa pelas cinco abas tirando fotos.
+# Rodado no simulador pelo workflow ios-teste do codemagic.yaml. Não altera nenhum dado.
+appId: br.com.natalemfamilia.app
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "campo-usuario"
+    timeout: 120000
+- takeScreenshot: 01-entrar
+- tapOn:
+    id: "campo-usuario"
+- inputText: ${USUARIO}
+- tapOn:
+    id: "campo-senha"
+- inputText: ${SENHA}
+- pressKey: Enter
+- tapOn:
+    text: "Not Now"
+    optional: true
+- extendedWaitUntil:
+    visible: "Para fazer agora"
+    timeout: 90000
+- takeScreenshot: 02-hoje
+- scrollUntilVisible:
+    element: "Como funcionam os pontos"
+    direction: DOWN
+    timeout: 25000
+    optional: true
+- takeScreenshot: 03-hoje-pontos
+- tapOn: "Ceia"
+- takeScreenshot: 04-aba-ceia
+- tapOn: "Festa"
+- takeScreenshot: 05-aba-festa
+- tapOn: "Família"
+- takeScreenshot: 06-aba-familia
+- tapOn:
+    text: "Mural da família.*"
+    optional: true
+- takeScreenshot: 07-mural
+- tapOn:
+    text: "Voltar"
+    optional: true
+- tapOn: "Eu"
+- takeScreenshot: 08-aba-eu
+- scrollUntilVisible:
+    element: "Como funcionam os pontos"
+    direction: DOWN
+    timeout: 25000
+    optional: true
+- tapOn:
+    text: "Como funcionam os pontos"
+    optional: true
+- extendedWaitUntil:
+    visible: "Meus pontos"
+    timeout: 30000
+    optional: true
+- takeScreenshot: 09-meus-pontos
+- scroll
+- takeScreenshot: 10-como-ganhar
+- tapOn:
+    text: "Voltar"
+    optional: true
+- tapOn: "Hoje"
+- takeScreenshot: 11-hoje-de-novo

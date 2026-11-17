@@ -58,7 +58,7 @@ export function UploadSheet({ metadata, onClose }: { metadata: AlbumMetadata; on
   return <Sheet visible title="Guardar fotos" onClose={() => { if (!upload.isPending) onClose(); }}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 16, paddingBottom: 24 }}>
     <Text variant="muted">Até 30 fotos por envio. Elas ficam no álbum, sem publicação no mural nem aviso para a família.</Text>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{metadata.years.map(y => <Button key={y} disabled={upload.isPending} variant={year === String(y) ? 'primary' : 'ghost'} onPress={() => { setYear(String(y)); setDate(`24/12/${y}`); }}>{y}</Button>)}</View>
-    <Field label="Ano da edição" keyboardType="number-pad" value={year} maxLength={4} editable={!upload.isPending} onChangeText={value => { setYear(value); setDate(`24/12/${value}`); }} />
+    <Field label="Ano do Natal" keyboardType="number-pad" value={year} maxLength={4} editable={!upload.isPending} onChangeText={value => { setYear(value); setDate(`24/12/${value}`); }} />
     <Field label="Data das fotos (dia/mês/ano)" value={date} onChangeText={setDate} editable={!upload.isPending} maxLength={10} keyboardType="numbers-and-punctuation" />
     <Field label="Legenda (opcional)" value={caption} onChangeText={setCaption} maxLength={500} multiline editable={!upload.isPending} />
     <Text variant="muted">Quem está nas fotos?</Text><PeoplePicker people={metadata.people} selected={people} onChange={setPeople} disabled={upload.isPending} />

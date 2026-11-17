@@ -12,6 +12,8 @@ import { EmptyState } from '../../ui/EmptyState';
 import { Skeleton } from '../../ui/Skeleton';
 import { Text } from '../../ui/Text';
 import { useReduceMotion } from '../../ui/motion';
+import { BotaoVoltar } from '../abas/BotaoVoltar';
+import { useAutenticado } from '../familia/sessao';
 import { AlbumMedia } from './AlbumMedia';
 import { PhotoViewer } from './PhotoViewer';
 import { Sheet } from '../../ui/Sheet';
@@ -23,12 +25,13 @@ const FILTERS: { value: AlbumFilter; label: string }[] = [
 ];
 
 export default function AlbumScreen() {
+  const autenticado = useAutenticado();
   const inset = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const reduced = useReduceMotion();
   const [focused, setFocused] = useState(false);
   useFocusEffect(useCallback(() => { setFocused(true); return () => setFocused(false); }, []));
-  const metadata = useQuery({ queryKey: ['album', 'metadata'], queryFn: ({ signal }) => api<AlbumMetadata>('/api/album?meta=1', { signal }) });
+  const metadata = useQuery({ queryKey: ['album', 'metadata'], enabled: autenticado, queryFn: ({ signal }) => api<AlbumMetadata>('/api/album?meta=1', { signal }) });
   const params = useLocalSearchParams<{ ano?: string }>();
   const activeYear = params.ano && metadata.data?.years.includes(Number(params.ano)) ? Number(params.ano) : metadata.data?.currentYear;
   const [person, setPerson] = useState('');
@@ -44,7 +47,7 @@ export default function AlbumScreen() {
   const columnWidth = (pageWidth - 48 - 10) / 2;
   const album = useInfiniteQuery({
     queryKey: ['album', 'pages', activeYear, person],
-    enabled: activeYear !== undefined,
+    enabled: autenticado && activeYear !== undefined,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam, signal }) => {
       const cursor = pageParam ? `&cursor=${encodeURIComponent(pageParam)}` : '';
@@ -64,6 +67,7 @@ export default function AlbumScreen() {
   };
   const error = album.isError || metadata.isError;
   const canLoad = album.hasNextPage && !error;
+  if (!autenticado) return null;
 
   return <View style={styles.page}>
     <FlatList ref={list} data={bands} keyExtractor={band => band.key}
@@ -76,11 +80,12 @@ export default function AlbumScreen() {
         onRefresh={() => { if (!album.isFetching) { void metadata.refetch(); void album.refetch(); } }}
         tintColor={theme.colors.champagne} colors={[theme.colors.cherry]} progressBackgroundColor={theme.colors.surface} />}
       ListHeaderComponent={<View style={styles.header}>
+        <BotaoVoltar style={styles.voltar} />
         <View style={styles.titleRow}><View style={styles.flex}>
           <Text variant="kicker">Memórias que ficam</Text>
           <Text variant="display" accessibilityRole="header">Álbum da <Text variant="displayItalic">família</Text></Text>
-        </View><Button accessibilityLabel="Adicionar fotos ao álbum" onPress={goToUpload} style={styles.add}
-          icon={<Plus size={24} color={theme.colors.ivory} />}>{null}</Button></View>
+        </View><Button accessibilityLabel="Adicionar fotos ao álbum" onPress={goToUpload}
+          icon={<Plus size={22} color={theme.colors.ivory} />}>Adicionar</Button></View>
         <View style={styles.hero}><AlbumMedia name="mn-album" visible={focused && heroVisible && selected === null} style={StyleSheet.absoluteFill} /></View>
         <View style={styles.countRow}>
           {album.isPending ? <Skeleton style={{ width: 62, height: 50 }} /> : <Text variant="numeral">{filtered.length.toLocaleString('pt-BR')}</Text>}
@@ -88,7 +93,7 @@ export default function AlbumScreen() {
         </View>
         <Button variant="ghost" onPress={() => router.push('/memorias')}>Memórias e linha do tempo</Button>
         {metadata.data?.isAdmin && <Button variant="quiet" onPress={() => setShowReports(true)}>Analisar denúncias do álbum</Button>}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} accessibilityLabel="Edição do álbum">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} accessibilityLabel="Ano do álbum">
           {metadata.data?.years.map(y => <Button key={y} variant={activeYear === y ? 'primary' : 'ghost'} selected={activeYear === y} onPress={() => { router.setParams({ ano: String(y) }); setSelected(null); }}>{y}</Button>)}
         </ScrollView>
         <Button variant="ghost" onPress={() => setShowPeople(true)}>{metadata.data?.people.find(p => `${p.source}:${p.id}` === person)?.name ?? 'Fotos de uma pessoa'}</Button>
@@ -100,7 +105,7 @@ export default function AlbumScreen() {
       ListEmptyComponent={error ? undefined : album.isPending ? <AlbumSkeleton /> : <View>
         <AlbumMedia name="mn-vazio" visible={focused && selected === null} style={styles.emptyVideo} />
         <EmptyState title={canLoad ? 'Há mais memórias por aqui' : 'O álbum espera por vocês'}
-          message={canLoad ? 'Continue carregando para encontrar fotos deste filtro.' : filter === 'tudo' ? 'Guarde aqui as fotos desta edição, incluindo os Natais anteriores.' : 'Ainda não há fotos nesta categoria.'}
+          message={canLoad ? 'Continue carregando para encontrar fotos deste filtro.' : filter === 'tudo' ? 'Guarde aqui as fotos deste Natal e dos Natais anteriores.' : 'Ainda não há fotos nesta categoria.'}
           action={canLoad ? 'Carregar mais fotos' : 'Adicionar fotos'} onAction={canLoad ? () => { void album.fetchNextPage(); } : goToUpload} />
       </View>}
       ListFooterComponent={<View style={styles.footer}>
@@ -140,7 +145,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 24, alignSelf: 'center' },
   header: { gap: 20, paddingBottom: 24 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 }, flex: { flex: 1, minWidth: 0 },
-  add: { width: 64 }, hero: { width: '100%', aspectRatio: 16 / 9, borderRadius: theme.radius.card, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.lineStrong },
+  voltar: { marginBottom: -12 }, hero: { width: '100%', aspectRatio: 16 / 9, borderRadius: theme.radius.card, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.lineStrong },
   countRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, pill: { flexGrow: 1, minWidth: 64, borderRadius: 999, overflow: 'hidden' },
   emptyVideo: { width: 144, height: 112, alignSelf: 'center', borderRadius: theme.radius.card, marginTop: 16 },

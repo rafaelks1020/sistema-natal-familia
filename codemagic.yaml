@@ -37,3 +37,51 @@ workflows:
         script: app-store-connect publish --path build/ios/ipa/*.ipa
     artifacts:
       - build/ios/ipa/*.ipa
+
+  # Teste de fumaça: monta o app para o simulador, entra com a conta de revisão e passa pelas cinco abas tirando fotos.
+  # Disparado pela API com as variáveis TESTE_USUARIO e TESTE_SENHA. As fotos saem como artefatos do build.
+  ios-teste:
+    name: Teste do app no simulador
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: latest
+      node: 24
+    scripts:
+      - name: Dependências
+        script: |
+          cd app-nativo
+          npm ci --no-audit --no-fund
+      - name: Prebuild iOS
+        script: |
+          cd app-nativo
+          npx expo prebuild --platform ios --clean
+      - name: Simulador
+        script: |
+          SIM=$(xcrun simctl list devices available | grep -E "iPhone [0-9]+" | grep -v -i "se \|mini" | head -1 | sed -E 's/.*\(([0-9A-Fa-f-]{36})\).*/\1/')
+          echo "simulador: $(xcrun simctl list devices available | grep "$SIM")"
+          echo "SIM=$SIM" >> $CM_ENV
+          xcrun simctl boot "$SIM" || true
+          xcrun simctl bootstatus "$SIM" -b
+      - name: App para o simulador
+        script: |
+          cd app-nativo/ios
+          PROJ=$(ls -d *.xcodeproj | head -1); NOME=${PROJ%.xcodeproj}
+          xcodebuild -workspace "$NOME.xcworkspace" -scheme "$NOME" -configuration Release -sdk iphonesimulator \
+            -destination "id=$SIM" -derivedDataPath "$CM_BUILD_DIR/dd" CODE_SIGNING_ALLOWED=NO build > "$CM_BUILD_DIR/xcodebuild.log" 2>&1 \
+            || { tail -120 "$CM_BUILD_DIR/xcodebuild.log"; exit 1; }
+          tail -5 "$CM_BUILD_DIR/xcodebuild.log"
+          echo "APP=$CM_BUILD_DIR/dd/Build/Products/Release-iphonesimulator/$NOME.app" >> $CM_ENV
+      - name: Roteiro pelas telas
+        script: |
+          xcrun simctl install "$SIM" "$APP"
+          export MAESTRO_CLI_NO_ANALYTICS=1
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          export PATH="$PATH:$HOME/.maestro/bin"
+          mkdir -p "$CM_BUILD_DIR/app-nativo/teste/saida" && cd "$CM_BUILD_DIR/app-nativo/teste/saida"
+          maestro --device "$SIM" test -e USUARIO="$TESTE_USUARIO" -e SENHA="$TESTE_SENHA" ../fumaca.yaml > roteiro.log 2>&1 && echo "ROTEIRO OK" || echo "ROTEIRO FALHOU"
+          grep -v -i "senha\|input text" roteiro.log | tail -60
+          xcrun simctl io "$SIM" screenshot final.png || true
+    artifacts:
+      - app-nativo/teste/saida/*.png
+

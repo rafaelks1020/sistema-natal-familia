@@ -381,6 +381,7 @@ export default function FestaEnqueteScreen() {
             <Pressable
               key={idx}
               accessibilityRole="button"
+              accessibilityLabel={`Usar a sugestão: ${s.pergunta}`}
               onPress={() => {
                 setPergunta(s.pergunta);
                 setOpcoes([...s.opcoes]);
@@ -656,6 +657,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  sugestaoTexto: { fontSize: 13, color: theme.colors.secondary },
+  sugestaoTexto: { fontSize: 14, color: theme.colors.secondary },
   linhaOpcaoForm: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
 });

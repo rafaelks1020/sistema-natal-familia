@@ -301,7 +301,7 @@ export function Painel({ dia, onVoltar }: { dia: number; onVoltar: () => void })
                 const pct = dados.total_votos > 0 ? Math.round((item.total / dados.total_votos) * 100) : 0;
                 const minha = dados.meu_voto === item.opcao;
                 return (
-                  <Pressable key={item.opcao} accessibilityRole="radio" accessibilityState={{ checked: minha, disabled: ocupado }} disabled={ocupado} onPress={() => votar.mutate(item.opcao)} style={[styles.opcao, minha && styles.opcaoMinha]}>
+                  <Pressable key={item.opcao} accessibilityRole="radio" accessibilityLabel={`${item.opcao}, ${item.total} ${item.total === 1 ? 'voto' : 'votos'}`} accessibilityState={{ checked: minha, disabled: ocupado }} disabled={ocupado} onPress={() => votar.mutate(item.opcao)} style={[styles.opcao, minha && styles.opcaoMinha]}>
                     <View style={styles.opcaoLinha}><Text style={styles.flex}>{item.opcao}</Text><Text variant="numeral" style={styles.contagem}>{item.total}</Text></View>
                     <View style={styles.trilha}><View style={[styles.barra, { width: `${pct}%` }]} /></View>
                   </Pressable>
@@ -360,7 +360,7 @@ export function Painel({ dia, onVoltar }: { dia: number; onVoltar: () => void })
                   <Text variant="kicker">Preparar o dia {dia}</Text>
                   <View style={styles.tipos} accessibilityRole="radiogroup" accessibilityLabel="Tipo da janela">
                     {TIPOS.map((item) => (
-                      <Pressable key={item} accessibilityRole="radio" accessibilityState={{ checked: tipo === item }} onPress={() => setTipo(item)} style={[styles.chip, tipo === item && styles.chipAtivo]}>
+                      <Pressable key={item} accessibilityRole="radio" accessibilityLabel={ROTULO[item]} accessibilityState={{ checked: tipo === item }} onPress={() => setTipo(item)} style={[styles.chip, tipo === item && styles.chipAtivo]}>
                         <Text style={styles.chipTexto}>{ROTULO[item]}</Text>
                       </Pressable>
                     ))}
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
   foto: { width: '100%', height: 220, borderRadius: 16, backgroundColor: theme.colors.field },
   linha: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   flex: { flex: 1, minWidth: 0 },
-  opcao: { minHeight: 44, borderWidth: 1, borderColor: theme.colors.line, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
+  opcao: { minHeight: 48, borderWidth: 1, borderColor: theme.colors.line, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
   opcaoMinha: { borderColor: theme.colors.champagne, backgroundColor: 'rgba(191,165,119,0.1)' },
   opcaoLinha: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   contagem: { fontSize: 22, lineHeight: 28, color: theme.colors.champagne },
@@ -408,9 +408,9 @@ const styles = StyleSheet.create({
   area: { minHeight: 96, textAlignVertical: 'top' },
   resposta: { gap: 8, paddingTop: 8, borderTopWidth: 1, borderColor: theme.colors.line },
   nome: { fontFamily: theme.fonts.medium },
-  quando: { fontSize: 11 },
+  quando: { fontSize: 14 },
   tipos: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { minHeight: 44, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.line, alignItems: 'center', justifyContent: 'center' },
+  chip: { minHeight: 48, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.line, alignItems: 'center', justifyContent: 'center' },
   chipAtivo: { borderColor: theme.colors.champagne },
-  chipTexto: { fontSize: 13 },
+  chipTexto: { fontSize: 14 },
 });

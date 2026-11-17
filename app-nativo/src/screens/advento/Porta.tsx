@@ -69,9 +69,9 @@ export function Porta({ janela, hoje, lado, organizador, onAbrir, onTrancada }: 
       accessibilityRole="button"
       accessibilityLabel={`Janela ${janela.dia}, ${estado}${janela.dia === hoje ? ', hoje' : ''}`}
       onPress={tocar}
-      style={[styles.caixa, { width: lado, height: Math.round(lado * 1.25) }]}
+      style={[styles.caixa, { width: lado }]}
     >
-      <Animated.View style={[styles.face, estilo, { borderColor: borda, backgroundColor: fundo }]}>
+      <Animated.View style={[styles.face, estilo, { minHeight: Math.round(lado * 1.25), borderColor: borda, backgroundColor: fundo }]}>
         {janela.personalizada ? <View style={styles.ponto} /> : null}
         <Text variant="numeral" style={styles.numero}>{janela.dia}</Text>
         {janela.dia === hoje && !janela.respondida ? <Text variant="kicker" style={styles.hoje}>Hoje</Text> : null}
@@ -84,10 +84,10 @@ export function Porta({ janela, hoje, lado, organizador, onAbrir, onTrancada }: 
 
 const styles = StyleSheet.create({
   caixa: { overflow: 'hidden', borderRadius: 14 },
-  face: { flex: 1, borderWidth: 1, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  face: { borderWidth: 1, borderRadius: 14, alignItems: 'center', justifyContent: 'center', padding: 4 },
   numero: { fontSize: 28, lineHeight: 36 },
-  hoje: { marginTop: 2, fontSize: 8, letterSpacing: 1 },
-  tipo: { marginTop: 2, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase' },
+  hoje: { marginTop: 2, fontSize: 13, lineHeight: 16, letterSpacing: 0.4 },
+  tipo: { marginTop: 2, fontSize: 13, lineHeight: 16, letterSpacing: 0.4, textTransform: 'uppercase' },
   visto: { position: 'absolute', top: 6, right: 6 },
   ponto: { position: 'absolute', top: 8, left: 8, width: 6, height: 6, borderRadius: 3, backgroundColor: theme.colors.champagne },
 });

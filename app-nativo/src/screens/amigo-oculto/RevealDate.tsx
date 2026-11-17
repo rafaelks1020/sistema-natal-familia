@@ -40,5 +40,5 @@ const styles = StyleSheet.create({
   group: { gap: 14 }, row: { flexDirection: 'row', alignItems: 'center', gap: 16 }, flex: { flex: 1 },
   selector: { padding: 12, borderRadius: theme.radius.field, borderWidth: 1, borderColor: theme.colors.line, gap: 12 },
   year: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, yearText: { fontSize: 27, lineHeight: 35 }, yearButton: { minWidth: 50 },
-  column: { flex: 1, gap: 10 }, wheel: { height: 160, flexGrow: 0, backgroundColor: theme.colors.field, borderRadius: theme.radius.field }, center: { textAlign: 'center' }, note: { fontSize: 11 },
+  column: { flex: 1, gap: 10 }, wheel: { height: 160, flexGrow: 0, backgroundColor: theme.colors.field, borderRadius: theme.radius.field }, center: { textAlign: 'center' }, note: { fontSize: 14 },
 });

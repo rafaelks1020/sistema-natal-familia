@@ -24,9 +24,9 @@ export function Button({ children, onPress, variant = 'primary', disabled, loadi
   </Pressable></Animated.View>;
 }
 const styles = StyleSheet.create({
-  base: { minHeight: 50, borderRadius: theme.radius.button, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7 },
+  base: { minHeight: 52, borderRadius: theme.radius.button, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7 },
   primary: { backgroundColor: theme.colors.cherry, borderColor: theme.colors.cherry },
   ghost: { backgroundColor: 'transparent', borderColor: theme.colors.lineStrong },
   quiet: { borderColor: 'transparent' }, disabled: { opacity: 0.5 },
-  label: { fontFamily: theme.fonts.medium, textAlign: 'center', fontSize: 14 },
+  label: { fontFamily: theme.fonts.medium, textAlign: 'center', fontSize: 16, lineHeight: 22 },
 });

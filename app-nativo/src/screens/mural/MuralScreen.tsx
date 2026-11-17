@@ -22,6 +22,8 @@ import { Sheet } from '../../ui/Sheet';
 import { Skeleton } from '../../ui/Skeleton';
 import { Text } from '../../ui/Text';
 import { useToast } from '../../ui/Toast';
+import { BotaoVoltar } from '../abas/BotaoVoltar';
+import { useAutenticado } from '../familia/sessao';
 import { muralKeys, type FeedEntry } from './cache';
 import { CommentsSheet } from './CommentsSheet';
 import { ComposerSheet } from './ComposerSheet';
@@ -37,6 +39,7 @@ function Separator() {
 }
 
 export function MuralScreen() {
+  const autenticado = useAutenticado();
   const mural = useMural();
   const toast = useToast();
   const insets = useSafeAreaInsets();
@@ -129,7 +132,7 @@ export function MuralScreen() {
     setNotifs(true);
     if ((data?.unread ?? 0) > 0) mural.markNotificationsRead();
   }
-  if (!user) return null;
+  if (!autenticado || !user) return null;
   if (postsQuery.isPending) return <MuralSkeleton top={insets.top} />;
   if (!postsQuery.data) {
     const message = postsQuery.error instanceof Error ? postsQuery.error.message : 'Não conseguimos abrir o mural.';
@@ -177,7 +180,7 @@ export function MuralScreen() {
         ListEmptyComponent={showEmpty ? <EmptyState title="O mural está esperando" message="Publique uma foto, um recado ou abra uma enquete para a ceia." action="Fazer o primeiro post" onAction={() => setComposer({ mode: 'post', editing: null })} /> : undefined}
         ListFooterComponent={postsQuery.isFetchNextPageError ? <View style={styles.footer}>
           <Text variant="muted" style={styles.center}>{postsQuery.error instanceof Error ? postsQuery.error.message : 'Não deu para trazer o restante.'}</Text>
-          <Pressable accessibilityRole="button" onPress={() => { void postsQuery.fetchNextPage(); }} style={styles.retry}><Text style={styles.retryLabel}>Tentar de novo</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Tentar de novo" onPress={() => { void postsQuery.fetchNextPage(); }} style={styles.retry}><Text style={styles.retryLabel}>Tentar de novo</Text></Pressable>
         </View> : postsQuery.isFetchingNextPage ? <View style={styles.footer} accessibilityLabel="Trazendo mais publicações"><Skeleton style={{ height: 18, width: '46%' }} /><Skeleton style={{ height: 140 }} /></View> : undefined}
       />
       <PublishButton bottom={insets.bottom + 16} onPress={() => setComposer({ mode: 'post', editing: null })} />
@@ -212,31 +215,42 @@ export function MuralScreen() {
 
 function Header({ top, unread, onBell }: { top: number; unread: number; onBell: () => void }) {
   const label = unread > 99 ? '99+' : String(unread);
-  return <View style={[styles.header, { paddingTop: top + 12 }]}>
-    <View style={styles.headerText}>
-      <Text variant="kicker">Memórias e conversas</Text>
-      <Text variant="display" accessibilityRole="header" style={styles.title}>Mural da família</Text>
+  return <View style={[styles.headerWrap, { paddingTop: top + 8 }]}>
+    <BotaoVoltar />
+    <View style={styles.header}>
+      <View style={styles.headerText}>
+        <Text variant="kicker">Memórias e conversas</Text>
+        <Text variant="display" accessibilityRole="header" style={styles.title}>Mural da família</Text>
+      </View>
+      <Pressable accessibilityRole="button" accessibilityLabel={unread > 0 ? `Avisos, ${unread} ${unread === 1 ? 'novo' : 'novos'}` : 'Avisos'} onPress={onBell} style={styles.bell}>
+        <Bell size={22} color={theme.colors.ivory} strokeWidth={1.6} />
+        {unread > 0 ? <View style={styles.badge}><Text style={styles.badgeText}>{label}</Text></View> : null}
+      </Pressable>
     </View>
-    <Pressable accessibilityRole="button" accessibilityLabel={unread > 0 ? `Notificações, ${unread} ${unread === 1 ? 'não lida' : 'não lidas'}` : 'Notificações'} onPress={onBell} style={styles.bell}>
-      <Bell size={20} color={theme.colors.ivory} strokeWidth={1.6} />
-      {unread > 0 ? <View style={styles.badge}><Text style={styles.badgeText}>{label}</Text></View> : null}
-    </Pressable>
   </View>;
 }
 
 function Prompt({ name, avatar, onPost, onPoll }: { name: string; avatar: string | null; onPost: () => void; onPoll: () => void }) {
   return <View style={styles.prompt}>
-    <Avatar name={name} src={avatar} size={40} />
-    <Pressable accessibilityRole="button" accessibilityLabel="Contar algo para a família" onPress={onPost} style={styles.promptField}>
-      <Text variant="muted" numberOfLines={1}>Conte algo para a família</Text>
-    </Pressable>
-    <Pressable accessibilityRole="button" accessibilityLabel="Publicar foto" onPress={onPost} style={styles.promptIcon}><Camera size={18} color={theme.colors.champagne} strokeWidth={1.6} /></Pressable>
-    <Pressable accessibilityRole="button" accessibilityLabel="Criar enquete" onPress={onPoll} style={styles.promptIcon}><ChartColumn size={18} color={theme.colors.secondary} strokeWidth={1.6} /></Pressable>
+    <View style={styles.promptRow}>
+      <Avatar name={name} src={avatar} size={44} />
+      <Pressable accessibilityRole="button" accessibilityLabel="Contar algo para a família" onPress={onPost} style={styles.promptField}>
+        <Text variant="muted" numberOfLines={2}>Conte algo para a família</Text>
+      </Pressable>
+    </View>
+    <View style={styles.promptRow}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Publicar foto" onPress={onPost} style={styles.promptAction}>
+        <Camera size={20} color={theme.colors.champagne} strokeWidth={1.6} /><Text style={styles.promptActionLabel}>Foto</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Criar enquete" onPress={onPoll} style={styles.promptAction}>
+        <ChartColumn size={20} color={theme.colors.champagne} strokeWidth={1.6} /><Text style={styles.promptActionLabel}>Enquete</Text>
+      </Pressable>
+    </View>
   </View>;
 }
 
 function MenuRow({ label, icon, onPress, color }: { label: string; icon: ReactNode; onPress: () => void; color?: string }) {
-  return <Pressable accessibilityRole="button" onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); onPress(); }} style={styles.menuRow}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); onPress(); }} style={styles.menuRow}>
     {icon}
     <Text style={[styles.menuLabel, color ? { color } : null]}>{label}</Text>
   </Pressable>;
@@ -266,18 +280,21 @@ function MuralSkeleton({ top }: { top: number }) {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: theme.colors.background },
   column: { flex: 1, width: '100%', maxWidth: 720, alignSelf: 'center' },
-  header: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, paddingHorizontal: 20, paddingBottom: 8 },
+  headerWrap: { paddingHorizontal: 20, paddingBottom: 8, gap: 4 },
+  header: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
   headerText: { flex: 1, minWidth: 0, gap: 6 },
   title: { fontSize: 36, lineHeight: 44 },
-  bell: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.field, alignItems: 'center', justifyContent: 'center' },
-  badge: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: theme.colors.cherry, alignItems: 'center', justifyContent: 'center' },
-  badgeText: { color: theme.colors.ivory, fontSize: 10, lineHeight: 12, fontFamily: theme.fonts.semibold, fontVariant: ['tabular-nums'] },
+  bell: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.field, alignItems: 'center', justifyContent: 'center' },
+  badge: { position: 'absolute', top: -6, right: -6, minWidth: 22, minHeight: 22, borderRadius: 11, paddingHorizontal: 5, backgroundColor: theme.colors.cherry, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { color: theme.colors.ivory, fontSize: 14, lineHeight: 18, fontFamily: theme.fonts.semibold, fontVariant: ['tabular-nums'] },
   list: { paddingTop: 8 },
   listEmpty: { flexGrow: 1 },
   rule: { height: 1, backgroundColor: theme.colors.line, marginHorizontal: 20 },
-  prompt: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.surface },
-  promptField: { flex: 1, minWidth: 0, minHeight: 44, borderRadius: 22, borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.field, justifyContent: 'center', paddingHorizontal: 14 },
-  promptIcon: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: theme.colors.line, alignItems: 'center', justifyContent: 'center' },
+  prompt: { gap: 10, marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.surface },
+  promptRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  promptField: { flex: 1, minWidth: 0, minHeight: 48, paddingVertical: 8, borderRadius: 22, borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.field, justifyContent: 'center', paddingHorizontal: 14 },
+  promptAction: { flex: 1, minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: theme.colors.line, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
+  promptActionLabel: { fontFamily: theme.fonts.medium, fontSize: 16 },
   footer: { padding: 24, gap: 12 },
   center: { textAlign: 'center' },
   retry: { minHeight: 48, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.lineStrong, alignItems: 'center', justifyContent: 'center' },

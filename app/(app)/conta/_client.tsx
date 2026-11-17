@@ -46,6 +46,8 @@ export default function ContaClient() {
   const [busy, setBusy] = useState(false);
 
   async function logout() {
+    // Um toque sem querer obrigaria a pessoa a digitar usuário e senha de novo.
+    if (!window.confirm('Sair do Natal em Família? Para entrar de novo você vai precisar do seu usuário e da sua senha.')) return;
     setBusy(true);
     try {
       await api('/api/auth', { method: 'DELETE' });

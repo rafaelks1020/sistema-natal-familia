@@ -306,7 +306,7 @@ function Vinculos({ semLogin, vinculaveis, toast }: { semLogin: Membro[]; vincul
     {semLogin.length > 0 && vinculaveis.length === 0 ? <Text variant="muted">Nenhum parente pode ser vinculado no momento. O participante atual precisa estar sem histórico.</Text> : null}
     <Sheet visible={escolhendo !== null} title="Acesso do parente" onClose={() => setEscolhendo(null)}>
       <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: height * 0.5 }}>
-        {vinculaveis.map((usuario) => <Pressable key={usuario.id} accessibilityRole="button" onPress={() => {
+        {vinculaveis.map((usuario) => <Pressable key={usuario.id} accessibilityRole="button" accessibilityLabel={`Escolher ${usuario.name}`} onPress={() => {
           const userId = usuario.id;
           if (escolhendo === null || userId === null) return;
           setEscolha((atual) => ({ ...atual, [escolhendo]: userId }));
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
   pessoaTopo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   pessoaNome: { fontFamily: theme.fonts.medium, fontSize: 15 },
   pessoaTitulo: { fontSize: 24, lineHeight: 32 },
-  usuario: { fontSize: 12 },
+  usuario: { fontSize: 14 },
   acoes: { flexDirection: 'row', flexWrap: 'wrap' },
   folha: { gap: 16 },
   senha: { textAlign: 'center', fontSize: 22, letterSpacing: 3, color: theme.colors.champagne },

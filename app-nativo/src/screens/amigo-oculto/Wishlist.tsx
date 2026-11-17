@@ -150,6 +150,7 @@ export function Wishlist({
                         style={styles.edit}
                       >
                         <Pencil size={17} color={theme.colors.champagne} />
+                        <Text style={styles.editar}>Editar</Text>
                       </Pressable>
                     ) : null}
                   </View>
@@ -215,6 +216,7 @@ export function Wishlist({
                 <Pressable
                   key={p.id}
                   accessibilityRole="button"
+                  accessibilityLabel={`Ver a lista de ${p.name}`}
                   accessibilityState={{ selected: active }}
                   onPress={() => setSelectedRelativeId(active ? null : p.id)}
                   style={[styles.chip, active && styles.chipActive]}
@@ -285,9 +287,10 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.field,
   },
   itemName: { fontSize: 17, fontFamily: theme.fonts.medium, marginTop: 4 },
-  priceBadge: { fontSize: 13, color: theme.colors.champagne, marginTop: 2 },
+  priceBadge: { fontSize: 14, color: theme.colors.champagne, marginTop: 2 },
   purchased: { color: theme.colors.secondary, textDecorationLine: 'line-through' },
-  edit: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  edit: { minWidth: 48, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 6 },
+  editar: { fontSize: 14, lineHeight: 18, color: theme.colors.champagne },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -295,8 +298,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 4,
   },
-  purchase: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 4 },
-  purchaseText: { fontSize: 11 },
+  purchase: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 48, paddingHorizontal: 4 },
+  purchaseText: { fontSize: 14 },
   checkbox: {
     width: 18,
     height: 18,
@@ -308,7 +311,7 @@ const styles = StyleSheet.create({
   },
   checked: { backgroundColor: theme.colors.sage, borderColor: theme.colors.sage },
   dim: { opacity: 0.5 },
-  note: { fontSize: 11 },
+  note: { fontSize: 14 },
   familySection: {
     gap: 10,
     marginTop: 12,
@@ -322,7 +325,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: 14,
     borderRadius: 22,
     borderWidth: 1,
@@ -333,5 +336,5 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.champagne,
     backgroundColor: theme.colors.field,
   },
-  chipText: { fontSize: 13 },
+  chipText: { fontSize: 14 },
 });

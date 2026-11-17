@@ -62,6 +62,7 @@ function PostCardComponent({ post, width, visible, meId, isAdmin, onAuthor, onRe
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Opções da publicação" onPress={() => onOpenMenu(post)} style={styles.iconHit}>
         <Ellipsis size={20} color={theme.colors.secondary} strokeWidth={1.6} />
+        <Text style={styles.opcoes}>Opções</Text>
       </Pressable>
     </View>
     {post.content ? <Text style={styles.body}>{post.content}</Text> : null}
@@ -71,28 +72,27 @@ function PostCardComponent({ post, width, visible, meId, isAdmin, onAuthor, onRe
       </View> : null}
     </PhotoStrip> : null}
     <View style={styles.bar}>
-      <View style={styles.reactions}>
-        {REACTIONS.map(({ type, label, Icon }) => {
-          const active = post.my_reactions.includes(type);
-          const count = Number(post.reactions[type] ?? 0);
-          const heart = type === 'coracao';
-          const color = active ? (heart ? theme.colors.cherry : theme.colors.champagne) : theme.colors.secondary;
-          return <Pressable key={type} accessibilityRole="button" accessibilityState={{ selected: active }} accessibilityLabel={count > 0 ? `${label}, ${count}` : label} onPress={() => react(type)} style={styles.reaction}>
-            <View>
-              <Icon size={22} strokeWidth={1.6} color={color} fill={active ? (heart ? theme.colors.cherry : 'rgba(191,165,119,0.28)') : 'transparent'} />
-              {heart && burst > 0 ? <LoopVideo key={`like-${burst}`} name="mn-curtida" once visible={visible} style={styles.likeVideo} /> : null}
-            </View>
-            {count > 0 ? <Text style={[styles.count, { color }]}>{count}</Text> : null}
-          </Pressable>;
-        })}
-      </View>
+      {REACTIONS.map(({ type, label, Icon }) => {
+        const active = post.my_reactions.includes(type);
+        const count = Number(post.reactions[type] ?? 0);
+        const heart = type === 'coracao';
+        const rotulo = type === 'coracao' ? 'Amei' : label;
+        const color = active ? (heart ? theme.colors.cherry : theme.colors.champagne) : theme.colors.secondary;
+        return <Pressable key={type} accessibilityRole="button" accessibilityState={{ selected: active }} accessibilityLabel={count > 0 ? `${rotulo}, ${count}` : rotulo} onPress={() => react(type)} style={styles.reaction}>
+          <View>
+            <Icon size={22} strokeWidth={1.6} color={color} fill={active ? (heart ? theme.colors.cherry : 'rgba(191,165,119,0.28)') : 'transparent'} />
+            {heart && burst > 0 ? <LoopVideo key={`like-${burst}`} name="mn-curtida" once visible={visible} style={styles.likeVideo} /> : null}
+          </View>
+          <Text style={[styles.rotuloReacao, { color }]}>{count > 0 ? `${rotulo} ${count}` : rotulo}</Text>
+        </Pressable>;
+      })}
       <Pressable accessibilityRole="button" accessibilityLabel={post.comments_count > 0 ? `Comentar, ${post.comments_count}` : 'Comentar'} onPress={() => onOpenComments(post.id)} style={styles.reaction}>
-        <MessageCircle size={20} color={theme.colors.secondary} strokeWidth={1.6} />
-        {post.comments_count > 0 ? <Text style={styles.count}>{post.comments_count}</Text> : null}
+        <MessageCircle size={22} color={theme.colors.secondary} strokeWidth={1.6} />
+        <Text style={styles.rotuloReacao}>{post.comments_count > 0 ? `Comentar ${post.comments_count}` : 'Comentar'}</Text>
       </Pressable>
     </View>
     <View style={styles.comments}>
-      {hidden ? <Pressable accessibilityRole="button" onPress={() => onOpenComments(post.id)} style={styles.more}>
+      {hidden ? <Pressable accessibilityRole="button" accessibilityLabel={post.comments_count === 1 ? 'Ver o comentário' : `Ver todos os ${post.comments_count} comentários`} onPress={() => onOpenComments(post.id)} style={styles.more}>
         <Text style={styles.moreLabel}>{post.comments_count === 1 ? 'Ver o comentário' : `Ver todos os ${post.comments_count} comentários`}</Text>
       </Pressable> : null}
       {preview.map(comment => <CommentLine key={comment.id} comment={comment} visible={visible} canDelete={comment.user_id === meId || isAdmin} onAuthor={onAuthor} onLike={commentId => onLikeComment(post.id, commentId)} onDelete={commentId => onDeleteComment(post.id, commentId)} />)}
@@ -110,18 +110,18 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   name: { flexShrink: 1, fontFamily: theme.fonts.semibold, fontSize: 15, lineHeight: 20 },
   pin: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  pinLabel: { color: theme.colors.champagne, fontFamily: theme.fonts.semibold, fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase' },
-  time: { fontSize: 12, lineHeight: 16 },
-  iconHit: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  pinLabel: { color: theme.colors.champagne, fontFamily: theme.fonts.semibold, fontSize: 14, letterSpacing: 1.2, textTransform: 'uppercase' },
+  time: { fontSize: 14, lineHeight: 20 },
+  iconHit: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  opcoes: { fontSize: 14, lineHeight: 18, color: theme.colors.secondary },
   body: { paddingHorizontal: 20, paddingTop: 12, fontSize: 16, lineHeight: 24 },
   heartLayer: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   heartVideo: { width: 188, height: 188, backgroundColor: 'transparent', mixBlendMode: 'screen' },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, marginTop: 4 },
-  reactions: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
-  reaction: { minWidth: 44, minHeight: 44, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  count: { fontSize: 13, lineHeight: 18, color: theme.colors.secondary, fontVariant: ['tabular-nums'], fontFamily: theme.fonts.medium },
+  bar: { flexDirection: 'row', alignItems: 'stretch', paddingHorizontal: 4, marginTop: 4 },
+  reaction: { flex: 1, minHeight: 56, paddingHorizontal: 2, paddingVertical: 6, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  rotuloReacao: { fontSize: 13, lineHeight: 16, textAlign: 'center', color: theme.colors.secondary, fontFamily: theme.fonts.medium },
   likeVideo: { position: 'absolute', width: 36, height: 36, top: -7, left: -7, backgroundColor: 'transparent', mixBlendMode: 'screen' },
   comments: { paddingHorizontal: 16, gap: 2 },
-  more: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 4 },
-  moreLabel: { color: theme.colors.muted, fontSize: 12, fontFamily: theme.fonts.medium },
+  more: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 4 },
+  moreLabel: { color: theme.colors.muted, fontSize: 16, lineHeight: 22, fontFamily: theme.fonts.medium },
 });

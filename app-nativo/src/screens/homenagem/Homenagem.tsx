@@ -49,7 +49,7 @@ export default function Homenagem() {
             <Text variant="muted">Escrito por {item.autor_nome}</Text>
             {item.pessoa_arvore_id ? <Button variant="ghost" onPress={() => router.push(`/arvore?pessoa=${item.pessoa_arvore_id}`)}>Ver na árvore</Button> : null}
             <Text variant="kicker">{item.velas === 1 ? '1 vela acesa' : `${item.velas} velas acesas`}</Text>
-            <Button variant="ghost" icon={<Flame color={theme.colors.champagne} size={16} />} disabled={escrita.busy || item.acendi} onPress={() => escrita.executar(() => api(`/api/homenagem/${item.id}/vela`, { method: 'POST' }))}>{item.acendi ? 'Você acendeu uma vela nesta edição' : 'Acender uma vela'}</Button>
+            <Button variant="ghost" icon={<Flame color={theme.colors.champagne} size={16} />} disabled={escrita.busy || item.acendi} onPress={() => escrita.executar(() => api(`/api/homenagem/${item.id}/vela`, { method: 'POST' }))}>{item.acendi ? 'Você acendeu uma vela neste Natal' : 'Acender uma vela'}</Button>
             {item.pode_editar ? <Button variant="ghost" disabled={escrita.busy} onPress={() => setEditando(item)}>Editar homenagem</Button> : null}
             {item.pode_editar ? <Button variant="quiet" disabled={escrita.busy} onPress={() => Alert.alert('Apagar esta homenagem e as lembranças?', '', [{ text: 'Voltar', style: 'cancel' }, { text: 'Apagar', style: 'destructive', onPress: () => escrita.executar(() => api(`/api/homenagem/${item.id}`, { method: 'DELETE' })) }])}>Apagar homenagem</Button> : null}
             <Text variant="kicker">Lembranças</Text>

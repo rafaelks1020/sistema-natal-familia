@@ -44,10 +44,9 @@ function Routes() {
     if (status !== 'authenticated') return;
     const rota = rotaDaNotificacao(ultima ?? null);
     if (!rota) return;
-    // Só as abas ficam dentro de (tabs); as telas novas (ceia, advento, festa...) são rotas do Stack.
-    const aba = rota === '/' || /^\/(mural|amigo-oculto|vaquinha|album)(?=$|[/?#])/.test(rota);
-    const destino = rota === '/' ? '/(tabs)' : aba ? `/(tabs)${rota}` : rota;
-    router.push(destino as never);
+    // Só o Hoje fica dentro de (tabs); mural, amigo oculto, vaquinha, álbum e as demais telas são rotas do Stack.
+    if (rota === '/') router.push('/(tabs)');
+    else router.push(rota as never);
     void Notifications.clearLastNotificationResponseAsync();
   }, [ultima, status]);
   return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background }, animation: reduced ? 'none' : 'fade' }}>

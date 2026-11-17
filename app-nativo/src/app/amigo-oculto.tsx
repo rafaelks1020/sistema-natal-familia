@@ -1,1 +1,1 @@
-export { default } from '../../screens/amigo-oculto';
+export { default } from '../screens/amigo-oculto';

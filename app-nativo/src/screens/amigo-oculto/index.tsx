@@ -10,6 +10,8 @@ import EyeOff from 'lucide-react-native/icons/eye-off';
 import { api, queryClient, queryKeys, sessionStore } from '../../api';
 import { brl } from '../../format';
 import { useSession } from '../../session';
+import { BotaoVoltar } from '../abas/BotaoVoltar';
+import { useAutenticado } from '../familia/sessao';
 import { theme } from '../../theme';
 import type { User } from '../../types';
 import type { Receiver, SantaConfig, SantaData } from '../../types/amigo-oculto';
@@ -29,8 +31,9 @@ import { Ticket } from './Ticket';
 import { Wishlist } from './Wishlist';
 
 export default function AmigoOculto() {
-  const { user, status } = useSession();
-  if (!user || status !== 'authenticated') return null;
+  const autenticado = useAutenticado();
+  const { user } = useSession();
+  if (!autenticado || !user) return null;
   return <AmigoContent key={`${user.id}:${sessionStore.getGeneration()}`} user={user} />;
 }
 
@@ -127,9 +130,10 @@ function AmigoContent({ user }: { user: User }) {
   const playingReveal = data?.config?.id === celebrating;
   const videoVisible = focused && active && heroVisible;
   return <View style={styles.page}>
-    <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 22, paddingBottom: Math.max(insets.bottom, 24) + 24 }]}
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 8, paddingBottom: Math.max(insets.bottom, 24) + 24 }]}
       keyboardShouldPersistTaps="handled" onScroll={event => setHeroVisible(event.nativeEvent.contentOffset.y < heroBottom.current)} scrollEventThrottle={100}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void refresh(); }} tintColor={theme.colors.champagne} colors={[theme.colors.champagne]} />}>
+      <BotaoVoltar style={styles.voltar} />
       <Rise style={styles.header}><View style={styles.heading}><Text variant="kicker">Um segredo da família</Text><Gift size={23} color={theme.colors.cherry} strokeWidth={1.3} /></View>
         <Text variant="display" accessibilityRole="header" style={styles.title}>Amigo oculto</Text><View style={styles.redRule} /></Rise>
       <ThemeBanner />
@@ -168,7 +172,7 @@ function Revealed({ receiver, config, hidden, onToggle }: { receiver: Receiver; 
           <Text variant="display" style={styles.receiverName} accessibilityLiveRegion="polite">{receiver.name}</Text>
           <Text variant="kicker">Um presente cheio de significado</Text>
           <GiftRange config={config} /></>}
-      <Button variant="quiet" icon={hidden ? <Eye size={16} color={theme.colors.champagne} /> : <EyeOff size={16} color={theme.colors.champagne} />} onPress={onToggle}>{hidden ? 'Mostrar nome' : 'Esconder nome'}</Button>
+      <Button variant="quiet" icon={hidden ? <Eye size={20} color={theme.colors.champagne} /> : <EyeOff size={20} color={theme.colors.champagne} />} onPress={onToggle}>{hidden ? 'Mostrar nome' : 'Esconder nome'}</Button>
     </Surface></Rise>
     {!hidden ? <Wishlist key={`${config.id}:${receiver.participant_id}`} participantId={receiver.participant_id} configId={config.id} /> : null}
   </View>;
@@ -184,12 +188,12 @@ function GiftRange({ config }: { config: SantaConfig }) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: theme.colors.background }, content: { paddingHorizontal: 24, gap: 34 },
-  header: { gap: 12 }, heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, title: { fontSize: 42, lineHeight: 52 },
+  voltar: { marginBottom: -24 }, header: { gap: 12 }, heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, title: { fontSize: 42, lineHeight: 52 },
   redRule: { width: 46, height: 1, backgroundColor: theme.colors.cherry, marginTop: 5 }, loading: { gap: 20 }, waiting: { gap: 20, alignItems: 'center', paddingBottom: 8 },
   giftVideo: { width: '100%', aspectRatio: 1.2, borderRadius: theme.radius.card }, waitingTitle: { fontSize: 31, lineHeight: 40, textAlign: 'center' }, center: { textAlign: 'center' },
   celebration: { gap: 20 }, revealVideo: { width: '100%', aspectRatio: 0.95, borderRadius: theme.radius.card }, result: { gap: 32 },
   receiver: { alignItems: 'center', gap: 20, paddingTop: 28, paddingBottom: 12, borderColor: theme.colors.champagne },
   youDrew: { color: theme.colors.champagne, fontSize: 36, lineHeight: 45 }, avatarRing: { borderWidth: 1, borderColor: theme.colors.champagne, borderRadius: 76, padding: 7 },
   receiverName: { fontSize: 39, lineHeight: 49, textAlign: 'center' }, giftRange: { gap: 6, alignItems: 'center', paddingTop: 12, width: '100%', borderTopWidth: 1, borderColor: theme.colors.line },
-  rangeLabel: { fontSize: 11 }, rangeValue: { fontSize: 25, lineHeight: 35, textAlign: 'center' }, footer: { textAlign: 'center', fontSize: 9, color: theme.colors.muted },
+  rangeLabel: { fontSize: 15 }, rangeValue: { fontSize: 25, lineHeight: 35, textAlign: 'center' }, footer: { textAlign: 'center', fontSize: 14, color: theme.colors.muted },
 });

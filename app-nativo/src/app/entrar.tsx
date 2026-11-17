@@ -94,11 +94,11 @@ function LoginForm({ invitation }: { invitation: string }) {
                 {invalidInvite && !check.isPending ? <Button variant="quiet" onPress={() => setIgnoreInvite(true)}>Usar o código da família</Button> : null}
               </Surface> : null}
               {mode === 'register' ? <Field label="Seu nome" placeholder="Como a família te chama" value={name} onChangeText={update('name')} autoComplete="name" maxLength={60} editable={!busy} /> : null}
-              <Field label="Usuário" placeholder="Seu usuário" value={form.username} onChangeText={update('username')} autoCapitalize="none" autoCorrect={false} autoComplete="username" maxLength={60} editable={!busy} />
+              <Field label={mode === 'register' ? 'Escolha um nome de usuário' : 'Seu usuário'} placeholder="letras e números" testID="campo-usuario" value={form.username} onChangeText={update('username')} autoCapitalize="none" autoCorrect={false} autoComplete="username" maxLength={60} editable={!busy} />
               {form.username.trim() && normalizeUsername(form.username) !== form.username.trim() ? <Text variant="muted" style={styles.hint}>
                 {mode === 'register' ? 'Seu usuário vai ficar: ' : 'Entrando como: '}<Text style={styles.normalized}>{normalizeUsername(form.username) || '...'}</Text>
               </Text> : null}
-              <Field label="Senha" placeholder={mode === 'register' ? 'Pelo menos 6 caracteres' : 'Sua senha'} value={form.password} onChangeText={update('password')}
+              <Field label={mode === 'register' ? 'Crie uma senha' : 'Sua senha'} placeholder={mode === 'register' ? 'Pelo menos 6 caracteres' : 'A senha que você combinou'} value={form.password} onChangeText={update('password')} testID="campo-senha"
                 secureTextEntry={!show} autoCapitalize="none" autoCorrect={false} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} editable={!busy}
                 onSubmitEditing={() => { if (mode === 'login' || invite) void submit(); }}
                 trailing={<Pressable accessibilityRole="button" accessibilityLabel={show ? 'Ocultar senha' : 'Mostrar senha'} onPress={() => setShow(value => !value)} style={styles.eye}>
@@ -107,15 +107,16 @@ function LoginForm({ invitation }: { invitation: string }) {
               {mode === 'register' && !invite ? <Field label="Código da família" placeholder="Peça para quem organiza" value={form.code} onChangeText={update('code')}
                 autoCapitalize="none" autoCorrect={false} editable={!busy} maxLength={120} onSubmitEditing={() => { void submit(); }} /> : null}
               {mode === 'register' ? <View style={{ gap: 4 }}>
-                <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: acceptTerms, disabled: busy }} disabled={busy} onPress={() => setAcceptTerms(value => !value)} style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={{ width: 24, height: 24, borderWidth: 1, borderRadius: 4, borderColor: theme.colors.champagne, backgroundColor: acceptTerms ? theme.colors.cherry : 'transparent', alignItems: 'center', justifyContent: 'center' }}><Text>{acceptTerms ? '✓' : ''}</Text></View>
-                  <Text style={{ flex: 1, fontSize: 14 }}>Li e aceito os Termos de uso e a Política de privacidade</Text>
+                <Pressable accessibilityRole="checkbox" accessibilityLabel="Li e aceito os Termos de uso e a Política de privacidade" accessibilityState={{ checked: acceptTerms, disabled: busy }} disabled={busy} onPress={() => setAcceptTerms(value => !value)} style={styles.aceite}>
+                  <View style={[styles.caixa, acceptTerms && styles.caixaMarcada]}><Text style={styles.visto}>{acceptTerms ? '✓' : ''}</Text></View>
+                  <Text style={styles.aceiteTexto}>Li e aceito os Termos de uso e a Política de privacidade</Text>
                 </Pressable>
                 <Button variant="quiet" onPress={() => router.push('/termos')}>Termos de uso</Button>
                 <Button variant="quiet" onPress={() => router.push('/privacidade')}>Política de privacidade</Button>
               </View> : null}
               {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.error}>{error}</Text> : null}
               <Button loading={busy} disabled={mode === 'register' && (invalidInvite || !acceptTerms)} onPress={() => { void submit(); }}>{mode === 'login' ? 'Entrar' : 'Criar meu acesso'}</Button>
+              {mode === 'login' ? <Text variant="muted" style={styles.center}>Esqueceu a senha? Peça uma senha nova para quem organiza o Natal.</Text> : null}
               <Button disabled={busy} variant="quiet" onPress={() => { setMode(current => current === 'login' ? 'register' : 'login'); setError(''); }}>
                 {mode === 'login' ? 'Primeira vez aqui? Cadastrar parente' : 'Já tenho acesso. Entrar'}
               </Button>
@@ -130,7 +131,12 @@ const styles = StyleSheet.create({
   page: { flex: 1 }, scroll: { flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: 24, paddingTop: 48, paddingBottom: 28 },
   column: { width: '100%', maxWidth: 440, alignSelf: 'center', gap: 32 }, brand: { alignItems: 'center', gap: 14 },
   title: { fontSize: 58, lineHeight: 66, textAlign: 'center' }, rule: { width: 64, height: 1, backgroundColor: theme.colors.cherry, marginTop: 6 },
-  form: { gap: 14 }, center: { textAlign: 'center' }, invite: { gap: 10, padding: 16 }, hint: { fontSize: 11 },
-  normalized: { fontSize: 12, color: theme.colors.champagne }, eye: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  error: { fontSize: 13, color: theme.colors.error },
+  form: { gap: 14 }, center: { textAlign: 'center' }, invite: { gap: 10, padding: 16 }, hint: { fontSize: 15, lineHeight: 22 },
+  normalized: { fontSize: 15, lineHeight: 22, color: theme.colors.champagne }, eye: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  error: { fontSize: 16, lineHeight: 22, color: theme.colors.error },
+  aceite: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  caixa: { minWidth: 28, minHeight: 28, borderWidth: 1, borderRadius: 4, borderColor: theme.colors.champagne, alignItems: 'center', justifyContent: 'center' },
+  caixaMarcada: { backgroundColor: theme.colors.cherry },
+  visto: { fontSize: 16, lineHeight: 20 },
+  aceiteTexto: { flex: 1, fontSize: 16, lineHeight: 22 },
 });

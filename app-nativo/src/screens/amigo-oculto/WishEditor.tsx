@@ -385,6 +385,7 @@ export function WishEditor({
                   style={styles.removePhotoBtn}
                 >
                   <X size={18} color={theme.colors.muted} />
+                  <Text style={styles.removerFoto}>Remover</Text>
                 </Pressable>
               </View>
             </View>
@@ -467,7 +468,7 @@ const styles = StyleSheet.create({
   form: { gap: 16, paddingBottom: 16 },
   priceRow: { flexDirection: 'row', gap: 10 },
   priceCol: { flex: 1 },
-  errorText: { color: theme.colors.cherry, fontSize: 13 },
+  errorText: { color: theme.colors.cherry, fontSize: 14 },
   photoSection: { gap: 8 },
   photoRow: { flexDirection: 'row', gap: 10 },
   photoPreviewRow: {
@@ -482,7 +483,8 @@ const styles = StyleSheet.create({
   },
   photoThumb: { width: 64, height: 64, borderRadius: 10 },
   photoActions: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  removePhotoBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  removePhotoBtn: { minWidth: 48, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 8 },
+  removerFoto: { fontSize: 14, lineHeight: 18, color: theme.colors.secondary },
   priorities: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   priorityChoice: {
     flexGrow: 1,
@@ -495,5 +497,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   prioritySelected: { borderColor: theme.colors.champagne, backgroundColor: theme.colors.field },
-  note: { fontSize: 11 },
+  note: { fontSize: 14 },
 });

@@ -23,7 +23,7 @@ export function ToastProvider({ children }: PropsWithChildren) {
     {toast ? <Rise key={toast.id} style={[styles.position, { top: insets.top + 12 }]}>
       <Pressable accessibilityRole="alert" accessibilityLabel={toast.message} onPress={() => setToast(null)} style={styles.card}>
         <BlurView tint="dark" intensity={35} style={StyleSheet.absoluteFill} />
-        <Text style={{ fontSize: 13, color: toast.kind === 'error' ? theme.colors.error : theme.colors.ivory }}>{toast.message}</Text>
+        <Text style={{ fontSize: 16, lineHeight: 22, color: toast.kind === 'error' ? theme.colors.error : theme.colors.ivory }}>{toast.message}</Text>
       </Pressable>
     </Rise> : null}
   </ToastContext.Provider>;

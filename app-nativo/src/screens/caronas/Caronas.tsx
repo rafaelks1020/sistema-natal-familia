@@ -35,7 +35,7 @@ export default function Caronas() {
         <View style={styles.tabs}>{(['oferta', 'pedido'] as const).map(t => <Button key={t} style={styles.flex} variant={t === aba ? 'primary' : 'ghost'} selected={t === aba} onPress={() => setAba(t)}>{t === 'oferta' ? 'Ofertas' : 'Pedidos'}</Button>)}</View>
         {consulta.isPending ? <Skeleton style={{ height: 180 }} /> : null}
         {consulta.isError ? <EmptyState title="Não foi possível atualizar" message={consulta.error.message} action="Tentar novamente" onAction={() => { void consulta.refetch(); }} /> : null}
-        {data && !ofertas.length ? <EmptyState title="Vamos juntos" message={`Ainda não há ${aba === 'oferta' ? 'ofertas' : 'pedidos'} nesta edição.`} /> : null}
+        {data && !ofertas.length ? <EmptyState title="Vamos juntos" message={`Ainda não há ${aba === 'oferta' ? 'ofertas' : 'pedidos'} neste Natal.`} /> : null}
         {ofertas.map(o => <Cartao key={o.id} oferta={o} meuId={user.id} admin={Boolean(user.is_admin)} busy={escrita.busy} executar={escrita.executar} atualizar={() => { void consulta.refetch(); }} />)}
       </View>
     </ScrollView>

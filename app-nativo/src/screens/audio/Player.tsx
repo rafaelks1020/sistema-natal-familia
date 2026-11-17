@@ -62,6 +62,6 @@ export function AudioPlayer({ url, onDuration }: { url: string; onDuration?: (se
 }
 const styles = StyleSheet.create({
   wrap: { gap: 6 }, row: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 }, flex: { flex: 1, minWidth: 110 },
-  touch: { minHeight: 44, justifyContent: 'center' }, track: { height: 6, backgroundColor: theme.colors.lineStrong, borderRadius: 3, overflow: 'hidden' },
+  touch: { minHeight: 48, justifyContent: 'center' }, track: { height: 6, backgroundColor: theme.colors.lineStrong, borderRadius: 3, overflow: 'hidden' },
   progress: { height: 6, backgroundColor: theme.colors.champagne },
 });

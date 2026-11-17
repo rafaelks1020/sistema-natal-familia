@@ -151,7 +151,7 @@ function FolhaAviso({ visible, onClose }: { visible: boolean; onClose: () => voi
       </View>
       {!todos ? (familia.isPending ? <Skeleton style={{ height: 80 }} /> : pessoas.map((p) => {
         const marcado = escolhidos.includes(p.id);
-        return <Pressable key={p.id} accessibilityRole="checkbox" accessibilityState={{ checked: marcado }} onPress={() => alternar(p.id)} style={styles.pessoa}>
+        return <Pressable key={p.id} accessibilityRole="checkbox" accessibilityLabel={p.name} accessibilityState={{ checked: marcado }} onPress={() => alternar(p.id)} style={styles.pessoa}>
           <View style={[styles.caixa, marcado && styles.caixaMarcada]}>{marcado ? <Check size={14} color={theme.colors.ivory} strokeWidth={2} /> : null}</View>
           <Text>{p.name}</Text>
         </Pressable>;
@@ -162,7 +162,7 @@ function FolhaAviso({ visible, onClose }: { visible: boolean; onClose: () => voi
 }
 
 function Chip({ rotulo, ativo, onPress }: { rotulo: string; ativo: boolean; onPress: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityState={{ selected: ativo }} onPress={onPress} style={[styles.chip, ativo && styles.chipAtivo]}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={rotulo} accessibilityState={{ selected: ativo }} onPress={onPress} style={[styles.chip, ativo && styles.chipAtivo]}>
     <Text style={{ fontSize: 14, color: ativo ? theme.colors.ivory : theme.colors.secondary }}>{rotulo}</Text>
   </Pressable>;
 }
@@ -178,16 +178,16 @@ const styles = StyleSheet.create({
   pendencia: { flex: 1, minHeight: 96, borderRadius: theme.radius.card, borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.surface, padding: 14, justifyContent: 'space-between' },
   pendenciaViva: { borderColor: theme.colors.champagne },
   pendenciaNumero: { fontSize: 34, lineHeight: 40 },
-  pendenciaRotulo: { fontSize: 12, lineHeight: 17 },
+  pendenciaRotulo: { fontSize: 14, lineHeight: 20 },
   linha: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.line },
   linhaTitulo: { fontFamily: theme.fonts.medium, fontSize: 15 },
-  novos: { fontSize: 12 },
+  novos: { fontSize: 14 },
   total: { fontSize: 24, lineHeight: 32 },
   pressionado: { opacity: 0.72 },
   form: { gap: 14, paddingBottom: 8 },
   longo: { minHeight: 90, textAlignVertical: 'top' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { minHeight: 44, paddingHorizontal: 16, borderRadius: theme.radius.button, borderWidth: 1, borderColor: theme.colors.line, justifyContent: 'center' },
+  chip: { minHeight: 48, paddingHorizontal: 16, borderRadius: theme.radius.button, borderWidth: 1, borderColor: theme.colors.line, justifyContent: 'center' },
   chipAtivo: { borderColor: theme.colors.cherry, backgroundColor: theme.colors.cherry },
   pessoa: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12 },
   caixa: { width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: theme.colors.lineStrong, alignItems: 'center', justifyContent: 'center' },

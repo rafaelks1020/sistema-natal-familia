@@ -358,7 +358,7 @@ export default function FestaBingoScreen() {
                               </>
                             ) : (
                               <>
-                                <Text numberOfLines={3} style={styles.textoCasa}>
+                                <Text numberOfLines={4} style={styles.textoCasa}>
                                   {casa.texto}
                                 </Text>
                                 {marcada ? (
@@ -416,7 +416,7 @@ export default function FestaBingoScreen() {
                           <Avatar name={c.user_name} src={c.avatar_url} size={36} />
                           <View style={styles.flex}>
                             <Text style={{ fontFamily: theme.fonts.semibold }}>{c.user_name}</Text>
-                            <Text style={{ color: theme.colors.champagne, fontSize: 12 }}>
+                            <Text style={{ color: theme.colors.champagne, fontSize: 14 }}>
                               {c.padrao}
                             </Text>
                           </View>
@@ -492,7 +492,7 @@ export default function FestaBingoScreen() {
                       <View style={styles.flex}>
                         <Text numberOfLines={1}>{p.name}</Text>
                         {p.tem_bingo ? (
-                          <Text style={{ color: theme.colors.champagne, fontSize: 12 }}>
+                          <Text style={{ color: theme.colors.champagne, fontSize: 14 }}>
                             Gritou Bingo!
                           </Text>
                         ) : null}
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
   linhaGrade: { flexDirection: 'row', gap: 6 },
   casa: {
     flex: 1,
-    minHeight: 68,
+    minHeight: 104,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.colors.line,
@@ -664,12 +664,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(197,41,45,0.35)',
   },
   textoCasa: {
-    fontSize: 10,
-    lineHeight: 13,
+    fontSize: 13,
+    lineHeight: 17,
     textAlign: 'center',
     color: theme.colors.ivory,
   },
-  textoLivre: { fontSize: 9, lineHeight: 12 },
+  textoLivre: { fontSize: 13, lineHeight: 17 },
   seloCheck: {
     width: 16,
     height: 16,

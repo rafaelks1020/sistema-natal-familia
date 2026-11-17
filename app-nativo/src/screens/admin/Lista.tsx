@@ -160,7 +160,8 @@ function Linha({ item, meta, onPress }: { item: ItemAdmin; meta: RecursoMeta; on
   const foto = meta.colunas.find((c) => c.tipo === 'imagem');
   const foto_url = foto ? urlAbsoluta(item[foto.campo]) : null;
   const detalhes = resto.slice(0, 2).map((c) => formatar(item[c.campo], c.tipo)).filter((t) => t !== '-').join(' · ');
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.linha, pressed && { opacity: 0.72 }]}>
+  const titulo = primeira ? formatar(item[primeira.campo], primeira.tipo) : `Item ${item.id}`;
+  return <Pressable accessibilityRole="button" accessibilityLabel={titulo} onPress={onPress} style={({ pressed }) => [styles.linha, pressed && { opacity: 0.72 }]}>
     {foto_url ? <Image source={{ uri: foto_url }} contentFit="cover" style={styles.miniatura} accessibilityLabel="Imagem do item" /> : null}
     <View style={styles.flex}>
       <Text style={styles.linhaTitulo} numberOfLines={2}>{primeira ? formatar(item[primeira.campo], primeira.tipo) : `#${item.id}`}</Text>
@@ -200,7 +201,7 @@ function Detalhe({ item, meta, ocupado, salvando, acionando, onSalvar, onApagar,
       return <View key={c.campo} style={styles.campo}>
         <Text variant="kicker">{c.rotulo}</Text>
         {c.tipo === 'imagem' ? (url ? <Image source={{ uri: url }} contentFit="contain" style={styles.imagem} accessibilityLabel={c.rotulo} /> : <Text variant="muted">-</Text>)
-          : c.tipo === 'link' && urlAbsoluta(bruto) ? <Pressable accessibilityRole="link" onPress={() => abrirLink(bruto)} style={styles.alvo}><Text style={styles.link} selectable>{String(bruto)}</Text></Pressable>
+          : c.tipo === 'link' && urlAbsoluta(bruto) ? <Pressable accessibilityRole="link" accessibilityLabel={`Abrir ${c.rotulo}`} onPress={() => abrirLink(bruto)} style={styles.alvo}><Text style={styles.link} selectable>{String(bruto)}</Text></Pressable>
           : <Text selectable>{c.tipo === 'dinheiro' && typeof bruto === 'number' ? brl(bruto / 100) : formatar(bruto, c.tipo)}</Text>}
       </View>;
     })}
@@ -215,7 +216,7 @@ function Detalhe({ item, meta, ocupado, salvando, acionando, onSalvar, onApagar,
         if (e.tipo === 'opcao') return <View key={e.campo} style={styles.campo}>
           <Text variant="muted">{e.rotulo}</Text>
           <View style={styles.chips}>
-            {(e.opcoes ?? []).map((o) => <Pressable key={o} accessibilityRole="button" accessibilityState={{ selected: v === o }} onPress={() => definir(e.campo, o)} style={[styles.chip, v === o && styles.chipAtivo]}>
+            {(e.opcoes ?? []).map((o) => <Pressable key={o} accessibilityRole="button" accessibilityLabel={`${e.rotulo}: ${o}`} accessibilityState={{ selected: v === o }} onPress={() => definir(e.campo, o)} style={[styles.chip, v === o && styles.chipAtivo]}>
               <Text style={{ fontSize: 14, color: v === o ? theme.colors.ivory : theme.colors.secondary }}>{o}</Text>
             </Pressable>)}
           </View>
@@ -247,14 +248,14 @@ const styles = StyleSheet.create({
   miniatura: { width: 48, height: 48, borderRadius: 10, backgroundColor: theme.colors.field },
   form: { gap: 14, paddingBottom: 8 },
   campo: { gap: 6 },
-  alvo: { minHeight: 44, justifyContent: 'center' },
+  alvo: { minHeight: 48, justifyContent: 'center' },
   link: { color: theme.colors.champagne, textDecorationLine: 'underline' },
   imagem: { width: '100%', height: 200, borderRadius: 12, backgroundColor: theme.colors.field },
   edicao: { gap: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: theme.colors.line },
   interruptor: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12 },
   longo: { minHeight: 100, textAlignVertical: 'top' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { minHeight: 44, paddingHorizontal: 16, borderRadius: theme.radius.button, borderWidth: 1, borderColor: theme.colors.line, justifyContent: 'center' },
+  chip: { minHeight: 48, paddingHorizontal: 16, borderRadius: theme.radius.button, borderWidth: 1, borderColor: theme.colors.line, justifyContent: 'center' },
   chipAtivo: { borderColor: theme.colors.cherry, backgroundColor: theme.colors.cherry },
   senha: { textAlign: 'center', fontSize: 22, letterSpacing: 3, color: theme.colors.champagne },
 });

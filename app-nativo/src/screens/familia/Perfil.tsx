@@ -132,13 +132,13 @@ export default function Perfil() {
             <BlockedPeople />
             <Button variant="quiet" onPress={() => router.push('/termos')}>Termos de uso</Button>
             <View style={styles.links}>
-              <Pressable accessibilityRole="button" onPress={() => router.push('/privacidade')} style={styles.link}><Text variant="muted" style={styles.linkTexto}>Privacidade</Text></Pressable>
-              <Pressable accessibilityRole="button" onPress={() => router.push('/conta/excluir')} style={styles.link}><Text variant="muted" style={styles.linkTexto}>Excluir minha conta</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Privacidade" onPress={() => router.push('/privacidade')} style={styles.link}><Text variant="muted" style={styles.linkTexto}>Privacidade</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Excluir minha conta" onPress={() => router.push('/conta/excluir')} style={styles.link}><Text variant="muted" style={styles.linkTexto}>Excluir minha conta</Text></Pressable>
             </View>
           </View> : null}
         </Rise>
         <View accessibilityRole="tablist" style={styles.abas}>
-          {([['posts', 'Posts'], ['desejos', 'Lista de desejos']] as const).map(([chave, rotulo]) => <Pressable key={chave} accessibilityRole="tab" accessibilityState={{ selected: aba === chave }} onPress={() => { void Haptics.selectionAsync().catch(() => {}); setAba(chave); }} style={[styles.aba, aba === chave && styles.abaAtiva]}>
+          {([['posts', 'Posts'], ['desejos', 'Lista de desejos']] as const).map(([chave, rotulo]) => <Pressable key={chave} accessibilityRole="tab" accessibilityLabel={rotulo} accessibilityState={{ selected: aba === chave }} onPress={() => { void Haptics.selectionAsync().catch(() => {}); setAba(chave); }} style={[styles.aba, aba === chave && styles.abaAtiva]}>
             <Text style={{ color: aba === chave ? theme.colors.ivory : theme.colors.muted, fontFamily: theme.fonts.medium, fontSize: 14 }}>{rotulo}</Text>
           </Pressable>)}
         </View>
@@ -334,13 +334,13 @@ const styles = StyleSheet.create({
   numero: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 8 },
   numeroBorda: { borderLeftWidth: 1, borderLeftColor: theme.colors.line },
   cifra: { fontSize: 32, lineHeight: 40 },
-  rotulo: { fontSize: 12 },
+  rotulo: { fontSize: 14 },
   acoes: { alignSelf: 'stretch', gap: 4, marginTop: 18 },
   quietos: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' },
-  biometria: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  biometria: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   links: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
-  link: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
-  linkTexto: { textDecorationLine: 'underline', fontSize: 13 },
+  link: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 8 },
+  linkTexto: { textDecorationLine: 'underline', fontSize: 14 },
   abas: { flexDirection: 'row', marginHorizontal: 24, marginTop: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.line },
   aba: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   abaAtiva: { borderBottomColor: theme.colors.cherry },
@@ -349,14 +349,14 @@ const styles = StyleSheet.create({
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   celula: { borderRadius: 14, overflow: 'hidden', backgroundColor: theme.colors.field },
   celulaVazia: { padding: 8 },
-  celulaTexto: { fontSize: 11, lineHeight: 15, color: theme.colors.secondary },
+  celulaTexto: { fontSize: 13, lineHeight: 17, color: theme.colors.secondary },
   desejo: { paddingVertical: 18, gap: 8, borderBottomWidth: 1, borderBottomColor: theme.colors.line },
   desejoTopo: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   desejoNome: { flex: 1, fontSize: 24, lineHeight: 32 },
-  escolhido: { color: theme.colors.sage, fontSize: 12, marginTop: 8 },
+  escolhido: { color: theme.colors.sage, fontSize: 14, marginTop: 8 },
   desejoTexto: { fontSize: 14, lineHeight: 21 },
-  ideia: { minHeight: 44, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 },
-  ideiaTexto: { color: theme.colors.champagne, fontSize: 13 },
+  ideia: { minHeight: 48, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  ideiaTexto: { color: theme.colors.champagne, fontSize: 14 },
   folha: { gap: 16, paddingBottom: 8 },
   fotoLinha: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   flex: { flex: 1, gap: 8 },

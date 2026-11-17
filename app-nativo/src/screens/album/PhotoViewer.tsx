@@ -142,7 +142,7 @@ export function PhotoViewer({ photos, initialKey, onClose, hasMore, loadingMore,
             <Button variant="quiet" accessibilityLabel="Foto anterior" disabled={index === 0} onPress={() => navigate(-1)}
               icon={<ChevronLeft size={24} color={theme.colors.ivory} />}>{null}</Button>
             {current.source === 'post' && current.post_id ? <Button variant="quiet" onPress={() => {
-              onClose(); router.navigate({ pathname: '/(tabs)/mural', params: { post: String(current.post_id) } });
+              onClose(); router.navigate({ pathname: '/mural', params: { post: String(current.post_id) } });
             }} icon={<ArrowUpRight size={16} color={theme.colors.champagne} />}>Ver no mural</Button> : <Text variant="muted">Memórias da ceia</Text>}
             {index === photos.length - 1 && hasMore ? <Button variant="quiet" loading={loadingMore}
               onPress={onLoadMore}>{error ? 'Tentar de novo' : 'Mais fotos'}</Button>

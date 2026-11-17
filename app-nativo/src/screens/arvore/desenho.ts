@@ -8,7 +8,7 @@ export interface Linha { x1: number; y1: number; x2: number; y2: number }
 export interface DesenhoArvore { cartoes: CartaoPos[]; linhas: Linha[]; largura: number; altura: number }
 
 export const CARTAO_L = 148;
-export const CARTAO_A = 104;
+export const CARTAO_A = 128;
 const PASSO_X = CARTAO_L + 18;
 const PASSO_Y = CARTAO_A + 72;
 

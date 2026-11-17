@@ -1,14 +1,17 @@
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { useEscalaLetra } from '../letra';
 import { theme } from '../theme';
 import { Text } from './Text';
 export function Field({ label, error, trailing, style, onFocus, onBlur, ...props }: TextInputProps & { label: string; error?: string; trailing?: ReactNode }) {
   const [focused, setFocused] = useState(false);
+  const escala = useEscalaLetra();
   return <View style={styles.group}>
     <Text variant="muted" style={styles.label}>{label}</Text>
     <View style={[styles.field, { borderColor: error ? theme.colors.error : focused ? theme.colors.champagne : theme.colors.line }]}>
-      <TextInput {...props} accessibilityLabel={props.accessibilityLabel ?? label} placeholderTextColor={theme.colors.muted}
-        selectionColor={theme.colors.champagne} style={[styles.input, style]}
+      <TextInput {...props} accessibilityLabel={props.accessibilityLabel ?? label} placeholderTextColor={theme.colors.secondary}
+        maxFontSizeMultiplier={props.maxFontSizeMultiplier ?? 1.3}
+        selectionColor={theme.colors.champagne} style={[styles.input, { fontSize: Math.round(16 * escala) }, style]}
         onFocus={e => { setFocused(true); onFocus?.(e); }} onBlur={e => { setFocused(false); onBlur?.(e); }} />
       {trailing}
     </View>
@@ -16,8 +19,9 @@ export function Field({ label, error, trailing, style, onFocus, onBlur, ...props
   </View>;
 }
 const styles = StyleSheet.create({
-  group: { gap: 6 }, label: { fontSize: 12 },
+  group: { gap: 6 },
+  label: { fontSize: 16, lineHeight: 22, fontFamily: theme.fonts.semibold, color: theme.colors.secondary },
   field: { minHeight: 54, backgroundColor: theme.colors.field, borderWidth: 1, borderRadius: theme.radius.field, flexDirection: 'row', alignItems: 'center' },
   input: { flex: 1, minWidth: 0, fontSize: 16, fontFamily: theme.fonts.body, color: theme.colors.ivory, padding: 15 },
-  error: { color: theme.colors.error, fontSize: 12 },
+  error: { color: theme.colors.error, fontSize: 16, lineHeight: 22 },
 });

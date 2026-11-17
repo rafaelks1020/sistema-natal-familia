@@ -71,4 +71,4 @@ export function PedidosConvite({ organizar = false }: { organizar?: boolean }) {
     <Button variant="quiet" disabled={consulta.isFetching} onPress={() => { void consulta.refetch(); }}>Atualizar pedidos</Button>
   </View>;
 }
-const styles = StyleSheet.create({ bloco: { gap: 16 }, cartao: { gap: 12 }, titulo: { fontSize: 28, lineHeight: 36 }, estado: { fontSize: 13, color: theme.colors.champagne } });
+const styles = StyleSheet.create({ bloco: { gap: 16 }, cartao: { gap: 12 }, titulo: { fontSize: 28, lineHeight: 36 }, estado: { fontSize: 14, color: theme.colors.champagne } });

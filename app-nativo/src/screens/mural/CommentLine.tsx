@@ -53,34 +53,35 @@ export function CommentLine({ comment, canDelete, visible = true, onAuthor, onLi
         </Pressable> : null}
       </View>
     </View>
-    {!pending ? <Pressable accessibilityRole="button" accessibilityLabel="Opções do comentário" onPress={() => setMenu(true)} style={styles.like}><Ellipsis size={18} color={theme.colors.secondary} strokeWidth={1.5} /></Pressable> : null}
+    {!pending ? <Pressable accessibilityRole="button" accessibilityLabel="Opções do comentário" onPress={() => setMenu(true)} style={styles.like}><Ellipsis size={18} color={theme.colors.secondary} strokeWidth={1.5} /><Text style={styles.acao}>Opções</Text></Pressable> : null}
     <Sheet visible={menu} onClose={() => setMenu(false)} title="Opções do comentário">
       {user && comment.user_id !== user.id ? <ModerationActions userId={comment.user_id} name={comment.user_name} commentId={comment.id} onDone={() => setMenu(false)} /> : null}
-      {canDelete ? <Pressable accessibilityRole="button" onPress={() => { setMenu(false); onDelete(comment.id); }} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: theme.colors.error }}>Apagar comentário</Text></Pressable> : null}
+      {canDelete ? <Pressable accessibilityRole="button" accessibilityLabel="Apagar comentário" onPress={() => { setMenu(false); onDelete(comment.id); }} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: theme.colors.error }}>Apagar comentário</Text></Pressable> : null}
     </Sheet>
     <Pressable accessibilityRole="button" accessibilityLabel={comment.liked_by_me ? 'Desfazer curtida do comentário' : 'Curtir comentário'} accessibilityState={{ selected: comment.liked_by_me, disabled: pending }} disabled={pending} onPress={like} style={styles.like}>
       <View>
-        <Heart size={15} strokeWidth={1.6} color={comment.liked_by_me ? theme.colors.cherry : theme.colors.muted} fill={comment.liked_by_me ? theme.colors.cherry : 'transparent'} />
+        <Heart size={18} strokeWidth={1.6} color={comment.liked_by_me ? theme.colors.cherry : theme.colors.muted} fill={comment.liked_by_me ? theme.colors.cherry : 'transparent'} />
         {burst > 0 ? <LoopVideo key={burst} name="mn-curtida-comentario" once visible={visible} onEnded={() => setBurst(0)} style={styles.burst} /> : null}
       </View>
-      {comment.likes > 0 ? <Text style={[styles.count, comment.liked_by_me && styles.countOn]}>{comment.likes}</Text> : null}
+      <Text style={[styles.acao, comment.liked_by_me && styles.countOn]}>{comment.likes > 0 ? `Curtir ${comment.likes}` : 'Curtir'}</Text>
     </Pressable>
   </View>;
 }
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
-  avatarHit: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  avatarHit: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, minWidth: 0, paddingTop: 8 },
   copy: { fontSize: 14, lineHeight: 20 },
   name: { fontFamily: theme.fonts.semibold, fontSize: 14, lineHeight: 20 },
   content: { color: theme.colors.secondary, fontSize: 14, lineHeight: 20 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 },
-  time: { fontSize: 11, lineHeight: 16 },
-  delete: { minHeight: 32, justifyContent: 'center' },
-  deleteLabel: { color: theme.colors.error, fontSize: 11, fontFamily: theme.fonts.medium },
-  like: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 3 },
-  count: { fontSize: 11, color: theme.colors.muted, fontVariant: ['tabular-nums'] },
+  time: { fontSize: 14, lineHeight: 20 },
+  delete: { minHeight: 48, justifyContent: 'center' },
+  acao: { fontSize: 14, lineHeight: 18, color: theme.colors.secondary, textAlign: 'center' },
+  deleteLabel: { color: theme.colors.error, fontSize: 14, fontFamily: theme.fonts.medium },
+  like: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 3 },
+  count: { fontSize: 14, color: theme.colors.muted, fontVariant: ['tabular-nums'] },
   countOn: { color: theme.colors.cherry },
   burst: { position: 'absolute', width: 36, height: 36, top: -11, left: -11, backgroundColor: 'transparent', mixBlendMode: 'screen' },
 });

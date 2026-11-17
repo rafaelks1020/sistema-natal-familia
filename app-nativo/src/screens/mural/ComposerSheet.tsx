@@ -114,10 +114,10 @@ export function ComposerSheet({ visible, initialMode, editing, onClose, onSubmit
   return <Sheet visible={visible} title={title} onClose={() => { if (!sending) onClose(); }}>
     <ScrollView style={{ maxHeight: height * 0.58 }} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
       {!editing ? <View style={styles.switch}>
-        <Pressable accessibilityRole="button" accessibilityState={{ selected: draft.mode === 'post' }} onPress={() => setDraft(current => ({ ...current, mode: 'post' }))} style={[styles.switchItem, draft.mode === 'post' && styles.switchOn]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Foto ou relato" accessibilityState={{ selected: draft.mode === 'post' }} onPress={() => setDraft(current => ({ ...current, mode: 'post' }))} style={[styles.switchItem, draft.mode === 'post' && styles.switchOn]}>
           <Text style={styles.switchLabel}>Foto ou relato</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityState={{ selected: draft.mode === 'poll' }} onPress={() => setDraft(current => ({ ...current, mode: 'poll' }))} style={[styles.switchItem, draft.mode === 'poll' && styles.switchOn]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Enquete" accessibilityState={{ selected: draft.mode === 'poll' }} onPress={() => setDraft(current => ({ ...current, mode: 'poll' }))} style={[styles.switchItem, draft.mode === 'poll' && styles.switchOn]}>
           <ChartColumn size={16} color={theme.colors.ivory} strokeWidth={1.7} />
           <Text style={styles.switchLabel}>Enquete</Text>
         </Pressable>
@@ -132,8 +132,9 @@ export function ComposerSheet({ visible, initialMode, editing, onClose, onSubmit
         {draft.photos.length > 0 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.previews}>
           {draft.photos.map(photo => <View key={photo.key} style={styles.preview}>
             <Image source={{ uri: photo.uri }} contentFit="cover" cachePolicy="memory-disk" style={styles.previewImage} accessibilityLabel="Prévia da foto" />
-            <Pressable accessibilityRole="button" accessibilityLabel="Remover foto" disabled={sending} hitSlop={8} onPress={() => setDraft(current => ({ ...current, photos: current.photos.filter(item => item.key !== photo.key) }))} style={styles.remove}>
-              <X size={14} color={theme.colors.ivory} strokeWidth={1.8} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Remover foto" disabled={sending} onPress={() => setDraft(current => ({ ...current, photos: current.photos.filter(item => item.key !== photo.key) }))} style={styles.remove}>
+              <X size={16} color={theme.colors.ivory} strokeWidth={1.8} />
+              <Text style={styles.tirar}>Tirar</Text>
             </Pressable>
           </View>)}
         </ScrollView> : null}
@@ -144,7 +145,7 @@ export function ComposerSheet({ visible, initialMode, editing, onClose, onSubmit
         <Button loading={sending} onPress={() => { void publishPost(); }}>{editing ? 'Salvar' : 'Publicar'}</Button>
       </> : <>
         <Field label="Pergunta" value={draft.question} onChangeText={question => setDraft(current => ({ ...current, question }))} maxLength={MURAL_QUESTION_LIMIT} placeholder="Qual sobremesa não pode faltar?" />
-        {draft.options.map((option, index) => <Field key={`opcao-${index}`} label={`Opção ${index + 1}`} value={option} maxLength={MURAL_OPTION_LIMIT} onChangeText={value => setDraft(current => ({ ...current, options: current.options.map((item, itemIndex) => itemIndex === index ? value : item) }))} trailing={draft.options.length > 2 ? <Pressable accessibilityRole="button" accessibilityLabel={`Remover opção ${index + 1}`} disabled={sending} onPress={() => setDraft(current => ({ ...current, options: current.options.filter((_, itemIndex) => itemIndex !== index) }))} style={styles.removeOption}><X size={16} color={theme.colors.secondary} /></Pressable> : null} />)}
+        {draft.options.map((option, index) => <Field key={`opcao-${index}`} label={`Opção ${index + 1}`} value={option} maxLength={MURAL_OPTION_LIMIT} onChangeText={value => setDraft(current => ({ ...current, options: current.options.map((item, itemIndex) => itemIndex === index ? value : item) }))} trailing={draft.options.length > 2 ? <Pressable accessibilityRole="button" accessibilityLabel={`Remover opção ${index + 1}`} disabled={sending} onPress={() => setDraft(current => ({ ...current, options: current.options.filter((_, itemIndex) => itemIndex !== index) }))} style={styles.removeOption}><X size={16} color={theme.colors.secondary} /><Text style={styles.tirarCampo}>Tirar</Text></Pressable> : null} />)}
         {draft.options.length < 5 ? <Button variant="ghost" disabled={sending} onPress={() => setDraft(current => current.options.length >= 5 ? current : { ...current, options: [...current.options, ''] })}>Adicionar opção</Button> : null}
         <Button loading={sending} onPress={() => { void publishPoll(); }}>Publicar enquete</Button>
       </>}
@@ -155,7 +156,7 @@ export function ComposerSheet({ visible, initialMode, editing, onClose, onSubmit
 const styles = StyleSheet.create({
   form: { gap: 14, paddingBottom: 8 },
   switch: { flexDirection: 'row', backgroundColor: theme.colors.background, borderRadius: 24, borderWidth: 1, borderColor: theme.colors.line, padding: 4, gap: 4 },
-  switchItem: { flex: 1, minHeight: 44, borderRadius: 20, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
+  switchItem: { flex: 1, minHeight: 48, borderRadius: 20, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
   switchOn: { backgroundColor: theme.colors.cherry },
   switchLabel: { fontFamily: theme.fonts.medium, fontSize: 14 },
   story: { minHeight: 120, textAlignVertical: 'top' },
@@ -164,8 +165,10 @@ const styles = StyleSheet.create({
   previews: { gap: 10, paddingVertical: 2 },
   preview: { width: 84, height: 104, borderRadius: 14, overflow: 'hidden', backgroundColor: theme.colors.field },
   previewImage: { width: 84, height: 104 },
-  remove: { position: 'absolute', top: 4, right: 4, width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,27,24,0.72)' },
+  remove: { position: 'absolute', left: 0, right: 0, bottom: 0, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: 'rgba(23,27,24,0.72)' },
+  tirar: { color: theme.colors.ivory, fontSize: 14, lineHeight: 18 },
+  tirarCampo: { fontSize: 14, lineHeight: 18, color: theme.colors.secondary },
   track: { height: 3, borderRadius: 2, backgroundColor: theme.colors.field, overflow: 'hidden', marginTop: 8 },
   bar: { height: 3, backgroundColor: theme.colors.champagne },
-  removeOption: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  removeOption: { minWidth: 48, minHeight: 48, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
 });

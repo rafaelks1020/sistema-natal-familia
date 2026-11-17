@@ -65,10 +65,10 @@ export default function Arvore() {
                   const item = data.pessoas.find((p) => p.id === cartao.id);
                   if (!item) return null;
                   const anos = rotuloAnos(item.nascimento_ano, item.falecimento_ano);
-                  return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={item.nome} onPress={() => { setEscolha(item.id); setEditando(false); }} style={[styles.cartao, escolhidaId === item.id && styles.cartaoAtivo, { left: cartao.esquerda * escala, top: cartao.topo * escala, width: CARTAO_L * escala, height: CARTAO_A * escala }]}>
+                  return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={item.nome} onPress={() => { setEscolha(item.id); setEditando(false); }} style={[styles.cartao, escolhidaId === item.id && styles.cartaoAtivo, { left: cartao.esquerda * escala, top: cartao.topo * escala, width: CARTAO_L * escala, minHeight: CARTAO_A * escala }]}>
                     <Avatar name={item.nome} src={item.foto_url} size={28 * escala} />
-                    <Text style={{ fontSize: 13 * escala, lineHeight: 18 * escala }} numberOfLines={2}>{item.nome}</Text>
-                    {anos ? <Text variant="muted" style={{ fontSize: 11 * escala }} numberOfLines={1}>{anos}</Text> : null}
+                    <Text style={{ fontSize: 14 * escala, lineHeight: 20 * escala }} numberOfLines={2}>{item.nome}</Text>
+                    {anos ? <Text variant="muted" style={{ fontSize: 14 * escala }} numberOfLines={1}>{anos}</Text> : null}
                   </Pressable>;
                 })}
               </View>

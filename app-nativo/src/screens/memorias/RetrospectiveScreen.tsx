@@ -35,7 +35,7 @@ export default function RetrospectiveScreen() {
   const retrospective = useQuery({ queryKey: ['album', 'retrospectiva', year], queryFn: ({ signal }) => api<Retrospective>(`/api/memorias/retrospectiva/${year}`, { signal }), enabled: valid });
   if (retrospective.data) return <Stories key={year} initial={retrospective.data} />;
   return <View style={[styles.root, styles.loading]}><Button variant="quiet" onPress={() => router.back()}>Voltar</Button>
-    {retrospective.isError || metadata.isError || (year !== undefined && !valid) ? <EmptyState title="Retrospectiva indisponível" message={retrospective.error?.message ?? metadata.error?.message ?? 'Confira o ano da edição.'} action="Tentar de novo" onAction={() => { if (params.ano) void retrospective.refetch(); else void metadata.refetch(); }} /> : <Skeleton style={{ height: 320 }} />}
+    {retrospective.isError || metadata.isError || (year !== undefined && !valid) ? <EmptyState title="Retrospectiva indisponível" message={retrospective.error?.message ?? metadata.error?.message ?? 'Confira o ano do Natal.'} action="Tentar de novo" onAction={() => { if (params.ano) void retrospective.refetch(); else void metadata.refetch(); }} /> : <Skeleton style={{ height: 320 }} />}
   </View>;
 }
 
