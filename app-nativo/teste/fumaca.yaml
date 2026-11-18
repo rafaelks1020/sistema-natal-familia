@@ -20,10 +20,10 @@ appId: br.com.natalemfamilia.app
 - inputText: ${SENHA}
 - pressKey: Enter
 - tapOn:
-    text: "Not Now"
+    text: "Not Now|Agora não"
     optional: true
 - extendedWaitUntil:
-    visible: "Para fazer agora"
+    visible: "Hoje"
     timeout: 90000
 - takeScreenshot: 02-hoje
 - scrollUntilVisible:

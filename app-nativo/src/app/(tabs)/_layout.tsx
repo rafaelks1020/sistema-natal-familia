@@ -1,11 +1,11 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { theme } from '../../theme';
-// As mesmas cinco abas do site: a pessoa aprende um caminho só.
+// As mesmas cinco abas do site: a pessoa aprende um caminho só. No Android o nome de cada aba fica sempre visível.
 export default function TabsLayout() {
   return <NativeTabs tintColor={theme.colors.cherry} backgroundColor={theme.colors.background}
     iconColor={{ default: theme.colors.secondary, selected: theme.colors.cherry }}
     labelStyle={{ default: { color: theme.colors.secondary, fontSize: 12 }, selected: { color: theme.colors.cherry, fontSize: 12 } }}
-    indicatorColor={theme.colors.field} disableTransparentOnScrollEdge>
+    indicatorColor={theme.colors.field} disableTransparentOnScrollEdge labelVisibilityMode="labeled">
     <NativeTabs.Trigger name="index"><NativeTabs.Trigger.Label>Hoje</NativeTabs.Trigger.Label><NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" /></NativeTabs.Trigger>
     <NativeTabs.Trigger name="aba-ceia"><NativeTabs.Trigger.Label>Ceia</NativeTabs.Trigger.Label><NativeTabs.Trigger.Icon sf="fork.knife" md="restaurant" /></NativeTabs.Trigger>
     <NativeTabs.Trigger name="aba-festa"><NativeTabs.Trigger.Label>Festa</NativeTabs.Trigger.Label><NativeTabs.Trigger.Icon sf="party.popper" md="celebration" /></NativeTabs.Trigger>
