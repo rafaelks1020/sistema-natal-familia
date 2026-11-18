@@ -55,9 +55,9 @@
       "permissions": [
         "android.permission.POST_NOTIFICATIONS"
       ],
-      "predictiveBackGestureEnabled": true,
+      "predictiveBackGestureEnabled": false,
       "googleServicesFile": "./google-services.json",
-      "versionCode": 7
+      "versionCode": 8
     },
     "plugins": [
       "expo-router",
