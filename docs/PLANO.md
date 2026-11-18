@@ -213,10 +213,15 @@ Pedido do Rafael: revisar UX, UI, usabilidade e navegação, deixar a gamificaç
 - [x] Vocabulário único: pontos (não pts), conquistas (não selos nem álbum), Natal de 2026 (não edição); o placar do quiz não se chama mais pontos
 - [x] Passagem de sessão do app para o navegador (`/api/auth/passagem`, código de 45 s): telas do site abertas pelo app já entram logadas
 - [x] Publicado no site em 17/11 (commits 70fb1cd e a502fd2), conferido em produção
-- [x] App 1.3.0 (versionCode 6): as mesmas cinco abas do site (Hoje, Ceia, Festa, Família, Eu), pontos na tela inicial, telas nativas de Meus pontos, Conquistas e Missões, tamanho da letra, letras e alvos maiores, confirmação ao sair
+- [x] App 1.3.0 (Android versionCode 8, iPhone build 2611171927): as mesmas cinco abas do site (Hoje, Ceia, Festa, Família, Eu), pontos na tela inicial, telas nativas de Meus pontos, Conquistas e Missões, tamanho da letra, letras e alvos maiores, confirmação ao sair
 - [x] Teste automático do app no simulador (workflow `ios-teste` do `codemagic.yaml`, roteiro em `app-nativo/teste/fumaca.yaml`)
-- [ ] Play 1.3.0 pública
+- [x] Play 1.3.0 (versionCode 8) enviada à produção em 18/11, 04h; pacote em `/mnt/storage/backups/natal-familia/app/`
+- [ ] Play 1.3.0 pública (conferir na loja)
+- [x] Apple 1.3.0 enviada à revisão em 17/11 no lugar da 1.2.1 (pacote enviado pela API de envio de builds, sem Mac)
 - [ ] Apple 1.3.0 aprovada
-- [ ] (R) Abrir a 1.3.0 num celular de verdade e passar pelas cinco abas (a VPS não tem emulador; o teste automático roda só no simulador do iPhone)
+- [x] App testado por dentro num emulador Android acelerado (GitHub Actions, repositório privado `speeduptidev/natal-teste-app`, roteiro `app-nativo/teste/fumaca-android.yaml`): login, cinco abas, Meus pontos, tamanho da letra e Voltar
+- [x] Achados do teste, corrigidos: no Android as abas não selecionadas ficavam sem nome; o botão Voltar do sistema fechava o app (gesto preditivo, vinha das versões antigas)
+- [ ] (R) Abrir a 1.3.0 num iPhone de verdade (no iPhone só foi vista a tela de entrar, no simulador)
+- [ ] Cota gratuita do Codemagic acabou em 17/11 (os testes no simulador gastaram): próximo build do iPhone só com a cota do mês seguinte, com cobrança ligada ou por GitHub Actions macOS
 - [ ] Prints das lojas com as abas novas (os atuais mostram as abas antigas)
 - [ ] Ideia: avisar na hora "+5 pontos" com o total atualizado (hoje o total leva até 5 minutos, por causa do recálculo)

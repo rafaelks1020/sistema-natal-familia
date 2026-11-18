@@ -1,0 +1,52 @@
+# Teste de fumaça do app (Maestro): entra com a conta de revisão e passa pelas cinco abas tirando fotos.
+# Rodado no simulador pelo workflow ios-teste do codemagic.yaml. Não altera nenhum dado.
+appId: br.com.natalemfamilia.app
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "campo-usuario"
+    timeout: 120000
+- takeScreenshot: 01-entrar
+- tapOn:
+    id: "campo-usuario"
+- inputText: ${USUARIO}
+# Enter no usuário só fecha o teclado, que cobria o campo da senha.
+- pressKey: Enter
+- waitForAnimationToEnd
+- tapOn:
+    id: "campo-senha"
+- inputText: ${SENHA}
+- pressKey: Enter
+- tapOn:
+    text: "Not Now|Agora não"
+    optional: true
+- extendedWaitUntil:
+    visible: "Hoje"
+    timeout: 90000
+- takeScreenshot: 02-hoje
+- tapOn: "Ceia"
+- tapOn: "A ceia.*"
+- waitForAnimationToEnd
+- takeScreenshot: 03-tela-ceia
+- back
+- waitForAnimationToEnd
+- takeScreenshot: 04-depois-do-voltar-do-sistema
+- tapOn: "Eu"
+- scrollUntilVisible:
+    element: "Como funcionam os pontos"
+    direction: DOWN
+    timeout: 25000
+- tapOn: "Como funcionam os pontos"
+- waitForAnimationToEnd
+- takeScreenshot: 05-meus-pontos
+- back
+- waitForAnimationToEnd
+- takeScreenshot: 06-depois-do-voltar-em-pontos
+- tapOn: "Família"
+- tapOn: "Mural da família.*"
+- waitForAnimationToEnd
+- tapOn: "Voltar"
+- waitForAnimationToEnd
+- takeScreenshot: 07-depois-do-voltar-da-tela
