@@ -222,6 +222,6 @@ Pedido do Rafael: revisar UX, UI, usabilidade e navegação, deixar a gamificaç
 - [x] App testado por dentro num emulador Android acelerado (GitHub Actions, repositório privado `speeduptidev/natal-teste-app`, roteiro `app-nativo/teste/fumaca-android.yaml`): login, cinco abas, Meus pontos, tamanho da letra e Voltar
 - [x] Achados do teste, corrigidos: no Android as abas não selecionadas ficavam sem nome; o botão Voltar do sistema fechava o app (gesto preditivo, vinha das versões antigas)
 - [ ] (R) Abrir a 1.3.0 num iPhone de verdade (no iPhone só foi vista a tela de entrar, no simulador)
-- [ ] Cota gratuita do Codemagic acabou em 17/11 (os testes no simulador gastaram): próximo build do iPhone só com a cota do mês seguinte, com cobrança ligada ou por GitHub Actions macOS
+- [x] Build do iPhone pelo GitHub Actions no lugar do Codemagic (cota acabou em 17/11): `bash scripts/build-ios.sh --enviar` em `app-nativo`; o Mac só compila e assina (14 a 17 minutos), o envio à Apple sai da VPS. Testado em 18/11 gerando o IPA assinado; o envio por esse comando ainda não foi usado
 - [ ] Prints das lojas com as abas novas (os atuais mostram as abas antigas)
 - [ ] Ideia: avisar na hora "+5 pontos" com o total atualizado (hoje o total leva até 5 minutos, por causa do recálculo)

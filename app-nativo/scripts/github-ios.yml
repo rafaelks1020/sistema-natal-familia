@@ -1,0 +1,103 @@
+# Build do app do iPhone num Mac do GitHub (repositório privado speeduptidev/natal-teste-app, arquivo .github/workflows/ios.yml).
+# O minuto de Mac é caro, então o Mac só compila e assina. O resto fica fora dele:
+# - o código chega pronto num pacote (fonte.tgz na release "pacote"), enviado pelo app-nativo/scripts/build-ios.sh;
+# - certificado e perfis vêm de segredos (nenhuma chamada à API da Apple aqui, que às vezes responde 500 por minutos);
+# - o envio do IPA à Apple é feito depois, de graça, pela VPS;
+# - dependências e Pods ficam em cache de um build para o outro.
+# Medido em 18/11/2026: 14 a 17 minutos de Mac por build, quase tudo na compilação (uns 13 minutos).
+# Cache da compilação NÃO funcionou e foi retirado: o ccache não pegou nenhuma chamada, e a pasta DerivedData
+# guardada (mesmo com a data dos arquivos fixada pelo conteúdo) fez o Xcode recompilar tudo do mesmo jeito.
+# Esta é a cópia de referência: ao mudar aqui, publicar de novo com o build-ios.sh --publicar-fluxo.
+name: ios
+on: workflow_dispatch
+concurrency:
+  group: ios
+  cancel-in-progress: true
+jobs:
+  ipa:
+    runs-on: macos-26
+    # Teto de gasto: um build normal leva bem menos que isso.
+    timeout-minutes: 45
+    steps:
+      - name: Código do app
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download pacote --pattern fonte.tgz -R "$GITHUB_REPOSITORY"
+          tar -xzf fonte.tgz && rm fonte.tgz
+          cat app-nativo/.commit 2>/dev/null || true
+      - name: Xcode mais novo da máquina
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1); sudo xcode-select -s "$X"; xcodebuild -version
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Cache das dependências
+        id: nm
+        uses: actions/cache@v4
+        with:
+          path: app-nativo/node_modules
+          key: nm-${{ runner.os }}-${{ hashFiles('app-nativo/package-lock.json') }}
+      - name: Dependências
+        if: steps.nm.outputs.cache-hit != 'true'
+        working-directory: app-nativo
+        run: npm ci --no-audit --no-fund
+      - name: Projeto iOS
+        working-directory: app-nativo
+        run: npx expo prebuild --platform ios --no-install
+      - name: Cache dos Pods
+        uses: actions/cache@v4
+        with:
+          path: |
+            app-nativo/ios/Pods
+            ~/Library/Caches/CocoaPods
+          key: pods-${{ runner.os }}-${{ hashFiles('app-nativo/package-lock.json') }}
+      - name: Ferramentas
+        run: |
+          pipx install codemagic-cli-tools || pip3 install --user --break-system-packages codemagic-cli-tools
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
+      - name: Pods
+        working-directory: app-nativo/ios
+        run: pod install
+      - name: Certificado e perfis
+        env:
+          P12: ${{ secrets.APPLE_DIST_P12 }}
+          P12_SENHA: ${{ secrets.APPLE_DIST_P12_SENHA }}
+          PERFIL_APP: ${{ secrets.PERFIL_APP }}
+          PERFIL_WIDGET: ${{ secrets.PERFIL_WIDGET }}
+        run: |
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          keychain initialize
+          keychain add-certificates --certificate "$RUNNER_TEMP/dist.p12" --certificate-password @env:P12_SENHA
+          for PASTA in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$PASTA"
+            echo "$PERFIL_APP" | base64 --decode > "$PASTA/natal-app.mobileprovision"
+            echo "$PERFIL_WIDGET" | base64 --decode > "$PASTA/natal-widget.mobileprovision"
+          done
+          rm -f "$RUNNER_TEMP/dist.p12"
+      - name: Perfis no projeto e número do build
+        working-directory: app-nativo/ios
+        run: |
+          PROJ=$(ls -d *.xcodeproj | head -1); NOME=${PROJ%.xcodeproj}
+          echo "NOME=$NOME" >> "$GITHUB_ENV"
+          xcode-project use-profiles --project "$PROJ"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(date -u +%y%m%d%H%M)" "$NOME/Info.plist"
+      - name: IPA assinado
+        run: |
+          # A fase "[Expo] Configure project" às vezes falha na primeira vez (varredura de módulos): tenta de novo.
+          xcode-project build-ipa --workspace "app-nativo/ios/$NOME.xcworkspace" --scheme "$NOME" \
+            || xcode-project build-ipa --workspace "app-nativo/ios/$NOME.xcworkspace" --scheme "$NOME"
+          ls -la build/ios/ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ipa
+          path: build/ios/ipa/*.ipa
+          retention-days: 7
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: registro
+          path: /tmp/xcodebuild_logs/*.log
+          retention-days: 3
