@@ -216,9 +216,9 @@ Pedido do Rafael: revisar UX, UI, usabilidade e navegação, deixar a gamificaç
 - [x] App 1.3.0 (Android versionCode 8, iPhone build 2611171927): as mesmas cinco abas do site (Hoje, Ceia, Festa, Família, Eu), pontos na tela inicial, telas nativas de Meus pontos, Conquistas e Missões, tamanho da letra, letras e alvos maiores, confirmação ao sair
 - [x] Teste automático do app no simulador (workflow `ios-teste` do `codemagic.yaml`, roteiro em `app-nativo/teste/fumaca.yaml`)
 - [x] Play 1.3.0 (versionCode 8) enviada à produção em 18/11, 04h; pacote em `/mnt/storage/backups/natal-familia/app/`
-- [ ] Play 1.3.0 pública (conferir na loja)
+- [x] Play 1.3.0 pública (conferido na página da loja em 19/11)
 - [x] Apple 1.3.0 enviada à revisão em 17/11 no lugar da 1.2.1 (pacote enviado pela API de envio de builds, sem Mac)
-- [ ] Apple 1.3.0 aprovada
+- [x] Apple 1.3.0 aprovada e pública desde 18/11 (conferido em 19/11)
 - [x] App testado por dentro num emulador Android acelerado (GitHub Actions, repositório privado `speeduptidev/natal-teste-app`, roteiro `app-nativo/teste/fumaca-android.yaml`): login, cinco abas, Meus pontos, tamanho da letra e Voltar
 - [x] Achados do teste, corrigidos: no Android as abas não selecionadas ficavam sem nome; o botão Voltar do sistema fechava o app (gesto preditivo, vinha das versões antigas)
 - [ ] (R) Abrir a 1.3.0 num iPhone de verdade (no iPhone só foi vista a tela de entrar, no simulador)
