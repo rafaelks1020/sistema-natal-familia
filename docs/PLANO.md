@@ -223,5 +223,9 @@ Pedido do Rafael: revisar UX, UI, usabilidade e navegação, deixar a gamificaç
 - [x] Achados do teste, corrigidos: no Android as abas não selecionadas ficavam sem nome; o botão Voltar do sistema fechava o app (gesto preditivo, vinha das versões antigas)
 - [ ] (R) Abrir a 1.3.0 num iPhone de verdade (no iPhone só foi vista a tela de entrar, no simulador)
 - [x] Build do iPhone pelo GitHub Actions no lugar do Codemagic (cota acabou em 17/11): `bash scripts/build-ios.sh --enviar` em `app-nativo`; o Mac só compila e assina (14 a 17 minutos), o envio à Apple sai da VPS. Testado em 18/11 gerando o IPA assinado; o envio por esse comando ainda não foi usado
-- [ ] Prints das lojas com as abas novas (os atuais mostram as abas antigas)
+- [x] Prints da Play com as abas novas (19/11: Hoje, Meus pontos, Ceia, Festa e Família, tirados no emulador; em `docs/lojas/prints/android/`)
+- [ ] Prints da App Store com as abas novas (só dá para trocar junto com uma versão nova do iPhone, e precisam ser fotos de iPhone)
+- [x] App Android 1.3.1 (versionCode 9), 19/11: ao rolar, o texto não passa mais por trás do relógio e dos ícones da barra de status (faixa da cor do fundo no layout raiz, só no Android). Testado no emulador e enviado à produção da Play
+- [ ] Play 1.3.1 pública (conferir na loja)
+- [ ] Android, telas sem abas: o conteúdo ainda rola por trás dos botões de voltar e início do sistema. Cobrir com faixa escura piora o contraste desses botões; o certo é dar margem inferior do sistema a cada tela
 - [ ] Ideia: avisar na hora "+5 pontos" com o total atualizado (hoje o total leva até 5 minutos, por causa do recálculo)
