@@ -34,15 +34,19 @@ function faltaPara(abreEm: string, agora: number) {
 }
 
 function Contagem({ abreEm, onAcabou }: { abreEm: string; onAcabou: () => void }) {
-  const [agora, setAgora] = useState(() => Date.now());
+  // O relógio só começa no navegador: no servidor o segundo é outro, e o texto diferente quebrava a hidratação
+  // (erro 418 do React na página). Até lá os números aparecem como "--".
+  const [agora, setAgora] = useState<number | null>(null);
   const avisar = useRef(onAcabou);
   useEffect(() => { avisar.current = onAcabou; }, [onAcabou]);
   useEffect(() => {
-    const id = setInterval(() => setAgora(Date.now()), 1000);
-    return () => clearInterval(id);
+    const tique = () => setAgora(Date.now());
+    const primeiro = setTimeout(tique, 0);
+    const id = setInterval(tique, 1000);
+    return () => { clearTimeout(primeiro); clearInterval(id); };
   }, []);
-  const falta = faltaPara(abreEm, agora);
-  const zerou = falta.total <= 0;
+  const falta = agora === null ? null : faltaPara(abreEm, agora);
+  const zerou = falta !== null && falta.total <= 0;
   useEffect(() => {
     if (!zerou) return;
     avisar.current();
@@ -50,10 +54,10 @@ function Contagem({ abreEm, onAcabou }: { abreEm: string; onAcabou: () => void }
     return () => clearInterval(id);
   }, [zerou]);
   const partes = [
-    ['dias', falta.dias],
-    ['horas', dois(falta.horas)],
-    ['min', dois(falta.minutos)],
-    ['seg', dois(falta.segundos)],
+    ['dias', falta ? falta.dias : '--'],
+    ['horas', falta ? dois(falta.horas) : '--'],
+    ['minutos', falta ? dois(falta.minutos) : '--'],
+    ['segundos', falta ? dois(falta.segundos) : '--'],
   ] as const;
   return (
     <section className="surface relative mb-6 overflow-hidden p-5" aria-label="Contagem até o dia 1º de dezembro">
@@ -73,7 +77,7 @@ function Contagem({ abreEm, onAcabou }: { abreEm: string; onAcabou: () => void }
         {partes.map(([nome, valor]) => (
           <div key={nome} className="rounded-[14px] border border-linha bg-carvao-3 px-1 py-3 text-center">
             <span className="numeral block text-[1.7rem] leading-none text-marfim">{valor}</span>
-            <span className="mt-1 block text-xs uppercase tracking-[0.16em] text-marfim-2">{nome}</span>
+            <span className="mt-1 block text-xs uppercase tracking-[0.08em] text-marfim-2">{nome}</span>
           </div>
         ))}
       </div>
