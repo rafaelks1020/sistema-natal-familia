@@ -23,6 +23,7 @@ import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
 import { LoopVideo } from '../ui/LoopVideo';
+import { media } from '../media';
 import { Rise } from '../ui/motion';
 import { PerguntaLetra } from '../ui/TamanhoDaLetra';
 import { Skeleton } from '../ui/Skeleton';
@@ -48,7 +49,9 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const { height, width } = useWindowDimensions();
   const [celebrate, setCelebrate] = useState(false);
-  const [scrollY, setScrollY] = useState(0);
+  // Só o que muda a tela vira estado: se o vídeo do topo está visível. Guardar a posição da rolagem em estado
+  // redesenhava a tela inteira várias vezes por segundo enquanto a pessoa rolava (25% dos quadros travavam no S24).
+  const [heroVisivel, setHeroVisivel] = useState(true);
   const saving = useRef(false);
   const heroHeight = Math.max(300, Math.min(height * 0.42, 420));
   const home = useQuery({ queryKey: queryKeys.home, queryFn: ({ signal }) => api<HomeData>('/api/home', { signal }) });
@@ -103,10 +106,10 @@ export default function Home() {
   }
   return <View style={styles.page}>
     <ScrollView contentContainerStyle={{ paddingBottom: 32, width: '100%', maxWidth: 720, alignSelf: 'center' }}
-      contentInsetAdjustmentBehavior="automatic" scrollEventThrottle={160} onScroll={event => setScrollY(event.nativeEvent.contentOffset.y)}
+      contentInsetAdjustmentBehavior="automatic" scrollEventThrottle={160} onScroll={event => setHeroVisivel(event.nativeEvent.contentOffset.y < heroHeight)}
       refreshControl={<RefreshControl refreshing={home.isRefetching && !mutation.isPending} onRefresh={() => { if (!saving.current) { void home.refetch(); void missoes.refetch(); } }} tintColor={theme.colors.champagne} colors={[theme.colors.cherry]} progressBackgroundColor={theme.colors.surface} progressViewOffset={insets.top} />}>
       <View style={[styles.hero, { minHeight: heroHeight, paddingTop: insets.top + 76 }]}>
-        <LoopVideo name="mn-hero" visible={scrollY < heroHeight} style={[StyleSheet.absoluteFill, { opacity: 0.8 }]} />
+        <LoopVideo name="mn-hero" visible={heroVisivel} style={[StyleSheet.absoluteFill, { opacity: 0.8 }]} />
         <LinearGradient colors={['rgba(23,27,24,0.1)', 'rgba(23,27,24,0.2)', theme.colors.background]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
         <Pressable style={[styles.profile, { top: insets.top + 16 }]} accessibilityRole="button" accessibilityLabel="Abrir minha área" onPress={() => router.navigate('/aba-eu' as Href)}>
           <Avatar name={user.name} src={user.avatar_url} size={48} />
@@ -123,7 +126,7 @@ export default function Home() {
       </View>
       <View style={styles.content}>
         <Rise index={1}><Surface style={styles.countdown}>
-          <LoopVideo name="mn-countdown" visible={scrollY < heroHeight + 250 && scrollY + height > heroHeight} style={[StyleSheet.absoluteFill, { opacity: 0.25 }]} />
+          <Image source={media['mn-countdown'].poster} contentFit="cover" style={[StyleSheet.absoluteFill, { opacity: 0.25 }]} />
           <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(23,27,24,0.45)' }]} />
           <Text variant="kicker" style={styles.center}>{settings.event_title}</Text><Countdown target={date.getTime()} />
         </Surface></Rise>

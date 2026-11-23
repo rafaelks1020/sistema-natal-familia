@@ -68,7 +68,8 @@ export default function Perfil() {
   const id = idDaRota(params.id);
   const [aba, setAba] = useState<'posts' | 'desejos'>('posts');
   const [folha, setFolha] = useState<Folha>(null);
-  const [rolagem, setRolagem] = useState(0);
+  // Só vira estado o que muda a tela (vídeo do topo visível ou não), não a posição exata da rolagem.
+  const [topoVisivel, setTopoVisivel] = useState(true);
   const [form, setForm] = useState<Formulario>({ name: '', bio: '', avatar_url: '' });
   const proprio = id !== null && user?.id === id;
   const perfil = useQuery({
@@ -98,12 +99,12 @@ export default function Perfil() {
   }
   return <View style={styles.pagina}>
     <ScrollView contentContainerStyle={styles.miolo} contentInsetAdjustmentBehavior="automatic" scrollEventThrottle={160}
-      onScroll={(evento) => setRolagem(evento.nativeEvent.contentOffset.y)}
+      onScroll={(evento) => setTopoVisivel(evento.nativeEvent.contentOffset.y < 360)}
       refreshControl={<RefreshControl refreshing={(perfil.isRefetching || posts.isRefetching) && !perfil.isPending} onRefresh={atualizar} tintColor={theme.colors.champagne} colors={[theme.colors.cherry]} progressBackgroundColor={theme.colors.surface} />}>
       <Cabecalho barra titulo="Perfil" aoVoltar={() => router.replace('/familia')} rotuloVoltar="Voltar para a família" />
       {perfil.isPending ? <Esqueleto /> : !dados ? <EmptyState title="Perfil indisponível" message={perfil.error?.message ?? 'Volte à família e escolha outro perfil.'} action="Tentar novamente" onAction={() => { void perfil.refetch(); }} /> : <>
         <View style={styles.capa}>
-          <LoopVideo name="mn-hero" visible={rolagem < 360} style={[StyleSheet.absoluteFill, { opacity: 0.62 }]} />
+          <LoopVideo name="mn-hero" visible={topoVisivel} style={[StyleSheet.absoluteFill, { opacity: 0.62 }]} />
           <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(23,27,24,0.28)' }]} />
           <LinearGradient colors={['rgba(23,27,24,0.05)', 'rgba(23,27,24,0.35)', theme.colors.background]} locations={[0, 0.42, 1]} style={StyleSheet.absoluteFill} />
         </View>

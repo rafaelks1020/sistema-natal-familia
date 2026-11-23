@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, us
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fundoSeguro } from '../../ui/margem';
 import Plus from 'lucide-react-native/icons/plus';
 import { api } from '../../api';
 import { theme } from '../../theme';
@@ -116,7 +117,7 @@ export default function AlbumScreen() {
               : filtered.length > 0 ? <Text variant="muted" style={styles.center}>Todas as memórias, até a próxima foto.</Text> : null}
       </View>} />
     {/* Com o álbum vazio o próprio estado vazio já convida a postar: o botão flutuante cobriria o texto. */}
-    {filtered.length > 0 ? <View style={[styles.floating, { bottom: Math.max(inset.bottom, 12) + 12 }]}>
+    {filtered.length > 0 ? <View style={[styles.floating, { bottom: Math.max(fundoSeguro(inset.bottom), 12) + 12 }]}>
       <Button accessibilityLabel="Adicionar fotos ao álbum" onPress={goToUpload}
         icon={<Plus size={23} color={theme.colors.ivory} />}>Nova memória</Button>
     </View> : null}

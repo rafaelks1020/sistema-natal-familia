@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fundoSeguro } from '../../ui/margem';
 import { api, API_BASE_URL } from '../../api';
 import { theme } from '../../theme';
 import { Button } from '../../ui/Button';
@@ -26,7 +27,7 @@ export default function MemoriesScreen() {
   const memories = useQuery({ queryKey: ['album', 'memorias'], queryFn: ({ signal }) => api<MemoriesHome>('/api/memorias', { signal }) });
   function open(photos: AlbumItem[], key: string) { setViewer({ key, photos }); }
   async function book(ano: number) { try { await Linking.openURL(`${API_BASE_URL}/memorias/livro/${ano}`); } catch { toast('Não foi possível abrir o livro no navegador.', 'error'); } }
-  return <View style={styles.root}><ScrollView contentContainerStyle={[styles.content, { paddingBottom: inset.bottom + 32 }]}
+  return <View style={styles.root}><ScrollView contentContainerStyle={[styles.content, { paddingBottom: fundoSeguro(inset.bottom) + 32 }]}
     refreshControl={<RefreshControl refreshing={memories.isRefetching} onRefresh={() => { void memories.refetch(); }} tintColor={theme.colors.champagne} />}>
     <View style={styles.cabecalho}><Cabecalho kicker="Cada Natal tem uma história" titulo="Nossas memórias" aoVoltar={() => { if (router.canGoBack()) router.back(); else router.navigate('/'); }} /></View>
     {memories.isPending ? <Skeleton style={{ height: 240 }} /> : memories.isError ? <EmptyState title="As memórias não chegaram" message={memories.error.message} action="Tentar de novo" onAction={() => { void memories.refetch(); }} /> : <>

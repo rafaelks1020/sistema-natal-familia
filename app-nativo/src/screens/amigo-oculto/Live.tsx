@@ -3,6 +3,7 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useIsFocused } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fundoSeguro } from '../../ui/margem';
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { api } from '../../api';
 import { useSession } from '../../session';
@@ -38,7 +39,7 @@ export default function Live() {
     if (live) mutation.send({ path: '/api/secret-santa/live', method: 'POST', json: { action: 'next', atual: live.atual } });
     else Alert.alert('Começar a revelação?', 'Toda a família será avisada. Os palpites e as dicas serão encerrados.', [{ text: 'Aguardar', style: 'cancel' }, { text: 'Começar', onPress: () => mutation.send({ path: '/api/secret-santa/live', method: 'POST', json: { action: 'start' } }) }]);
   }
-  return <ScrollView style={styles.page} contentContainerStyle={[styles.content, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 28 }]}><Text variant="kicker">A noite da ceia</Text><Text variant="display" style={styles.title}>Revelação ao vivo</Text>
+  return <ScrollView style={styles.page} contentContainerStyle={[styles.content, { paddingTop: insets.top + 24, paddingBottom: fundoSeguro(insets.bottom) + 28 }]}><Text variant="kicker">A noite da ceia</Text><Text variant="display" style={styles.title}>Revelação ao vivo</Text>
     {query.isPending ? <Skeleton style={{ height: 300 }} /> : !query.data ? <EmptyState title="A revelação aguarda" message={query.error?.message} action="Tentar novamente" onAction={() => { void query.refetch(); }} /> : pair ? <Reveal key={pair.giver_id} pair={pair} focused={focused} /> : <Surface style={styles.card}><Text variant="displayItalic" style={styles.name}>{live ? 'O primeiro segredo vem aí...' : 'Junte a família'}</Text><Text variant="muted" style={styles.center}>{live ? 'Quem organiza vai anunciar o primeiro par.' : 'A revelação aparece aqui quando quem organiza começar.'}</Text></Surface>}
     {live ? <Text variant="kicker" style={styles.center}>{Math.max(0, live.atual + 1)} de {live.total}{live.encerrado_em ? ' · Todos os segredos revelados' : ''}</Text> : null}
     {query.isError && query.data ? <Text accessibilityRole="alert" variant="muted">Não conseguimos atualizar. Tentando novamente...</Text> : null}

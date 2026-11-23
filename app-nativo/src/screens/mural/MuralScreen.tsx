@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, View, type ListRenderItemInfo, type ListViewToken } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fundoSeguro } from '../../ui/margem';
 import * as Haptics from 'expo-haptics';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import Bell from 'lucide-react-native/icons/bell';
@@ -160,7 +161,7 @@ export function MuralScreen() {
         ItemSeparatorComponent={Separator}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.list, feed.length === 0 && styles.listEmpty, { paddingBottom: insets.bottom + 96 }]}
+        contentContainerStyle={[styles.list, feed.length === 0 && styles.listEmpty, { paddingBottom: fundoSeguro(insets.bottom) + 96 }]}
         refreshControl={<RefreshControl refreshing={mural.refreshing} onRefresh={mural.refresh} tintColor={theme.colors.champagne} colors={[theme.colors.cherry]} progressBackgroundColor={theme.colors.surface} />}
         onEndReachedThreshold={0.45}
         onEndReached={() => {
@@ -183,7 +184,7 @@ export function MuralScreen() {
           <Pressable accessibilityRole="button" accessibilityLabel="Tentar de novo" onPress={() => { void postsQuery.fetchNextPage(); }} style={styles.retry}><Text style={styles.retryLabel}>Tentar de novo</Text></Pressable>
         </View> : postsQuery.isFetchingNextPage ? <View style={styles.footer} accessibilityLabel="Trazendo mais publicações"><Skeleton style={{ height: 18, width: '46%' }} /><Skeleton style={{ height: 140 }} /></View> : undefined}
       />
-      <PublishButton bottom={insets.bottom + 16} onPress={() => setComposer({ mode: 'post', editing: null })} />
+      <PublishButton bottom={fundoSeguro(insets.bottom) + 16} onPress={() => setComposer({ mode: 'post', editing: null })} />
       <ComposerSheet
         visible={composer !== null}
         initialMode={composer?.mode ?? 'post'}

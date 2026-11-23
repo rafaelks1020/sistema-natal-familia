@@ -3,6 +3,7 @@ import { AppState, RefreshControl, ScrollView, StyleSheet, View } from 'react-na
 import { useFocusEffect, useIsFocused } from 'expo-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fundoSeguro } from '../../ui/margem';
 import * as Haptics from 'expo-haptics';
 import Gift from 'lucide-react-native/icons/gift';
 import Eye from 'lucide-react-native/icons/eye';
@@ -130,7 +131,7 @@ function AmigoContent({ user }: { user: User }) {
   const playingReveal = data?.config?.id === celebrating;
   const videoVisible = focused && active && heroVisible;
   return <View style={styles.page}>
-    <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 8, paddingBottom: Math.max(insets.bottom, 24) + 24 }]}
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 8, paddingBottom: Math.max(fundoSeguro(insets.bottom), 24) + 24 }]}
       keyboardShouldPersistTaps="handled" onScroll={event => setHeroVisible(event.nativeEvent.contentOffset.y < heroBottom.current)} scrollEventThrottle={100}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void refresh(); }} tintColor={theme.colors.champagne} colors={[theme.colors.champagne]} />}>
       <BotaoVoltar style={styles.voltar} />

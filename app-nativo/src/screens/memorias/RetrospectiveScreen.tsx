@@ -5,6 +5,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fundoSeguro } from '../../ui/margem';
 import { api } from '../../api';
 import { theme } from '../../theme';
 import { Button } from '../../ui/Button';
@@ -51,7 +52,7 @@ function Stories({ initial }: { initial: Retrospective }) {
   useEffect(() => { if (stopped || index === last) return; const timer = setTimeout(() => advance(1), 6000); return () => clearTimeout(timer); }, [index, last, stopped, advance]);
   if (!slide) return null;
   const photo = slide.photo; const url = photo?.url ?? slide.url;
-  return <View style={[styles.root, { paddingTop: inset.top + 12, paddingBottom: inset.bottom + 16 }]}>
+  return <View style={[styles.root, { paddingTop: inset.top + 12, paddingBottom: fundoSeguro(inset.bottom) + 16 }]}>
     <View style={styles.bars} accessibilityLabel={`Momento ${index + 1} de ${initial.slides.length}`}>
       {initial.slides.map((_, i) => <ProgressBar key={i} complete={i < index || index === last} active={i === index} paused={stopped} />)}
     </View>

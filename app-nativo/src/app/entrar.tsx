@@ -31,6 +31,7 @@ function LoginForm({ invitation }: { invitation: string }) {
   const [form, setForm] = useState<{ name: string | null; username: string; password: string; code: string }>({ name: null, username: '', password: '', code: '' });
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [show, setShow] = useState(false);
+  const [comSenha, setComSenha] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const session = useSession();
@@ -67,12 +68,15 @@ function LoginForm({ invitation }: { invitation: string }) {
     finally { setBusy(false); }
   }
   const invalidInvite = Boolean(invite) && !check.data?.valid;
+  // Quem já entrou neste aparelho vê só o botão da digital: a tela cabe inteira, sem rolar. Usuário e senha ficam a um toque.
+  const travado = session.status === 'locked' && !invite;
+  const mostrarFormulario = !travado || comSenha;
   return <View style={styles.page}>
     <LoopVideo name="mn-login" style={[StyleSheet.absoluteFill, { opacity: 0.75 }]} />
     <LinearGradient colors={['rgba(23,27,24,0.2)', 'rgba(23,27,24,0.65)', theme.colors.background]} locations={[0, 0.32, 1]} style={StyleSheet.absoluteFill} />
     <SafeAreaView style={styles.page} edges={['top', 'bottom', 'left', 'right']}>
       <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
           <View style={styles.column}>
             <Rise style={styles.brand}><Sparkles color={theme.colors.champagne} size={34} strokeWidth={1} />
               <Text variant="kicker">Dezembro de 2026</Text>
@@ -82,10 +86,14 @@ function LoginForm({ invitation }: { invitation: string }) {
               <Text variant="muted">O melhor do Natal é estar perto.</Text>
             </Rise>
             <Rise index={1} style={styles.form}>
-              {session.status === 'locked' && !invite ? <View style={styles.form}>
+              {travado ? <View style={styles.form}>
                 <Button onPress={() => { void unlock(); }} loading={busy} icon={<Fingerprint size={19} color={theme.colors.ivory} />}>Entrar com Face ID/digital</Button>
-                <Text variant="muted" style={styles.center}>ou entre com seu usuário e senha</Text>
+                {comSenha ? <Text variant="muted" style={styles.center}>ou entre com seu usuário e senha</Text> : <>
+                  {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.error}>{error}</Text> : null}
+                  <Button disabled={busy} variant="quiet" onPress={() => { setComSenha(true); setError(''); }}>Entrar com usuário e senha</Button>
+                </>}
               </View> : null}
+              {mostrarFormulario ? <>
               {invite ? <Surface style={styles.invite}>
                 <Text variant="kicker">Você foi convidado</Text>
                 <Text variant="muted" accessibilityLiveRegion="polite">{check.isPending ? 'Conferindo seu convite...' : check.isError ? check.error.message : check.data?.valid
@@ -120,6 +128,7 @@ function LoginForm({ invitation }: { invitation: string }) {
               <Button disabled={busy} variant="quiet" onPress={() => { setMode(current => current === 'login' ? 'register' : 'login'); setError(''); }}>
                 {mode === 'login' ? 'Primeira vez aqui? Cadastrar parente' : 'Já tenho acesso. Entrar'}
               </Button>
+              </> : null}
             </Rise>
           </View>
         </ScrollView>
@@ -128,9 +137,9 @@ function LoginForm({ invitation }: { invitation: string }) {
   </View>;
 }
 const styles = StyleSheet.create({
-  page: { flex: 1 }, scroll: { flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: 24, paddingTop: 48, paddingBottom: 28 },
-  column: { width: '100%', maxWidth: 440, alignSelf: 'center', gap: 32 }, brand: { alignItems: 'center', gap: 14 },
-  title: { fontSize: 58, lineHeight: 66, textAlign: 'center' }, rule: { width: 64, height: 1, backgroundColor: theme.colors.cherry, marginTop: 6 },
+  page: { flex: 1 }, scroll: { flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: 24, paddingTop: 24, paddingBottom: 28 },
+  column: { width: '100%', maxWidth: 440, alignSelf: 'center', gap: 26 }, brand: { alignItems: 'center', gap: 14 },
+  title: { fontSize: 52, lineHeight: 58, textAlign: 'center' }, rule: { width: 64, height: 1, backgroundColor: theme.colors.cherry, marginTop: 6 },
   form: { gap: 14 }, center: { textAlign: 'center' }, invite: { gap: 10, padding: 16 }, hint: { fontSize: 15, lineHeight: 22 },
   normalized: { fontSize: 15, lineHeight: 22, color: theme.colors.champagne }, eye: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   error: { fontSize: 16, lineHeight: 22, color: theme.colors.error },

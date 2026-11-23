@@ -3,6 +3,7 @@ import { Platform, View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
+import { NavigationBar } from 'expo-navigation-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { BodoniModa_500Medium } from '@expo-google-fonts/bodoni-moda/500Medium';
@@ -26,7 +27,7 @@ export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({ BodoniModa_500Medium, BodoniModa_400Regular_Italic, Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold });
   useEffect(() => { if (fontsLoaded || fontError) void SplashScreen.hideAsync(); }, [fontsLoaded, fontError]);
   return <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-    <SafeAreaProvider><StatusBar style="light" />
+    <SafeAreaProvider><StatusBar style="light" />{Platform.OS === 'android' ? <NavigationBar style="light" /> : null}
       {fontError ? <EmptyState title="Não foi possível abrir" message="As fontes locais não puderam ser carregadas. Feche e abra o app novamente." />
         : !fontsLoaded ? <SessionLoading /> : <QueryClientProvider client={queryClient}>
           <ToastProvider><SessionProvider><Routes /></SessionProvider></ToastProvider>
@@ -58,9 +59,15 @@ function Routes() {
     else router.push(rota as never);
     void Notifications.clearLastNotificationResponseAsync();
   }, [ultima, status]);
-  return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background }, animation: reduced ? 'none' : 'fade' }}>
-    <Stack.Protected guard={status === 'guest' || status === 'locked'}><Stack.Screen name="entrar" /></Stack.Protected>
-    <Stack.Protected guard={status === 'authenticated'}><Stack.Screen name="(tabs)" /></Stack.Protected>
+  // Android: a barra dos botões de voltar e início é transparente (plugin expo-navigation-bar) e o app desenha por trás
+  // dela. Cada tela do Stack termina acima da barra, com o fundo do app aparecendo atrás dos botões. As abas e a tela de
+  // entrar já reservam esse espaço sozinhas (barra de abas nativa e SafeAreaView), por isso ficam sem a margem.
+  const { bottom } = useSafeAreaInsets();
+  const fundo = { backgroundColor: theme.colors.background };
+  const comMargem = Platform.OS === 'android' ? { ...fundo, paddingBottom: bottom } : fundo;
+  return <Stack screenOptions={{ headerShown: false, contentStyle: comMargem, animation: reduced ? 'none' : 'fade' }}>
+    <Stack.Protected guard={status === 'guest' || status === 'locked'}><Stack.Screen name="entrar" options={{ contentStyle: fundo }} /></Stack.Protected>
+    <Stack.Protected guard={status === 'authenticated'}><Stack.Screen name="(tabs)" options={{ contentStyle: fundo }} /></Stack.Protected>
     <Stack.Screen name="termos" />
     <Stack.Screen name="privacidade" />
     <Stack.Screen name="+not-found" />

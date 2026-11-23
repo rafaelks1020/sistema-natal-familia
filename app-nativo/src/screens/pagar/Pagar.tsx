@@ -3,6 +3,7 @@ import { AppState, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollVi
 import { router, useFocusEffect } from 'expo-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fundoSeguro } from '../../ui/margem';
 import * as Haptics from 'expo-haptics';
 import ArrowLeft from 'lucide-react-native/icons/arrow-left';
 import Check from 'lucide-react-native/icons/check';
@@ -95,7 +96,7 @@ export default function Pagar() {
     {!linked ? <EmptyState title="Seu lugar na vaquinha" message="Peça a quem organiza para vincular seu acesso a um participante antes de pagar." action="Voltar à vaquinha" onAction={back} />
       : payment.isPending ? <View style={styles.loading}><Skeleton style={{ height: 180 }} /><Skeleton style={{ height: 100 }} /><Skeleton style={{ height: 230 }} /></View>
       : !payment.data ? <EmptyState title="Vamos tentar de novo?" message={payment.error?.message ?? 'Não conseguimos consultar seu pagamento.'} action="Consultar novamente" onAction={() => { void payment.refetch(); }} />
-      : <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 24) + 24 }]}>
+      : <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={[styles.content, { paddingBottom: Math.max(fundoSeguro(insets.bottom), 24) + 24 }]}>
         {paid ? <Rise style={styles.thanks}>
           {confetti && confettiMediaName ? <LoopVideo name={confettiMediaName} once onEnded={() => setConfetti(false)} style={styles.confetti} /> : <View style={styles.paidSeal}><Check size={44} strokeWidth={1.2} color={theme.colors.champagne} /></View>}
           <Text variant="kicker">Sua parte está paga</Text><Text variant="display" style={styles.thanksTitle}>A nossa ceia tem um pouco de você.</Text><Text variant="muted" style={styles.center}>Obrigado por fazer parte desse encontro. Sua contribuição foi confirmada.</Text>
