@@ -233,5 +233,10 @@ Pedido do Rafael: revisar UX, UI, usabilidade e navegação, deixar a gamificaç
 - [x] App Android 1.3.2 (versionCode 10), 23/11: barra de baixo do sistema escura com botões claros (expo-navigation-bar, sem reforço de contraste) e cada tela termina acima dela; entrar com a digital sem rolar; Hoje e Perfil sem redesenhar a cada rolagem; contagem da tela Hoje com imagem parada; filtros do Álbum em duas linhas. Testado no S24 do Rafael pelo cabo e enviado à produção da Play
 - [ ] Play 1.3.2 pública (conferir na loja)
 - [ ] iPhone: levar as mudanças da 1.3.2 que valem para o iPhone (tela de entrar, tela Hoje, filtros do Álbum) num próximo build
+- [x] Jogos testados em produção em 23/11 pela API com a conta de revisão (organizadora só durante o teste): quiz, enquete, bingo, desafio da foto, times, mímica, roleta, "quem é o bebê", karaokê com nota, leituras do telão e do amigo oculto. Travas conferidas (responder duas vezes, votar encerrada, gritar bingo sem linha, foto de fora, voto na própria foto, pontos de time acima de 100, reação seguida). Recálculo deu os pontos certos de cada jogo e as conquistas. Tudo apagado depois e totais conferidos iguais aos de antes
+- [ ] (R) Quiz sem nenhuma pergunta cadastrada: cadastrar as perguntas antes do dia 24 (Festa > Quiz, como organizador)
+- [ ] (R) Amigo oculto sem sorteio: fazer o sorteio (a revelação ao vivo não foi testada de propósito: começar trava o sorteio real e não tem volta pelo sistema)
+- [ ] Não testados: batalha e prova do karaokê, controle do telão numa TV, foto oficial, e as telas dos jogos no celular (só a API)
+- [ ] Cuidado ao testar jogos: começar uma mímica encerra a que estiver aberta, e o recálculo pode revogar e regravar conquistas (com a data do dia). Guardar o estado antes e devolver depois
 - [ ] (R) Decidir: guardar no aparelho as respostas do servidor para o app abrir já com o conteúdo (hoje o app apaga tudo ao travar com a digital, por privacidade)
 - [ ] Ideia: avisar na hora "+5 pontos" com o total atualizado (hoje o total leva até 5 minutos, por causa do recálculo)
