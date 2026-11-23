@@ -236,7 +236,11 @@ Pedido do Rafael: revisar UX, UI, usabilidade e navegação, deixar a gamificaç
 - [x] Jogos testados em produção em 23/11 pela API com a conta de revisão (organizadora só durante o teste): quiz, enquete, bingo, desafio da foto, times, mímica, roleta, "quem é o bebê", karaokê com nota, leituras do telão e do amigo oculto. Travas conferidas (responder duas vezes, votar encerrada, gritar bingo sem linha, foto de fora, voto na própria foto, pontos de time acima de 100, reação seguida). Recálculo deu os pontos certos de cada jogo e as conquistas. Tudo apagado depois e totais conferidos iguais aos de antes
 - [ ] (R) Quiz sem nenhuma pergunta cadastrada: cadastrar as perguntas antes do dia 24 (Festa > Quiz, como organizador)
 - [ ] (R) Amigo oculto sem sorteio: fazer o sorteio (a revelação ao vivo não foi testada de propósito: começar trava o sorteio real e não tem volta pelo sistema)
-- [ ] Não testados: batalha e prova do karaokê, controle do telão numa TV, foto oficial, e as telas dos jogos no celular (só a API)
+- [x] 23/11: as 41 páginas do site passadas com a conta de revisão (erros de página, console e chamadas): só o Advento tinha erro (418 de hidratação na contagem), corrigido e conferido em produção
+- [x] 23/11: 33 telas do app abertas por link no S24 sem fechar o app e sem texto de erro; mural testado pela API (postar 5 pontos, comentar 2, apagar leva comentário, reação e pontos)
+- [ ] App: Receitas, Retrospectiva, Termos e Privacidade não foram vistas no S24 (a cortina de notificações estava aberta e o aparelho saiu do ar)
+- [ ] App: "seg" virou "segundos" na contagem do Advento (entra no próximo build)
+- [ ] Não testados: batalha e prova do karaokê, controle do telão numa TV, foto oficial, álbum com envio de foto, vaquinha com Pix de verdade
 - [ ] Cuidado ao testar jogos: começar uma mímica encerra a que estiver aberta, e o recálculo pode revogar e regravar conquistas (com a data do dia). Guardar o estado antes e devolver depois
 - [ ] (R) Decidir: guardar no aparelho as respostas do servidor para o app abrir já com o conteúdo (hoje o app apaga tudo ao travar com a digital, por privacidade)
 - [ ] Ideia: avisar na hora "+5 pontos" com o total atualizado (hoje o total leva até 5 minutos, por causa do recálculo)

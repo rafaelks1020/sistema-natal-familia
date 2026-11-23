@@ -69,7 +69,7 @@ export default function Advento() {
     ['dias', String(falta.dias)],
     ['horas', dois(falta.horas)],
     ['minutos', dois(falta.minutos)],
-    ['seg', dois(falta.segundos)],
+    ['segundos', dois(falta.segundos)],
   ] as const : [];
 
   return (
