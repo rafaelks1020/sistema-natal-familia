@@ -226,6 +226,9 @@ Pedido do Rafael: revisar UX, UI, usabilidade e navegação, deixar a gamificaç
 - [x] Prints da Play com as abas novas (19/11: Hoje, Meus pontos, Ceia, Festa e Família, tirados no emulador; em `docs/lojas/prints/android/`)
 - [ ] Prints da App Store com as abas novas (só dá para trocar junto com uma versão nova do iPhone, e precisam ser fotos de iPhone)
 - [x] App Android 1.3.1 (versionCode 9), 19/11: ao rolar, o texto não passa mais por trás do relógio e dos ícones da barra de status (faixa da cor do fundo no layout raiz, só no Android). Testado no emulador e enviado à produção da Play
-- [ ] Play 1.3.1 pública (conferir na loja)
+- [x] Play 1.3.1 pública (conferido em 23/11)
+- [x] Aviso no Android provado de ponta a ponta em 23/11: celular de verdade registrado (conta da Denyse), aviso agendado enviado pelo cron de produção e recebido na tela
+- [ ] Aviso no iPhone: nenhum aparelho registrado ainda; a chave da Apple foi aceita, falta o teste num iPhone de verdade
+- [ ] (R) Lançar para a família: convidar as pessoas (hoje só existem 3 contas), configurar o amigo oculto e a meta da vaquinha
 - [ ] Android, telas sem abas: o conteúdo ainda rola por trás dos botões de voltar e início do sistema. Cobrir com faixa escura piora o contraste desses botões; o certo é dar margem inferior do sistema a cada tela
 - [ ] Ideia: avisar na hora "+5 pontos" com o total atualizado (hoje o total leva até 5 minutos, por causa do recálculo)
