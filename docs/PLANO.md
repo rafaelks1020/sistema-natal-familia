@@ -230,5 +230,8 @@ Pedido do Rafael: revisar UX, UI, usabilidade e navegação, deixar a gamificaç
 - [x] Aviso no Android provado de ponta a ponta em 23/11: celular de verdade registrado (conta da Denyse), aviso agendado enviado pelo cron de produção e recebido na tela
 - [ ] Aviso no iPhone: nenhum aparelho registrado ainda; a chave da Apple foi aceita, falta o teste num iPhone de verdade
 - [ ] (R) Lançar para a família: convidar as pessoas (hoje só existem 3 contas), configurar o amigo oculto e a meta da vaquinha
-- [ ] Android, telas sem abas: o conteúdo ainda rola por trás dos botões de voltar e início do sistema. Cobrir com faixa escura piora o contraste desses botões; o certo é dar margem inferior do sistema a cada tela
+- [x] App Android 1.3.2 (versionCode 10), 23/11: barra de baixo do sistema escura com botões claros (expo-navigation-bar, sem reforço de contraste) e cada tela termina acima dela; entrar com a digital sem rolar; Hoje e Perfil sem redesenhar a cada rolagem; contagem da tela Hoje com imagem parada; filtros do Álbum em duas linhas. Testado no S24 do Rafael pelo cabo e enviado à produção da Play
+- [ ] Play 1.3.2 pública (conferir na loja)
+- [ ] iPhone: levar as mudanças da 1.3.2 que valem para o iPhone (tela de entrar, tela Hoje, filtros do Álbum) num próximo build
+- [ ] (R) Decidir: guardar no aparelho as respostas do servidor para o app abrir já com o conteúdo (hoje o app apaga tudo ao travar com a digital, por privacidade)
 - [ ] Ideia: avisar na hora "+5 pontos" com o total atualizado (hoje o total leva até 5 minutos, por causa do recálculo)

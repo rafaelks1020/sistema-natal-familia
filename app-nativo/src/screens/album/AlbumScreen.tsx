@@ -148,7 +148,8 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 }, flex: { flex: 1, minWidth: 0 },
   voltar: { marginBottom: -12 }, hero: { width: '100%', aspectRatio: 16 / 9, borderRadius: theme.radius.card, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.lineStrong },
   countRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, pill: { flexGrow: 1, minWidth: 64, borderRadius: 999, overflow: 'hidden' },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, // Quatro filtros em duas linhas iguais (dois por linha): com a letra grande, um ficava sozinho na segunda linha.
+  pill: { flexGrow: 1, flexBasis: '40%' },
   emptyVideo: { width: 144, height: 112, alignSelf: 'center', borderRadius: theme.radius.card, marginTop: 16 },
   footer: { paddingTop: 18, paddingBottom: 16 }, center: { textAlign: 'center' },
   floating: { position: 'absolute', right: 24 }, skeleton: { flexDirection: 'row', gap: 10 },
