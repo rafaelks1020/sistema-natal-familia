@@ -1,5 +1,6 @@
 import { ok, requireUser, route } from '@/app/lib/api';
 import { query } from '@/app/lib/db';
+import { CONTA_REVISAO_LOJAS } from '@/app/lib/gamificacao/motor';
 import { discardableParticipant } from './link/eligibility';
 
 export const GET = route(async () => {
@@ -13,7 +14,9 @@ export const GET = route(async () => {
            ${me.is_admin ? `, (p.id IS NOT NULL AND ${discardableParticipant}) AS can_link` : ''}
       FROM family_users u FULL OUTER JOIN participants p ON p.user_id = u.id
       LEFT JOIN family_attendance a ON a.participant_id = p.id
-     ORDER BY COALESCE(u.name, p.name), p.id, u.id`, [me.is_admin, me.id]);
+     -- A conta que a Apple e o Google usam para revisar o app não aparece para a família (só para quem organiza).
+     WHERE $1::boolean OR u.name IS DISTINCT FROM $3
+     ORDER BY COALESCE(u.name, p.name), p.id, u.id`, [me.is_admin, me.id, CONTA_REVISAO_LOJAS]);
   return ok(rows.map(({ username, ...member }) =>
     me.is_admin || member.id === me.id ? { ...member, username } : member));
 });
