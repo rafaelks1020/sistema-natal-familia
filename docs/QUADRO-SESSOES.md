@@ -38,6 +38,8 @@ Mudança de código pedida na natal-lojas: pode fazer, mas registra no Diário. 
 
 ## Diário (mais novo em cima, uma linha por coisa)
 
+- 24/11 19:34 sistema natal: mandado à Denyse (WhatsApp pessoal do Rafael, contato "Denyse Amô"): o acesso dela, a mensagem
+  do grupo com o convite e o vídeo da família v2 como documento.
 - 24/11 19:30 sistema natal: RESET do banco de produção para o lançamento (backup antes em
   `/mnt/storage/backups/natal-familia/natal_familia_antes-do-reset_20261124-1923.dump`). Ficaram só as contas do Rafael, da
   Denyse e a de revisão (escondida da lista da família e fora do ranking). Mantidos: configurações da ceia, catálogo do
