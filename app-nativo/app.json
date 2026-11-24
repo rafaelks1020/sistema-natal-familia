@@ -3,7 +3,7 @@
     "name": "Natal em Família",
     "slug": "natal-em-familia",
     "scheme": "natalemfamilia",
-    "version": "1.3.2",
+    "version": "1.3.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -21,7 +21,7 @@
         "NSUserNotificationUsageDescription": "Receba avisos da ceia e novidades da família.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "8",
+      "buildNumber": "9",
       "appleTeamId": "6XKJ3V7VW5",
       "entitlements": {
         "com.apple.security.application-groups": [
@@ -57,7 +57,7 @@
       ],
       "predictiveBackGestureEnabled": false,
       "googleServicesFile": "./google-services.json",
-      "versionCode": 10
+      "versionCode": 11
     },
     "plugins": [
       "expo-router",
