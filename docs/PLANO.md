@@ -231,8 +231,11 @@ Pedido do Rafael: revisar UX, UI, usabilidade e navegação, deixar a gamificaç
 - [ ] Aviso no iPhone: nenhum aparelho registrado ainda; a chave da Apple foi aceita, falta o teste num iPhone de verdade
 - [ ] (R) Lançar para a família: convidar as pessoas (hoje só existem 3 contas), configurar o amigo oculto e a meta da vaquinha
 - [x] App Android 1.3.2 (versionCode 10), 23/11: barra de baixo do sistema escura com botões claros (expo-navigation-bar, sem reforço de contraste) e cada tela termina acima dela; entrar com a digital sem rolar; Hoje e Perfil sem redesenhar a cada rolagem; contagem da tela Hoje com imagem parada; filtros do Álbum em duas linhas. Testado no S24 do Rafael pelo cabo e enviado à produção da Play
-- [ ] Play 1.3.2 pública (conferir na loja)
-- [ ] iPhone: levar as mudanças da 1.3.2 que valem para o iPhone (tela de entrar, tela Hoje, filtros do Álbum) num próximo build
+- [x] Play 1.3.2 pública (conferido em 24/11)
+- [x] iPhone: mudanças da 1.3.2 levadas na 1.3.3
+- [x] App 1.3.3 (versionCode 11, iOS 2611241201), 24/11: Play em produção; Apple enviada à revisão (WAITING_FOR_REVIEW, liberação automática depois da aprovação). Build do iPhone pelo repositório público speeduptidev/ios-build-runner (código e IPA criptografados), porque o Actions pago e o Codemagic estão sem cobrança: ~/natal133/ios-publico.sh rodar
+- [ ] Apple 1.3.3 aprovada e pública
+- [ ] Play 1.3.3 pública (conferir na loja)
 - [x] Jogos testados em produção em 23/11 pela API com a conta de revisão (organizadora só durante o teste): quiz, enquete, bingo, desafio da foto, times, mímica, roleta, "quem é o bebê", karaokê com nota, leituras do telão e do amigo oculto. Travas conferidas (responder duas vezes, votar encerrada, gritar bingo sem linha, foto de fora, voto na própria foto, pontos de time acima de 100, reação seguida). Recálculo deu os pontos certos de cada jogo e as conquistas. Tudo apagado depois e totais conferidos iguais aos de antes
 - [ ] (R) Quiz sem nenhuma pergunta cadastrada: cadastrar as perguntas antes do dia 24 (Festa > Quiz, como organizador)
 - [ ] (R) Amigo oculto sem sorteio: fazer o sorteio (a revelação ao vivo não foi testada de propósito: começar trava o sorteio real e não tem volta pelo sistema)
