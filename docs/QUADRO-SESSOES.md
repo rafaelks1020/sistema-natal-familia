@@ -32,10 +32,16 @@ Mudança de código pedida na natal-lojas: pode fazer, mas registra no Diário. 
   chave de envio) e a conta de revisão: a da Play não instala por cima, é preciso desinstalar antes.
 - **Vídeos de tutorial:** `~/Jobs/Pessoais/natal-video/` (família v2 entregue; organizador v2 em produção em 24/11),
   entregas em `/mnt/storage/entregas/natal-familia/`. Banco de demonstração separado, nunca o de produção.
-- **Conta de revisão** (`revisao.lojas`): fora do ranking. Usada nos testes. Nunca deixar como organizadora.
+- **Conta de revisão** (`revisao.lojas`): fora do ranking e escondida da lista da família (só quem organiza vê). Usada
+  nos testes e pela Apple e pelo Google. Nunca deixar como organizadora. Teste que crie dados tem de ser apagado depois.
+- **Desde 24/11 o banco está em uso real pela família:** nada de teste com dados visíveis sem apagar em seguida.
 
 ## Diário (mais novo em cima, uma linha por coisa)
 
+- 24/11 19:30 sistema natal: RESET do banco de produção para o lançamento (backup antes em
+  `/mnt/storage/backups/natal-familia/natal_familia_antes-do-reset_20261124-1923.dump`). Ficaram só as contas do Rafael, da
+  Denyse e a de revisão (escondida da lista da família e fora do ranking). Mantidos: configurações da ceia, catálogo do
+  karaokê, itens do bingo. Criado o convite "Grupo da família" (sem limite, vale até 23/01/2027), testado com cadastro.
 - 24/11 18:30 sistema natal: criado este quadro; `CLAUDE.md` na raiz do repositório e em `C:\Jobs\Pessoais\natal-lojas`
   passam a mandar ler o quadro.
 - 24/11 ~16:00 natal-lojas: vídeo de tutorial da família v2 entregue no WhatsApp; organizador v2 renderizando.
