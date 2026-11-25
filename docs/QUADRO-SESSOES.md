@@ -38,6 +38,7 @@ Mudança de código pedida na natal-lojas: pode fazer, mas registra no Diário. 
 
 ## Diário (mais novo em cima, uma linha por coisa)
 
+- 25/11 13:20 natal-lojas: cadastro aceita o link ou token do convite colado no campo Código da família (641e24e, no ar e testado). Aviso no grupo do Natal: tocar no link do convite com o app instalado.
 - 25/11 12:33 natal-lojas: vídeo do organizador v2 (40 s) entregue ao Rafael como documento e copiado em /mnt/storage/entregas/natal-familia/.
 - 25/11 12:32 natal-lojas: cobrada a Denyse (zap pessoal do Rafael) para encaminhar a mensagem do convite no grupo da família.
 - 24/11 19:34 sistema natal: mandado à Denyse (WhatsApp pessoal do Rafael, contato "Denyse Amô"): o acesso dela, a mensagem
