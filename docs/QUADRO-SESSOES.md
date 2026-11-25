@@ -38,6 +38,7 @@ Mudança de código pedida na natal-lojas: pode fazer, mas registra no Diário. 
 
 ## Diário (mais novo em cima, uma linha por coisa)
 
+- 25/11 12:32 natal-lojas: cobrada a Denyse (zap pessoal do Rafael) para encaminhar a mensagem do convite no grupo da família.
 - 24/11 19:34 sistema natal: mandado à Denyse (WhatsApp pessoal do Rafael, contato "Denyse Amô"): o acesso dela, a mensagem
   do grupo com o convite e o vídeo da família v2 como documento.
 - 24/11 19:30 sistema natal: RESET do banco de produção para o lançamento (backup antes em
