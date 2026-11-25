@@ -85,16 +85,23 @@ export const POST = route(async (req) => {
   if (action === 'register') {
     if (body.accept_terms !== true) throw new HttpError(400, 'Aceite os Termos de uso e a Política de privacidade para se cadastrar.');
     // Entra por convite (link do organizador) OU pelo código da família.
-    const inviteToken = typeof body.invite === 'string' ? body.invite.trim() : '';
+    let inviteToken = typeof body.invite === 'string' ? body.invite.trim() : '';
     if (!inviteToken) {
       const familyCode = process.env.FAMILY_CODE;
-      if (!familyCode) throw new HttpError(503, 'Cadastro fechado: peça um link de convite para quem organiza.');
       const code = typeof body.code === 'string' ? body.code.trim() : '';
       // Só letras e números contam: maiúscula, espaço, ponto e acento do teclado do celular não atrapalham.
       const norm = (s: string) => s.normalize('NFD').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-      if (!sameText(norm(code), norm(familyCode))) {
-        await registrarFalha(ip, username);
-        throw new HttpError(403, 'Código da família incorreto. Peça para quem organiza.');
+      const bateCodigo = Boolean(familyCode) && sameText(norm(code), norm(familyCode ?? ''));
+      if (!bateCodigo) {
+        // Quem abriu o app direto e colou o link (ou só o token) do convite no campo do código:
+        // vale como convite. A validade é conferida na transação logo abaixo.
+        const doLink = code.match(/convite=([A-Za-z0-9_-]{8,})/)?.[1] ?? (/^[A-Za-z0-9_-]{16,}$/.test(code) ? code : '');
+        if (doLink) inviteToken = doLink;
+        else if (!familyCode) throw new HttpError(503, 'Cadastro fechado: peça um link de convite para quem organiza.');
+        else {
+          await registrarFalha(ip, username);
+          throw new HttpError(403, 'Código da família incorreto. Cole aqui o link do convite que veio no grupo, ou peça para quem organiza.');
+        }
       }
     }
     const name = cleanText(body.name, 'seu nome', 60);
