@@ -30,7 +30,7 @@ Mudança de código pedida na natal-lojas: pode fazer, mas registra no Diário. 
   `D:\natal-build` (memória `testar-app-no-celular`). Disco da VPS acima de 85% faz o `limpa-vps` apagar cache no meio.
 - **Teste do app no celular:** S24 do Rafael no cabo do Notebook (adb). Ele está com uma versão de TESTE (assinada com a
   chave de envio) e a conta de revisão: a da Play não instala por cima, é preciso desinstalar antes.
-- **Vídeos de tutorial:** `~/Jobs/Pessoais/natal-video/` (família v2 entregue; organizador v2 em produção em 24/11),
+- **Vídeos de tutorial:** `~/Jobs/Pessoais/natal-video/` (família v2 entregue; organizador v2 entregue em 25/11),
   entregas em `/mnt/storage/entregas/natal-familia/`. Banco de demonstração separado, nunca o de produção.
 - **Conta de revisão** (`revisao.lojas`): fora do ranking e escondida da lista da família (só quem organiza vê). Usada
   nos testes e pela Apple e pelo Google. Nunca deixar como organizadora. Teste que crie dados tem de ser apagado depois.
@@ -38,6 +38,7 @@ Mudança de código pedida na natal-lojas: pode fazer, mas registra no Diário. 
 
 ## Diário (mais novo em cima, uma linha por coisa)
 
+- 25/11 12:33 natal-lojas: vídeo do organizador v2 (40 s) entregue ao Rafael como documento e copiado em /mnt/storage/entregas/natal-familia/.
 - 25/11 12:32 natal-lojas: cobrada a Denyse (zap pessoal do Rafael) para encaminhar a mensagem do convite no grupo da família.
 - 24/11 19:34 sistema natal: mandado à Denyse (WhatsApp pessoal do Rafael, contato "Denyse Amô"): o acesso dela, a mensagem
   do grupo com o convite e o vídeo da família v2 como documento.
