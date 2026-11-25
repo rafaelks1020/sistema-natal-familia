@@ -28,5 +28,11 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/teste-repasse",
+      "destination": "https://arquivos.natalemfamilia.com.br/saude"
+    }
   ]
 }
