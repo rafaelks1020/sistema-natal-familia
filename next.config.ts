@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
       { source: '/amigo-oculto-ao-vivo', destination: '/amigo-oculto/ao-vivo', permanent: false },
     ];
   },
+  // Fotos (app e site) vão direto para o servidor de arquivos na VPS: a Vercel só repassa, sem o limite de 4,5 MB
+  // das funções (foto inteira do iPhone falhava como "sem internet"). Lá confere o login, reduz e grava.
+  async rewrites() {
+    return { beforeFiles: [{ source: '/api/upload', destination: 'https://arquivos.natalemfamilia.com.br/app-upload' }], afterFiles: [], fallback: [] };
+  },
   images: {
     // Fotos da família ficam no Vercel Blob; o otimizador entrega no tamanho da tela (AVIF/WebP).
     remotePatterns: [{ protocol: 'https', hostname: '*.public.blob.vercel-storage.com' }, { protocol: 'https', hostname: 'arquivos.natalemfamilia.com.br', pathname: '/f/**' }, { protocol: 'https', hostname: 'natal.169-58-196-17.sslip.io', pathname: '/f/**' }],
