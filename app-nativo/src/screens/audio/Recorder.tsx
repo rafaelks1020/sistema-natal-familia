@@ -9,6 +9,7 @@ import { Button } from '../../ui/Button';
 import { Text } from '../../ui/Text';
 import { useToast } from '../../ui/Toast';
 import { AudioPlayer, tempo } from './Player';
+import { arquivoParaEnvio } from '../../upload';
 
 // Voz mono a 32 kbps: uns 15 minutos cabem no limite de 4,5 MB por envio da Vercel.
 const options = { ...RecordingPresets.HIGH_QUALITY, numberOfChannels: 1, bitRate: 32000, sampleRate: 22050 };
@@ -27,7 +28,7 @@ export function AudioRecorder({ value, onChange, onBusy }: { value: string; onCh
       const local = new File(file.uri);
       if (!local.exists || !local.size || local.size > 4.3 * 1024 * 1024) throw new Error('Escolha ou grave um áudio de até 4 MB (uns 15 minutos).');
       const form = new FormData();
-      form.append('file', { uri: file.uri, type: file.type, name: file.name } as unknown as Blob);
+      form.append('file', arquivoParaEnvio(file.uri, file.name, file.type));
       return api<{ url: string }>('/api/upload/audio', { method: 'POST', body: form, timeoutMs: 120000 });
     },
     onMutate: () => onBusy(true),

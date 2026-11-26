@@ -1,6 +1,17 @@
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { File } from 'expo-file-system';
 import { api, ApiError } from './api';
+
+/**
+ * Arquivo local pronto para FormData. O Expo 58 troca o fetch global pelo expo/fetch, que NÃO aceita o formato
+ * antigo do React Native ({ uri, name, type }): lança "Unsupported FormDataPart implementation" e o app mostrava
+ * "Não foi possível conectar". O expo/fetch lê a parte pelo bytes(), e usa name e type nos cabeçalhos da parte.
+ */
+export function arquivoParaEnvio(uri: string, name: string, type: string): Blob {
+  const local = new File(uri);
+  return { name, type, bytes: () => local.bytes() } as unknown as Blob;
+}
 
 // Fotos do app: escolher (câmera ou galeria), reduzir no aparelho e enviar para /api/upload.
 // Lado maior 1600 px em JPEG 0,82: foto de 8 MB vira ~300 KB e sobe rápido no 4G.
@@ -52,12 +63,12 @@ async function reduzir(foto: FotoLocal, lado = 1600): Promise<string> {
   return salva.uri;
 }
 
-/** Reduz e envia uma foto. Devolve a URL pública (Vercel Blob) para usar nos posts, gastos e perfil. */
+/** Reduz e envia uma foto. Devolve a URL pública (armazenamento da VPS) para usar nos posts, gastos e perfil. */
 export async function enviarFoto(foto: FotoLocal): Promise<string> {
   const uri = await reduzir(foto).catch(() => foto.uri);
   const form = new FormData();
   // React Native aceita { uri, name, type } como arquivo no FormData.
-  form.append('file', { uri, name: `foto-${Date.now()}.jpg`, type: 'image/jpeg' } as unknown as Blob);
+  form.append('file', arquivoParaEnvio(uri, `foto-${Date.now()}.jpg`, 'image/jpeg'));
   const { url } = await api<{ url: string }>('/api/upload', { method: 'POST', body: form, timeoutMs: 60000 });
   return url;
 }
