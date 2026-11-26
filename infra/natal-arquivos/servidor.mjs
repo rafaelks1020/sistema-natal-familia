@@ -132,6 +132,7 @@ async function envioApp(req, res) {
   const declarado = Number(req.headers['content-length']);
   if (Number.isFinite(declarado) && declarado > MAX_FOTO) return erroApp(res, 413, 'A foto passou de 40 MB.');
   const userId = await quemEsta(req);
+  req.usuarioId = userId;
   if (!userId) { req.resume(); return erroApp(res, 401, 'Entre com seu usuário para continuar.'); }
 
   const partes = [];
@@ -178,9 +179,21 @@ async function envioApp(req, res) {
   }
 }
 
+// Uma linha por envio de foto (journalctl -u natal-arquivos): mostra se o pedido chegou, de qual aparelho e como terminou.
+// Não escuta 'data' aqui: isso faria o corpo correr antes de envioApp terminar de conferir o login e perder pedaços.
+function registrarEnvio(req, res) {
+  const inicio = Date.now();
+  const linha = (como) => console.log(`app-upload ${como} status=${res.statusCode} ms=${Date.now() - inicio}`
+    + ` usuario=${req.usuarioId ?? '-'} declarado=${req.headers['content-length'] ?? '-'} te=${req.headers['transfer-encoding'] ?? '-'}`
+    + ` vercel=${req.headers['x-vercel-id'] ?? '-'} ua=${JSON.stringify(String(req.headers['user-agent'] || '').slice(0, 90))}`);
+  res.on('finish', () => linha('fim'));
+  res.on('close', () => { if (!res.writableFinished) linha('cortado'); });
+}
+
 createServer((req, res) => {
   cors(req, res);
   const u = new URL(req.url, 'http://x');
+  if (u.pathname === '/app-upload') registrarEnvio(req, res);
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
   if (u.pathname === '/saude') return fim(res, 200, { ok: true });
   if (req.method === 'POST' && u.pathname === '/app-upload') return envioApp(req, res).catch((e) => { console.error('erro', e?.message); if (!res.headersSent) fim(res, 500, { error: 'Erro interno.' }); });

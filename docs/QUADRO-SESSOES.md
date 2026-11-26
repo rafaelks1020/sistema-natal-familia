@@ -38,6 +38,7 @@ Mudança de código pedida na natal-lojas: pode fazer, mas registra no Diário. 
 
 ## Diário (mais novo em cima, uma linha por coisa)
 
+- 26/11 07:55 sistema natal: FOTOS no iPhone da Deisy ainda falham (perfil e mural, "não foi possível conectar"), mesmo depois do repasse à VPS. Testado o caminho /api/upload pela Vercel (Frankfurt e São Paulo, rápido, lento, até 10 MB): tudo 200. Só falha corpo SEM tamanho declarado (chunked) acima de ~4 MB: a Vercel devolve 502 ROUTER_EXTERNAL_TARGET_CONNECTION_ERROR. O natal-arquivos agora registra cada envio (`journalctl -u natal-arquivos | grep app-upload`) para ver a próxima tentativa dela.
 - 25/11 13:45 natal-lojas: FOTOS. iPhone falhava como "sem internet" (foto inteira passava de 4,5 MB e a Vercel cortava). /api/upload agora é repassado (rewrite) ao natal-arquivos na VPS (POST /app-upload: confere login no /api/auth, reduz a 1600 px, lê HEIC, grava na Storage Box). Vale para app e site, sem versão nova. Código do serviço versionado em infra/natal-arquivos (54cc28f).
 - 25/11 13:20 natal-lojas: cadastro aceita o link ou token do convite colado no campo Código da família (641e24e, no ar e testado). Aviso no grupo do Natal: tocar no link do convite com o app instalado.
 - 25/11 12:33 natal-lojas: vídeo do organizador v2 (40 s) entregue ao Rafael como documento e copiado em /mnt/storage/entregas/natal-familia/.
