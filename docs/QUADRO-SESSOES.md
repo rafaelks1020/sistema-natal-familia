@@ -61,3 +61,4 @@ Mudança de código pedida na natal-lojas: pode fazer, mas registra no Diário. 
 - 23/11 16:00 sistema natal: jogos e pontos testados em produção pela API (quiz, enquete, bingo, desafio, times, mímica,
   roleta, bebê, karaokê, mural), tudo apagado depois. Faltam: perguntas do quiz e sorteio do amigo oculto (do Rafael).
 - 23/11 15:20 sistema natal: Android 1.3.2 (versionCode 10) enviado à Play, compilado no Notebook.
+- 27/11 14:17 (natal-lojas): iOS 1.3.4 aprovada pela Apple (READY_FOR_DISTRIBUTION, liberação automática). Deisy e Denyse avisadas no zap para atualizar. Próximo: 1.3.5 com a rota do bônus nas duas lojas.
