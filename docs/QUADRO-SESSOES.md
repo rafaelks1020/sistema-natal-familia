@@ -21,6 +21,7 @@ Mudança de código pedida na natal-lojas: pode fazer, mas registra no Diário. 
 
 ## Onde está cada coisa (atualizar quando mudar)
 
+- 27/11 02:55 natal-lojas: aviso push "Campeão do Natal" agendado (admin_scheduled_pushes id 2) para 27/11 09:00, todos menos revisao.lojas; sai pelo cron frequente.
 - **Versões publicadas:** Android e iPhone na **1.3.3** (versionCode 11, build iOS 9), enviadas em 24/11. A 1.3.3 já
   inclui tudo da 1.3.1 e da 1.3.2. Conferir: Apple pela API (`asc.py`), Play pela página pública da loja.
 - **Build do iPhone:** repositório PÚBLICO e criptografado `speeduptidev/ios-build-runner`, script
