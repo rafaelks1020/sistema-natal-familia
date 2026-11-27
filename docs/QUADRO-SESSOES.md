@@ -21,6 +21,7 @@ Mudança de código pedida na natal-lojas: pode fazer, mas registra no Diário. 
 
 ## Onde está cada coisa (atualizar quando mudar)
 
+- 27/11 03:40 natal-lojas: bônus surpresa na notificação (ce4afa4): admin em /admin/notificacoes dispara push com pontos, resgate em /bonus/<codigo> (site e app), motor regra bonus_notificacao. Migração 051 aplicada em produção. App precisa da 1.3.5 para abrir /bonus (mandar depois da aprovação da 1.3.4 na Apple). Ainda NÃO disparado.
 - 27/11 02:55 natal-lojas: aviso push "Campeão do Natal" agendado (admin_scheduled_pushes id 2) para 27/11 09:00, todos menos revisao.lojas; sai pelo cron frequente.
 - **Versões publicadas:** Android e iPhone na **1.3.3** (versionCode 11, build iOS 9), enviadas em 24/11. A 1.3.3 já
   inclui tudo da 1.3.1 e da 1.3.2. Conferir: Apple pela API (`asc.py`), Play pela página pública da loja.
