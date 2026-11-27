@@ -134,6 +134,8 @@ const TABELAS_CONHECIDAS = [
   'karaoke_prova',
   'karaoke_prova_tentativas',
   'user_blocks',
+  'push_bonus',
+  'push_bonus_resgates',
 ] as const;
 
 export interface EsquemaBanco {
@@ -1679,6 +1681,46 @@ export async function coletarDadosEdicao(
             ocorreu_em: iso,
           });
         }
+      }
+    })(),
+
+    // 9b) Bônus surpresa da notificação (push_bonus_resgates). Uma vez por bônus e pessoa (ref = bonus:<id>).
+    // A conta de revisão das lojas não pontua; os excluídos da competição são filtrados no ranking.
+    (async () => {
+      if (!tem(e, 'push_bonus_resgates', 'bonus_id', 'user_id', 'resgatado_em')
+          || !tem(e, 'push_bonus', 'id', 'titulo', 'pontos')) {
+        return;
+      }
+      const { rows } = await q<{
+        bonus_id: number;
+        user_id: number;
+        titulo: string | null;
+        pontos: number;
+        ocorreu: Date | string;
+      }>(
+        `SELECT r.bonus_id, r.user_id, b.titulo, b.pontos,
+                ${tsSQL(e, 'push_bonus_resgates', 'r', 'resgatado_em')} AS ocorreu
+           FROM push_bonus_resgates r
+           JOIN push_bonus b ON b.id = r.bonus_id
+           JOIN family_users u ON u.id = r.user_id
+          WHERE u.name <> $1
+            AND ${tsSQL(e, 'push_bonus_resgates', 'r', 'resgatado_em')} <= $2::timestamptz
+          ORDER BY r.bonus_id, r.user_id`,
+        [CONTA_REVISAO_LOJAS, encerraIso],
+      );
+      for (const r of rows) {
+        const uid = Number(r.user_id);
+        const iso = paraISO(r.ocorreu);
+        if (!metricaDe(uid) || !dentroDaJanela(iso)) continue;
+        fatos.push({
+          user_id: uid,
+          origem: 'brincadeira',
+          regra: 'bonus_notificacao',
+          ref: `bonus:${r.bonus_id}`,
+          pontos: Number(r.pontos),
+          descricao: r.titulo?.trim() ? `Bônus surpresa: ${resumir(r.titulo, 40)}` : 'Bônus surpresa da notificação',
+          ocorreu_em: iso,
+        });
       }
     })(),
 

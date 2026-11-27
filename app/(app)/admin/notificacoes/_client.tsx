@@ -6,6 +6,7 @@ import { api } from '@/app/ui/client';
 import { useToast } from '@/app/ui/toast';
 import { Loading } from '../../familia/_components/shared';
 import { formatarData } from '../_lib';
+import BonusNotificacao from './_bonus';
 
 type Aparelho = { plataforma: string; last_seen_at: string };
 type Pessoa = { id: number; nome: string; aparelhos: Aparelho[] };
@@ -122,6 +123,8 @@ export default function NotificacoesClient() {
                 {busy ? 'Enviando...' : 'Mandar notificação de teste para mim'}
               </button>
             </section>
+
+            <BonusNotificacao />
           </>
         )}
       </div>

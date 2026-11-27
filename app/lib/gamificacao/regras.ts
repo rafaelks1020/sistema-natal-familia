@@ -44,6 +44,7 @@ export const REGRAS_VISTAS: RegraVista[] = [
   { regra: 'desafio_vencedor', origem: 'brincadeira', titulo: 'Foto mais votada do Desafio', pontos: '40', teto: null },
   { regra: 'enquete', origem: 'brincadeira', titulo: 'Votar em enquete ao vivo ou do mural', pontos: '2', teto: '1 por enquete' },
   { regra: 'jogo_festa', origem: 'brincadeira', titulo: 'Jogos da festa (participar / vencer)', pontos: '5 / 30', teto: null },
+  { regra: 'bonus_notificacao', origem: 'brincadeira', titulo: 'Bônus surpresa: tocar na notificação com pontos', pontos: 'definido em cada aviso', teto: '1 por aviso' },
   { regra: 'karaoke', origem: 'karaoke', titulo: 'Cantar no karaokê (Fácil x0,5, Normal x1, Difícil x1,2)', pontos: 'nota ajustada', teto: 'melhor nota por música, até 10 por dia' },
   { regra: 'karaoke_dueto', origem: 'karaoke', titulo: 'Dueto no karaokê (os dois recebem a nota)', pontos: 'nota ajustada', teto: 'conta no limite de 10 por dia' },
   { regra: 'karaoke_batalha', origem: 'karaoke', titulo: 'Vencer uma batalha de karaokê', pontos: '30', teto: null },

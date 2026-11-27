@@ -70,7 +70,7 @@ const ROTAS_DO_APP = new Set([
   'mural', 'amigo-oculto', 'vaquinha', 'album', 'admin', 'advento', 'amigo-oculto-ao-vivo', 'arvore', 'capsula', 'caronas', 'cartao', 'ceia',
   'conquistas', 'conta', 'contas-da-ceia', 'convidar', 'convites', 'familia', 'festa', 'festa-bingo', 'festa-desafio', 'festa-enquete',
   'festa-foto-oficial', 'festa-quiz', 'historias', 'homenagem', 'memorias', 'natal', 'organizar', 'pagar', 'playlist', 'privacidade',
-  'receitas', 'retrospectiva', 'termos', 'pontos', 'missoes', 'aba-ceia', 'aba-festa', 'aba-familia', 'aba-eu',
+  'receitas', 'retrospectiva', 'termos', 'pontos', 'missoes', 'bonus', 'aba-ceia', 'aba-festa', 'aba-familia', 'aba-eu',
 ]);
 // Telas que só existem no site e no app viram a mais próxima (hoje o app tem todas).
 const ROTAS_EQUIVALENTES: Record<string, string> = {};

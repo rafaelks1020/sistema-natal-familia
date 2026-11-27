@@ -477,3 +477,45 @@ test('guia de pontos: conta o que já foi feito hoje e na edição, e some depoi
   assert.deepEqual(sugestoesDePontos([], new Date('2026-10-31T23:00:00-03:00'), janela), []);
   for (const s of lista) assert.ok(s.pontos > 0 && s.limite > 0 && s.href.startsWith('/'));
 });
+
+test('bônus surpresa da notificação: soma no total, resgate duplicado não conta duas vezes e respeita a janela', () => {
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  const bonus = (user_id, bonus_id, pontos, ocorreu_em) => ({
+    user_id, origem: 'brincadeira', regra: 'bonus_notificacao', ref: `bonus:${bonus_id}`, pontos,
+    descricao: 'Bônus surpresa: Surpresa de Natal', ocorreu_em,
+  });
+  const fatos = [
+    bonus(1, 7, 50, '2026-11-20T12:00:00-03:00'),
+    bonus(1, 7, 50, '2026-11-20T12:00:05-03:00'), // mesmo resgate lido duas vezes: conta uma só
+    bonus(1, 8, 30, '2026-11-21T09:00:00-03:00'), // outro bônus: soma
+    bonus(2, 7, 50, '2026-11-20T12:30:00-03:00'),
+    bonus(2, 9, 40, '2026-10-31T23:00:00-03:00'), // antes da edição: fora
+    bonus(2, 10, 40, '2026-12-25T10:00:00-03:00'), // depois do encerramento: fora
+  ];
+  const gerados = aplicarTetosFatos(fatos, JANELA_2026);
+  const doBonus = gerados.filter((g) => g.regra === 'bonus_notificacao');
+  assert.equal(doBonus.length, 3);
+  assert.deepEqual(doBonus.filter((g) => g.user_id === 1).map((g) => g.ref), ['bonus:7', 'bonus:8']);
+  assert.equal(doBonus.filter((g) => g.user_id === 1).reduce((s, g) => s + g.pontos, 0), 80);
+
+  const totais = new Map();
+  for (const g of gerados) totais.set(g.user_id, (totais.get(g.user_id) ?? 0) + g.pontos);
+  const ranking = montarRanking(
+    [{ id: 1, nome: 'Ana', avatar_url: null }, { id: 2, nome: 'Bia', avatar_url: null }],
+    totais, new Map(),
+  );
+  assert.equal(ranking.find((l) => l.user_id === 1).total, 80);
+  assert.equal(ranking.find((l) => l.user_id === 2).total, 50);
+
+  // O admin pode anular o bônus de uma pessoa sem mexer no das outras.
+  const anulados = new Map([[2, new Set(['bonus_notificacao|bonus:7'])]]);
+  const semBia = aplicarTetosFatos(fatos, { ...JANELA_2026, anulados });
+  assert.equal(semBia.filter((g) => g.user_id === 2).length, 0);
+  assert.equal(semBia.filter((g) => g.user_id === 1).length, 2);
+
+  // A fonte de pontos existe no motor e a regra aparece na tabela pública.
+  const motor = fs.readFileSync(path.join(dir, 'motor.ts'), 'utf8');
+  assert.match(motor, /FROM push_bonus_resgates r/);
+  assert.match(motor, /'push_bonus_resgates'/);
+  assert.match(fs.readFileSync(path.join(dir, 'regras.ts'), 'utf8'), /regra: 'bonus_notificacao'/);
+});
